@@ -7,7 +7,7 @@ COPY frontend/ ./
 RUN npm run build
 
 # Stage 2: the API, which also serves the built frontend
-FROM python:3.12-slim
+FROM python:3.15-slim
 WORKDIR /app
 COPY backend/requirements.txt ./backend/requirements.txt
 # Generous timeouts and retries: a slow connection to PyPI otherwise fails the build with a read timeout
