@@ -1,0 +1,4056 @@
+{
+ "journey": [
+  {
+   "lesson": "journey",
+   "id": "dns",
+   "title": "Users still reach the dead server",
+   "brief": "You moved the site to a new IP an hour ago and shut the old server down. About 40% of users still see timeouts.",
+   "clues": {
+    "logs": "New server healthy. All its traffic comes from users whose resolvers already refreshed.",
+    "metrics": "Requests to the new IP rise slowly. The old IP still receives about 40% of attempts.",
+    "traces": "Failures are connection timeouts to the old IP, not application errors.",
+    "deploys": "DNS record changed 50 minutes ago. TTL on the record is 86,400 seconds.",
+    "deps": "The old server was powered off at the same time as the DNS change."
+   },
+   "acts": [
+    [
+     "revive",
+     "fix",
+     "Bring the old server back, or forward its traffic, until caches expire"
+    ],
+    [
+     "restartnew",
+     "wr",
+     "Restart the new server",
+     "It is healthy. Nothing changes."
+    ],
+    [
+     "scale",
+     "wr",
+     "Add more servers on the new IP",
+     "The failing users never reach the new IP."
+    ],
+    [
+     "flush",
+     "band",
+     "Ask users to flush their DNS cache",
+     "A few users recover, most never see the message."
+    ],
+    [
+     "cdn",
+     "wr",
+     "Purge the CDN cache",
+     "This is a DNS problem, not a content problem."
+    ]
+   ],
+   "need": [
+    "revive"
+   ],
+   "par": 6,
+   "learn": "DNS answers are cached for as long as the TTL says. Lower the TTL before a planned move, and keep the old endpoint alive until it expires.",
+   "max": 12,
+   "start": 60,
+   "rise": 6,
+   "level": 1,
+   "name": "One failure"
+  },
+  {
+   "lesson": "journey",
+   "id": "dns+conn",
+   "level": 2,
+   "name": "Double trouble",
+   "title": "Double trouble: Users still reach the dead server, and connection errors under load",
+   "brief": "Two separate things are broken at the same time. First: You moved the site to a new IP an hour ago and shut the old server down. About 40% of users still see timeouts. Second: Calls to a partner API fail with \"cannot assign requested address\" whenever traffic rises.",
+   "clues": {
+    "logs": "New server healthy. All its traffic comes from users whose resolvers already refreshed. ALSO: connect: cannot assign requested address, thousands of times a minute.",
+    "metrics": "Requests to the new IP rise slowly. The old IP still receives about 40% of attempts. ALSO: TIME_WAIT sockets: 28,000. New connections per second: 900.",
+    "traces": "Failures are connection timeouts to the old IP, not application errors. ALSO: Every request opens a new TCP and TLS connection.",
+    "deploys": "DNS record changed 50 minutes ago. TTL on the record is 86,400 seconds. ALSO: HTTP client library upgraded yesterday. The keep-alive default changed.",
+    "deps": "The old server was powered off at the same time as the DNS change. ALSO: Partner API is healthy with 40 ms latency."
+   },
+   "acts": [
+    [
+     "a_revive",
+     "fix",
+     "Bring the old server back, or forward its traffic, until caches expire"
+    ],
+    [
+     "a_restartnew",
+     "wr",
+     "Restart the new server",
+     "It is healthy. Nothing changes."
+    ],
+    [
+     "a_scale",
+     "wr",
+     "Add more servers on the new IP",
+     "The failing users never reach the new IP."
+    ],
+    [
+     "a_flush",
+     "band",
+     "Ask users to flush their DNS cache",
+     "A few users recover, most never see the message."
+    ],
+    [
+     "a_cdn",
+     "wr",
+     "Purge the CDN cache",
+     "This is a DNS problem, not a content problem."
+    ],
+    [
+     "b_pool",
+     "fix",
+     "Turn on keep-alive and use a connection pool"
+    ],
+    [
+     "b_restart",
+     "band",
+     "Restart the service",
+     "Sockets clear, then fill up again."
+    ],
+    [
+     "b_partner",
+     "wr",
+     "Ask the partner to scale up",
+     "They are healthy. The limit is on your side."
+    ],
+    [
+     "b_timeout",
+     "wr",
+     "Increase the request timeout",
+     "This is not a timeout."
+    ],
+    [
+     "b_servers",
+     "band",
+     "Add more app servers",
+     "Spreads the load for a while, but each still opens one connection per request."
+    ]
+   ],
+   "need": [
+    "a_revive",
+    "b_pool"
+   ],
+   "par": 9,
+   "max": 16,
+   "start": 55,
+   "rise": 6,
+   "learn": "DNS answers are cached for as long as the TTL says. Lower the TTL before a planned move, and keep the old endpoint alive until it expires. Opening a connection per request wastes round trips and exhausts ports. Reuse connections with keep-alive and pooling."
+  }
+ ],
+ "net": [
+  {
+   "lesson": "net",
+   "id": "conn",
+   "title": "Connection errors under load",
+   "brief": "Calls to a partner API fail with \"cannot assign requested address\" whenever traffic rises.",
+   "clues": {
+    "logs": "connect: cannot assign requested address, thousands of times a minute.",
+    "metrics": "TIME_WAIT sockets: 28,000. New connections per second: 900.",
+    "traces": "Every request opens a new TCP and TLS connection.",
+    "deploys": "HTTP client library upgraded yesterday. The keep-alive default changed.",
+    "deps": "Partner API is healthy with 40 ms latency."
+   },
+   "acts": [
+    [
+     "pool",
+     "fix",
+     "Turn on keep-alive and use a connection pool"
+    ],
+    [
+     "restart",
+     "band",
+     "Restart the service",
+     "Sockets clear, then fill up again."
+    ],
+    [
+     "partner",
+     "wr",
+     "Ask the partner to scale up",
+     "They are healthy. The limit is on your side."
+    ],
+    [
+     "timeout",
+     "wr",
+     "Increase the request timeout",
+     "This is not a timeout."
+    ],
+    [
+     "servers",
+     "band",
+     "Add more app servers",
+     "Spreads the load for a while, but each still opens one connection per request."
+    ]
+   ],
+   "need": [
+    "pool"
+   ],
+   "par": 6,
+   "learn": "Opening a connection per request wastes round trips and exhausts ports. Reuse connections with keep-alive and pooling.",
+   "max": 12,
+   "start": 60,
+   "rise": 6,
+   "level": 1,
+   "name": "One failure"
+  },
+  {
+   "lesson": "net",
+   "id": "conn+threads",
+   "level": 2,
+   "name": "Double trouble",
+   "title": "Double trouble: Connection errors under load, and quiet CPU, dead service",
+   "brief": "Two separate things are broken at the same time. First: Calls to a partner API fail with \"cannot assign requested address\" whenever traffic rises. Second: The service stops answering but CPU sits at 3%.",
+   "clues": {
+    "logs": "connect: cannot assign requested address, thousands of times a minute. ALSO: All 200 worker threads are blocked in read() on the inventory client.",
+    "metrics": "TIME_WAIT sockets: 28,000. New connections per second: 900. ALSO: CPU 3%. Threads 200 of 200. Request queue growing.",
+    "traces": "Every request opens a new TCP and TLS connection. ALSO: Calls to the inventory service take over 60 seconds.",
+    "deploys": "HTTP client library upgraded yesterday. The keep-alive default changed. ALSO: No deploys in the last week.",
+    "deps": "Partner API is healthy with 40 ms latency. ALSO: Inventory service has been degraded for two minutes."
+   },
+   "acts": [
+    [
+     "a_pool",
+     "fix",
+     "Turn on keep-alive and use a connection pool"
+    ],
+    [
+     "a_restart",
+     "band",
+     "Restart the service",
+     "Sockets clear, then fill up again."
+    ],
+    [
+     "a_partner",
+     "wr",
+     "Ask the partner to scale up",
+     "They are healthy. The limit is on your side."
+    ],
+    [
+     "a_timeout",
+     "wr",
+     "Increase the request timeout",
+     "This is not a timeout."
+    ],
+    [
+     "a_servers",
+     "band",
+     "Add more app servers",
+     "Spreads the load for a while, but each still opens one connection per request."
+    ],
+    [
+     "b_timeout",
+     "fix",
+     "Add timeouts and a circuit breaker around the inventory call"
+    ],
+    [
+     "b_cpu",
+     "wr",
+     "Move to a bigger VM with more CPU",
+     "CPU is idle. The threads are waiting."
+    ],
+    [
+     "b_pool",
+     "wr",
+     "Raise the thread pool to 2,000",
+     "It only takes longer to fill up."
+    ],
+    [
+     "b_gc",
+     "wr",
+     "Tune the garbage collector",
+     "Memory is fine."
+    ]
+   ],
+   "need": [
+    "a_pool",
+    "b_timeout"
+   ],
+   "par": 9,
+   "max": 16,
+   "start": 55,
+   "rise": 6,
+   "learn": "Opening a connection per request wastes round trips and exhausts ports. Reuse connections with keep-alive and pooling. Blocking calls with no timeout turn one slow dependency into a full outage. Always bound the wait."
+  }
+ ],
+ "os": [
+  {
+   "lesson": "os",
+   "id": "threads",
+   "title": "Quiet CPU, dead service",
+   "brief": "The service stops answering but CPU sits at 3%.",
+   "clues": {
+    "logs": "All 200 worker threads are blocked in read() on the inventory client.",
+    "metrics": "CPU 3%. Threads 200 of 200. Request queue growing.",
+    "traces": "Calls to the inventory service take over 60 seconds.",
+    "deploys": "No deploys in the last week.",
+    "deps": "Inventory service has been degraded for two minutes."
+   },
+   "acts": [
+    [
+     "timeout",
+     "fix",
+     "Add timeouts and a circuit breaker around the inventory call"
+    ],
+    [
+     "restart",
+     "band",
+     "Restart the service",
+     "Threads free up, then block again."
+    ],
+    [
+     "cpu",
+     "wr",
+     "Move to a bigger VM with more CPU",
+     "CPU is idle. The threads are waiting."
+    ],
+    [
+     "pool",
+     "wr",
+     "Raise the thread pool to 2,000",
+     "It only takes longer to fill up."
+    ],
+    [
+     "gc",
+     "wr",
+     "Tune the garbage collector",
+     "Memory is fine."
+    ]
+   ],
+   "need": [
+    "timeout"
+   ],
+   "par": 6,
+   "learn": "Blocking calls with no timeout turn one slow dependency into a full outage. Always bound the wait.",
+   "max": 12,
+   "start": 60,
+   "rise": 6,
+   "level": 1,
+   "name": "One failure"
+  },
+  {
+   "lesson": "os",
+   "id": "threads+replag",
+   "level": 2,
+   "name": "Double trouble",
+   "title": "Double trouble: Quiet CPU, dead service, and posts vanish after refresh",
+   "brief": "Two separate things are broken at the same time. First: The service stops answering but CPU sits at 3%. Second: Users post a comment, refresh, and it is gone. A few seconds later it reappears.",
+   "clues": {
+    "logs": "All 200 worker threads are blocked in read() on the inventory client. ALSO: Writes succeed on the leader. Read requests are served by followers.",
+    "metrics": "CPU 3%. Threads 200 of 200. Request queue growing. ALSO: Replication lag is 3 to 8 seconds on every follower.",
+    "traces": "Calls to the inventory service take over 60 seconds. ALSO: The read after the post is routed to a follower that has not applied it yet.",
+    "deploys": "No deploys in the last week. ALSO: Last week: reads were moved from the leader to followers.",
+    "deps": "Inventory service has been degraded for two minutes. ALSO: Database cluster is healthy."
+   },
+   "acts": [
+    [
+     "a_timeout",
+     "fix",
+     "Add timeouts and a circuit breaker around the inventory call"
+    ],
+    [
+     "a_restart",
+     "band",
+     "Restart the service",
+     "Threads free up, then block again."
+    ],
+    [
+     "a_cpu",
+     "wr",
+     "Move to a bigger VM with more CPU",
+     "CPU is idle. The threads are waiting."
+    ],
+    [
+     "a_pool",
+     "wr",
+     "Raise the thread pool to 2,000",
+     "It only takes longer to fill up."
+    ],
+    [
+     "a_gc",
+     "wr",
+     "Tune the garbage collector",
+     "Memory is fine."
+    ],
+    [
+     "b_ryw",
+     "fix",
+     "Read your own recent writes from the leader"
+    ],
+    [
+     "b_more",
+     "wr",
+     "Add more followers",
+     "Each new follower lags too."
+    ],
+    [
+     "b_cache",
+     "band",
+     "Cache the new post in the browser",
+     "Hides it for that user only."
+    ],
+    [
+     "b_restart",
+     "wr",
+     "Restart the followers",
+     "Lag returns immediately."
+    ],
+    [
+     "b_sync",
+     "wr",
+     "Make all replication synchronous",
+     "Fixes it but makes every write slower and fragile."
+    ]
+   ],
+   "need": [
+    "a_timeout",
+    "b_ryw"
+   ],
+   "par": 9,
+   "max": 16,
+   "start": 55,
+   "rise": 6,
+   "learn": "Blocking calls with no timeout turn one slow dependency into a full outage. Always bound the wait. Async replicas lag. Route recent writers to the leader so users see their own writes."
+  }
+ ],
+ "repl": [
+  {
+   "lesson": "repl",
+   "id": "replag",
+   "title": "Posts vanish after refresh",
+   "brief": "Users post a comment, refresh, and it is gone. A few seconds later it reappears.",
+   "clues": {
+    "logs": "Writes succeed on the leader. Read requests are served by followers.",
+    "metrics": "Replication lag is 3 to 8 seconds on every follower.",
+    "traces": "The read after the post is routed to a follower that has not applied it yet.",
+    "deploys": "Last week: reads were moved from the leader to followers.",
+    "deps": "Database cluster is healthy."
+   },
+   "acts": [
+    [
+     "ryw",
+     "fix",
+     "Read your own recent writes from the leader"
+    ],
+    [
+     "more",
+     "wr",
+     "Add more followers",
+     "Each new follower lags too."
+    ],
+    [
+     "cache",
+     "band",
+     "Cache the new post in the browser",
+     "Hides it for that user only."
+    ],
+    [
+     "restart",
+     "wr",
+     "Restart the followers",
+     "Lag returns immediately."
+    ],
+    [
+     "sync",
+     "wr",
+     "Make all replication synchronous",
+     "Fixes it but makes every write slower and fragile."
+    ]
+   ],
+   "need": [
+    "ryw"
+   ],
+   "par": 6,
+   "learn": "Async replicas lag. Route recent writers to the leader so users see their own writes.",
+   "max": 12,
+   "start": 60,
+   "rise": 6,
+   "level": 1,
+   "name": "One failure"
+  },
+  {
+   "lesson": "repl",
+   "id": "replag+lsm",
+   "level": 2,
+   "name": "Double trouble",
+   "title": "Double trouble: Posts vanish after refresh, and write latency spikes every few minutes",
+   "brief": "Two separate things are broken at the same time. First: Users post a comment, refresh, and it is gone. A few seconds later it reappears. Second: Write latency on the cluster jumps from 5 ms to 800 ms in bursts.",
+   "clues": {
+    "logs": "Writes succeed on the leader. Read requests are served by followers. ALSO: Compaction backlog: 140 pending tasks. Disk at 100% utilisation.",
+    "metrics": "Replication lag is 3 to 8 seconds on every follower. ALSO: Spikes line up with large compactions. Read latency also rises.",
+    "traces": "The read after the post is routed to a follower that has not applied it yet. ALSO: Writes stall waiting for the memtable to flush.",
+    "deploys": "Last week: reads were moved from the leader to followers. ALSO: Write volume doubled after the new feature launched.",
+    "deps": "Database cluster is healthy. ALSO: Disks are network volumes with low IOPS."
+   },
+   "acts": [
+    [
+     "a_ryw",
+     "fix",
+     "Read your own recent writes from the leader"
+    ],
+    [
+     "a_more",
+     "wr",
+     "Add more followers",
+     "Each new follower lags too."
+    ],
+    [
+     "a_cache",
+     "band",
+     "Cache the new post in the browser",
+     "Hides it for that user only."
+    ],
+    [
+     "a_restart",
+     "wr",
+     "Restart the followers",
+     "Lag returns immediately."
+    ],
+    [
+     "a_sync",
+     "wr",
+     "Make all replication synchronous",
+     "Fixes it but makes every write slower and fragile."
+    ],
+    [
+     "b_compaction",
+     "fix",
+     "Give compaction more disk throughput and tune its strategy"
+    ],
+    [
+     "b_restart",
+     "band",
+     "Restart the nodes",
+     "Backlog clears briefly, then rebuilds."
+    ],
+    [
+     "b_nodes",
+     "wr",
+     "Add application servers",
+     "The bottleneck is disk, not the app."
+    ],
+    [
+     "b_ttl",
+     "wr",
+     "Shorten every TTL to zero",
+     "Creates more tombstones and more compaction."
+    ],
+    [
+     "b_index",
+     "wr",
+     "Add more secondary indexes",
+     "More indexes mean more writes."
+    ]
+   ],
+   "need": [
+    "a_ryw",
+    "b_compaction"
+   ],
+   "par": 9,
+   "max": 16,
+   "start": 55,
+   "rise": 6,
+   "learn": "Async replicas lag. Route recent writers to the leader so users see their own writes. LSM trees buy fast writes with background compaction. If compaction cannot keep up, writes stall."
+  }
+ ],
+ "engines": [
+  {
+   "lesson": "engines",
+   "id": "lsm",
+   "title": "Write latency spikes every few minutes",
+   "brief": "Write latency on the cluster jumps from 5 ms to 800 ms in bursts.",
+   "clues": {
+    "logs": "Compaction backlog: 140 pending tasks. Disk at 100% utilisation.",
+    "metrics": "Spikes line up with large compactions. Read latency also rises.",
+    "traces": "Writes stall waiting for the memtable to flush.",
+    "deploys": "Write volume doubled after the new feature launched.",
+    "deps": "Disks are network volumes with low IOPS."
+   },
+   "acts": [
+    [
+     "compaction",
+     "fix",
+     "Give compaction more disk throughput and tune its strategy"
+    ],
+    [
+     "restart",
+     "band",
+     "Restart the nodes",
+     "Backlog clears briefly, then rebuilds."
+    ],
+    [
+     "nodes",
+     "wr",
+     "Add application servers",
+     "The bottleneck is disk, not the app."
+    ],
+    [
+     "ttl",
+     "wr",
+     "Shorten every TTL to zero",
+     "Creates more tombstones and more compaction."
+    ],
+    [
+     "index",
+     "wr",
+     "Add more secondary indexes",
+     "More indexes mean more writes."
+    ]
+   ],
+   "need": [
+    "compaction"
+   ],
+   "par": 6,
+   "learn": "LSM trees buy fast writes with background compaction. If compaction cannot keep up, writes stall.",
+   "max": 12,
+   "start": 60,
+   "rise": 6,
+   "level": 1,
+   "name": "One failure"
+  },
+  {
+   "lesson": "engines",
+   "id": "lsm+lostupdate",
+   "level": 2,
+   "name": "Double trouble",
+   "title": "Double trouble: Write latency spikes every few minutes, and balances occasionally wrong",
+   "brief": "Two separate things are broken at the same time. First: Write latency on the cluster jumps from 5 ms to 800 ms in bursts. Second: Two deposits at the same moment sometimes leave the balance short.",
+   "clues": {
+    "logs": "Compaction backlog: 140 pending tasks. Disk at 100% utilisation. ALSO: Both requests read balance 100 and write 110 and 120 separately.",
+    "metrics": "Spikes line up with large compactions. Read latency also rises. ALSO: Rare, only under concurrent writes to the same account.",
+    "traces": "Writes stall waiting for the memtable to flush. ALSO: Read, add in application code, write back as separate statements.",
+    "deploys": "Write volume doubled after the new feature launched. ALSO: No changes to the schema.",
+    "deps": "Disks are network volumes with low IOPS. ALSO: Database default isolation level is read committed."
+   },
+   "acts": [
+    [
+     "a_compaction",
+     "fix",
+     "Give compaction more disk throughput and tune its strategy"
+    ],
+    [
+     "a_restart",
+     "band",
+     "Restart the nodes",
+     "Backlog clears briefly, then rebuilds."
+    ],
+    [
+     "a_nodes",
+     "wr",
+     "Add application servers",
+     "The bottleneck is disk, not the app."
+    ],
+    [
+     "a_ttl",
+     "wr",
+     "Shorten every TTL to zero",
+     "Creates more tombstones and more compaction."
+    ],
+    [
+     "a_index",
+     "wr",
+     "Add more secondary indexes",
+     "More indexes mean more writes."
+    ],
+    [
+     "b_atomic",
+     "fix",
+     "Update in one statement (balance = balance + x) or lock the row"
+    ],
+    [
+     "b_retry",
+     "wr",
+     "Retry failed requests",
+     "Nothing failed. Updates were silently lost."
+    ],
+    [
+     "b_fixnight",
+     "band",
+     "Fix balances by hand every night",
+     "Treats the symptom."
+    ],
+    [
+     "b_bigger",
+     "wr",
+     "Use a bigger database",
+     "Speed does not remove the race."
+    ],
+    [
+     "b_cache",
+     "wr",
+     "Cache balances in memory",
+     "Makes the race worse."
+    ]
+   ],
+   "need": [
+    "a_compaction",
+    "b_atomic"
+   ],
+   "par": 9,
+   "max": 16,
+   "start": 55,
+   "rise": 6,
+   "learn": "LSM trees buy fast writes with background compaction. If compaction cannot keep up, writes stall. Read-modify-write in application code loses updates. Do it atomically in the database or use a version check."
+  }
+ ],
+ "tx": [
+  {
+   "lesson": "tx",
+   "id": "lostupdate",
+   "title": "Balances occasionally wrong",
+   "brief": "Two deposits at the same moment sometimes leave the balance short.",
+   "clues": {
+    "logs": "Both requests read balance 100 and write 110 and 120 separately.",
+    "metrics": "Rare, only under concurrent writes to the same account.",
+    "traces": "Read, add in application code, write back as separate statements.",
+    "deploys": "No changes to the schema.",
+    "deps": "Database default isolation level is read committed."
+   },
+   "acts": [
+    [
+     "atomic",
+     "fix",
+     "Update in one statement (balance = balance + x) or lock the row"
+    ],
+    [
+     "retry",
+     "wr",
+     "Retry failed requests",
+     "Nothing failed. Updates were silently lost."
+    ],
+    [
+     "fixnight",
+     "band",
+     "Fix balances by hand every night",
+     "Treats the symptom."
+    ],
+    [
+     "bigger",
+     "wr",
+     "Use a bigger database",
+     "Speed does not remove the race."
+    ],
+    [
+     "cache",
+     "wr",
+     "Cache balances in memory",
+     "Makes the race worse."
+    ]
+   ],
+   "need": [
+    "atomic"
+   ],
+   "par": 6,
+   "learn": "Read-modify-write in application code loses updates. Do it atomically in the database or use a version check.",
+   "max": 12,
+   "start": 60,
+   "rise": 6,
+   "level": 1,
+   "name": "One failure"
+  },
+  {
+   "lesson": "tx",
+   "id": "lostupdate+nplus1",
+   "level": 2,
+   "name": "Double trouble",
+   "title": "Double trouble: Balances occasionally wrong, and the order page takes 9 seconds",
+   "brief": "Two separate things are broken at the same time. First: Two deposits at the same moment sometimes leave the balance short. Second: After the release that added item images, the order page became very slow.",
+   "clues": {
+    "logs": "Both requests read balance 100 and write 110 and 120 separately. ALSO: 1 query for orders, then 1 query per order line: 1,204 queries for one page.",
+    "metrics": "Rare, only under concurrent writes to the same account. ALSO: Database CPU normal. Request count to the database is huge.",
+    "traces": "Read, add in application code, write back as separate statements. ALSO: Many tiny sequential database spans.",
+    "deploys": "No changes to the schema. ALSO: Release added item images to the order page yesterday.",
+    "deps": "Database default isolation level is read committed. ALSO: Database healthy."
+   },
+   "acts": [
+    [
+     "a_atomic",
+     "fix",
+     "Update in one statement (balance = balance + x) or lock the row"
+    ],
+    [
+     "a_retry",
+     "wr",
+     "Retry failed requests",
+     "Nothing failed. Updates were silently lost."
+    ],
+    [
+     "a_fixnight",
+     "band",
+     "Fix balances by hand every night",
+     "Treats the symptom."
+    ],
+    [
+     "a_bigger",
+     "wr",
+     "Use a bigger database",
+     "Speed does not remove the race."
+    ],
+    [
+     "a_cache",
+     "wr",
+     "Cache balances in memory",
+     "Makes the race worse."
+    ],
+    [
+     "b_join",
+     "fix",
+     "Load order lines with one query or a join"
+    ],
+    [
+     "b_scale",
+     "wr",
+     "Add more app servers",
+     "Each request still makes 1,204 queries."
+    ],
+    [
+     "b_cache",
+     "band",
+     "Cache the page for a minute",
+     "Hides it until the cache expires."
+    ],
+    [
+     "b_index",
+     "wr",
+     "Add an index on every column",
+     "Does not reduce the number of queries."
+    ],
+    [
+     "b_timeout",
+     "wr",
+     "Raise the timeout",
+     "The page is still slow."
+    ]
+   ],
+   "need": [
+    "a_atomic",
+    "b_join"
+   ],
+   "par": 9,
+   "max": 16,
+   "start": 55,
+   "rise": 6,
+   "learn": "Read-modify-write in application code loses updates. Do it atomically in the database or use a version check. N+1 queries multiply latency. Fetch related rows together."
+  }
+ ],
+ "model": [
+  {
+   "lesson": "model",
+   "id": "nplus1",
+   "title": "The order page takes 9 seconds",
+   "brief": "After the release that added item images, the order page became very slow.",
+   "clues": {
+    "logs": "1 query for orders, then 1 query per order line: 1,204 queries for one page.",
+    "metrics": "Database CPU normal. Request count to the database is huge.",
+    "traces": "Many tiny sequential database spans.",
+    "deploys": "Release added item images to the order page yesterday.",
+    "deps": "Database healthy."
+   },
+   "acts": [
+    [
+     "join",
+     "fix",
+     "Load order lines with one query or a join"
+    ],
+    [
+     "scale",
+     "wr",
+     "Add more app servers",
+     "Each request still makes 1,204 queries."
+    ],
+    [
+     "cache",
+     "band",
+     "Cache the page for a minute",
+     "Hides it until the cache expires."
+    ],
+    [
+     "index",
+     "wr",
+     "Add an index on every column",
+     "Does not reduce the number of queries."
+    ],
+    [
+     "timeout",
+     "wr",
+     "Raise the timeout",
+     "The page is still slow."
+    ]
+   ],
+   "need": [
+    "join"
+   ],
+   "par": 6,
+   "learn": "N+1 queries multiply latency. Fetch related rows together.",
+   "max": 12,
+   "start": 60,
+   "rise": 6,
+   "level": 1,
+   "name": "One failure"
+  },
+  {
+   "lesson": "model",
+   "id": "nplus1+schema",
+   "level": 2,
+   "name": "Double trouble",
+   "title": "Double trouble: The order page takes 9 seconds, and old app versions crash",
+   "brief": "Two separate things are broken at the same time. First: After the release that added item images, the order page became very slow. Second: After a backend deploy, only users on older app versions see crashes.",
+   "clues": {
+    "logs": "1 query for orders, then 1 query per order line: 1,204 queries for one page. ALSO: Old clients fail to parse the response: missing field \"userName\".",
+    "metrics": "Database CPU normal. Request count to the database is huge. ALSO: Crash rate high only for app versions below 4.2.",
+    "traces": "Many tiny sequential database spans. ALSO: The response no longer contains userName.",
+    "deploys": "Release added item images to the order page yesterday. ALSO: Deploy renamed userName to displayName.",
+    "deps": "Database healthy. ALSO: No infrastructure changes."
+   },
+   "acts": [
+    [
+     "a_join",
+     "fix",
+     "Load order lines with one query or a join"
+    ],
+    [
+     "a_scale",
+     "wr",
+     "Add more app servers",
+     "Each request still makes 1,204 queries."
+    ],
+    [
+     "a_cache",
+     "band",
+     "Cache the page for a minute",
+     "Hides it until the cache expires."
+    ],
+    [
+     "a_index",
+     "wr",
+     "Add an index on every column",
+     "Does not reduce the number of queries."
+    ],
+    [
+     "a_timeout",
+     "wr",
+     "Raise the timeout",
+     "The page is still slow."
+    ],
+    [
+     "b_compat",
+     "fix",
+     "Restore the old field and add the new one, then deprecate gradually"
+    ],
+    [
+     "b_forceupdate",
+     "band",
+     "Force every user to update",
+     "Takes days and strands users."
+    ],
+    [
+     "b_restart",
+     "wr",
+     "Restart the API servers",
+     "The contract is wrong, not the servers."
+    ],
+    [
+     "b_scale",
+     "wr",
+     "Add servers",
+     "Not a capacity issue."
+    ],
+    [
+     "b_retry",
+     "wr",
+     "Make the client retry",
+     "It fails the same way every time."
+    ]
+   ],
+   "need": [
+    "a_join",
+    "b_compat"
+   ],
+   "par": 9,
+   "max": 16,
+   "start": 55,
+   "rise": 6,
+   "learn": "N+1 queries multiply latency. Fetch related rows together. Schemas must stay compatible both ways. Add fields, never remove or rename them in one step."
+  }
+ ],
+ "serial": [
+  {
+   "lesson": "serial",
+   "id": "schema",
+   "title": "Old app versions crash",
+   "brief": "After a backend deploy, only users on older app versions see crashes.",
+   "clues": {
+    "logs": "Old clients fail to parse the response: missing field \"userName\".",
+    "metrics": "Crash rate high only for app versions below 4.2.",
+    "traces": "The response no longer contains userName.",
+    "deploys": "Deploy renamed userName to displayName.",
+    "deps": "No infrastructure changes."
+   },
+   "acts": [
+    [
+     "compat",
+     "fix",
+     "Restore the old field and add the new one, then deprecate gradually"
+    ],
+    [
+     "forceupdate",
+     "band",
+     "Force every user to update",
+     "Takes days and strands users."
+    ],
+    [
+     "restart",
+     "wr",
+     "Restart the API servers",
+     "The contract is wrong, not the servers."
+    ],
+    [
+     "scale",
+     "wr",
+     "Add servers",
+     "Not a capacity issue."
+    ],
+    [
+     "retry",
+     "wr",
+     "Make the client retry",
+     "It fails the same way every time."
+    ]
+   ],
+   "need": [
+    "compat"
+   ],
+   "par": 6,
+   "learn": "Schemas must stay compatible both ways. Add fields, never remove or rename them in one step.",
+   "max": 12,
+   "start": 60,
+   "rise": 6,
+   "level": 1,
+   "name": "One failure"
+  },
+  {
+   "lesson": "serial",
+   "id": "schema+quorum",
+   "level": 2,
+   "name": "Double trouble",
+   "title": "Double trouble: Old app versions crash, and the cluster cannot elect a leader",
+   "brief": "Two separate things are broken at the same time. First: After a backend deploy, only users on older app versions see crashes. Second: Writes to the 5-node etcd cluster are rejected. A zone outage took out 3 nodes.",
+   "clues": {
+    "logs": "Old clients fail to parse the response: missing field \"userName\". ALSO: no leader: lost quorum, 2 of 5 nodes reachable.",
+    "metrics": "Crash rate high only for app versions below 4.2. ALSO: Cluster size 5. Majority required: 3. Reachable: 2.",
+    "traces": "The response no longer contains userName. ALSO: Elections keep starting and failing.",
+    "deploys": "Deploy renamed userName to displayName. ALSO: None.",
+    "deps": "No infrastructure changes. ALSO: Zone B is down. Nodes 3, 4, 5 are in zone B."
+   },
+   "acts": [
+    [
+     "a_compat",
+     "fix",
+     "Restore the old field and add the new one, then deprecate gradually"
+    ],
+    [
+     "a_forceupdate",
+     "band",
+     "Force every user to update",
+     "Takes days and strands users."
+    ],
+    [
+     "a_restart",
+     "wr",
+     "Restart the API servers",
+     "The contract is wrong, not the servers."
+    ],
+    [
+     "a_scale",
+     "wr",
+     "Add servers",
+     "Not a capacity issue."
+    ],
+    [
+     "a_retry",
+     "wr",
+     "Make the client retry",
+     "It fails the same way every time."
+    ],
+    [
+     "b_restore",
+     "fix",
+     "Bring back at least one of the failed nodes to restore a majority"
+    ],
+    [
+     "b_force",
+     "wr",
+     "Force a minority node to act as leader",
+     "This risks losing committed writes and split brain."
+    ],
+    [
+     "b_add",
+     "wr",
+     "Add two new empty nodes",
+     "New members need a quorum to join."
+    ],
+    [
+     "b_readonly",
+     "band",
+     "Serve stale reads from the survivors",
+     "Reads work, writes still blocked."
+    ],
+    [
+     "b_restart",
+     "wr",
+     "Restart the surviving nodes",
+     "They still cannot form a majority."
+    ]
+   ],
+   "need": [
+    "a_compat",
+    "b_restore"
+   ],
+   "par": 9,
+   "max": 16,
+   "start": 55,
+   "rise": 6,
+   "learn": "Schemas must stay compatible both ways. Add fields, never remove or rename them in one step. Consensus needs a majority. Lose it and writes stop, which is safer than disagreeing."
+  }
+ ],
+ "consensus": [
+  {
+   "lesson": "consensus",
+   "id": "quorum",
+   "title": "The cluster cannot elect a leader",
+   "brief": "Writes to the 5-node etcd cluster are rejected. A zone outage took out 3 nodes.",
+   "clues": {
+    "logs": "no leader: lost quorum, 2 of 5 nodes reachable.",
+    "metrics": "Cluster size 5. Majority required: 3. Reachable: 2.",
+    "traces": "Elections keep starting and failing.",
+    "deploys": "None.",
+    "deps": "Zone B is down. Nodes 3, 4, 5 are in zone B."
+   },
+   "acts": [
+    [
+     "restore",
+     "fix",
+     "Bring back at least one of the failed nodes to restore a majority"
+    ],
+    [
+     "force",
+     "wr",
+     "Force a minority node to act as leader",
+     "This risks losing committed writes and split brain."
+    ],
+    [
+     "add",
+     "wr",
+     "Add two new empty nodes",
+     "New members need a quorum to join."
+    ],
+    [
+     "readonly",
+     "band",
+     "Serve stale reads from the survivors",
+     "Reads work, writes still blocked."
+    ],
+    [
+     "restart",
+     "wr",
+     "Restart the surviving nodes",
+     "They still cannot form a majority."
+    ]
+   ],
+   "need": [
+    "restore"
+   ],
+   "par": 6,
+   "learn": "Consensus needs a majority. Lose it and writes stop, which is safer than disagreeing.",
+   "max": 12,
+   "start": 60,
+   "rise": 6,
+   "level": 1,
+   "name": "One failure"
+  },
+  {
+   "lesson": "consensus",
+   "id": "quorum+skew",
+   "level": 2,
+   "name": "Double trouble",
+   "title": "Double trouble: The cluster cannot elect a leader, and edits silently disappear",
+   "brief": "Two separate things are broken at the same time. First: Writes to the 5-node etcd cluster are rejected. A zone outage took out 3 nodes. Second: In the multi-region profile service, customers say their edits vanish.",
+   "clues": {
+    "logs": "no leader: lost quorum, 2 of 5 nodes reachable. ALSO: Conflicting writes resolved by last-write-wins on server timestamps.",
+    "metrics": "Cluster size 5. Majority required: 3. Reachable: 2. ALSO: Edits lost mostly when two regions write within a second.",
+    "traces": "Elections keep starting and failing. ALSO: Region B clock runs 4 seconds behind region A.",
+    "deploys": "None. ALSO: None.",
+    "deps": "Zone B is down. Nodes 3, 4, 5 are in zone B. ALSO: NTP is not configured on region B."
+   },
+   "acts": [
+    [
+     "a_restore",
+     "fix",
+     "Bring back at least one of the failed nodes to restore a majority"
+    ],
+    [
+     "a_force",
+     "wr",
+     "Force a minority node to act as leader",
+     "This risks losing committed writes and split brain."
+    ],
+    [
+     "a_add",
+     "wr",
+     "Add two new empty nodes",
+     "New members need a quorum to join."
+    ],
+    [
+     "a_readonly",
+     "band",
+     "Serve stale reads from the survivors",
+     "Reads work, writes still blocked."
+    ],
+    [
+     "a_restart",
+     "wr",
+     "Restart the surviving nodes",
+     "They still cannot form a majority."
+    ],
+    [
+     "b_versions",
+     "fix",
+     "Use version vectors or hybrid logical clocks and merge conflicts"
+    ],
+    [
+     "b_ntp",
+     "band",
+     "Force an NTP sync",
+     "Reduces skew but wall clocks still cannot order concurrent writes."
+    ],
+    [
+     "b_restart",
+     "wr",
+     "Restart region B",
+     "Clock stays wrong."
+    ],
+    [
+     "b_pin",
+     "wr",
+     "Send all writes to one region",
+     "Removes multi-region writes and adds latency."
+    ],
+    [
+     "b_scale",
+     "wr",
+     "Add replicas",
+     "Does not resolve conflicts."
+    ]
+   ],
+   "need": [
+    "a_restore",
+    "b_versions"
+   ],
+   "par": 9,
+   "max": 16,
+   "start": 55,
+   "rise": 6,
+   "learn": "Consensus needs a majority. Lose it and writes stop, which is safer than disagreeing. Wall clocks drift. Last-write-wins on timestamps loses data. Track causality instead."
+  }
+ ],
+ "clocks": [
+  {
+   "lesson": "clocks",
+   "id": "skew",
+   "title": "Edits silently disappear",
+   "brief": "In the multi-region profile service, customers say their edits vanish.",
+   "clues": {
+    "logs": "Conflicting writes resolved by last-write-wins on server timestamps.",
+    "metrics": "Edits lost mostly when two regions write within a second.",
+    "traces": "Region B clock runs 4 seconds behind region A.",
+    "deploys": "None.",
+    "deps": "NTP is not configured on region B."
+   },
+   "acts": [
+    [
+     "versions",
+     "fix",
+     "Use version vectors or hybrid logical clocks and merge conflicts"
+    ],
+    [
+     "ntp",
+     "band",
+     "Force an NTP sync",
+     "Reduces skew but wall clocks still cannot order concurrent writes."
+    ],
+    [
+     "restart",
+     "wr",
+     "Restart region B",
+     "Clock stays wrong."
+    ],
+    [
+     "pin",
+     "wr",
+     "Send all writes to one region",
+     "Removes multi-region writes and adds latency."
+    ],
+    [
+     "scale",
+     "wr",
+     "Add replicas",
+     "Does not resolve conflicts."
+    ]
+   ],
+   "need": [
+    "versions"
+   ],
+   "par": 6,
+   "learn": "Wall clocks drift. Last-write-wins on timestamps loses data. Track causality instead.",
+   "max": 12,
+   "start": 60,
+   "rise": 6,
+   "level": 1,
+   "name": "One failure"
+  },
+  {
+   "lesson": "clocks",
+   "id": "skew+double",
+   "level": 2,
+   "name": "Double trouble",
+   "title": "Double trouble: Edits silently disappear, and customers charged twice",
+   "brief": "Two separate things are broken at the same time. First: In the multi-region profile service, customers say their edits vanish. Second: After mobile network drops, some customers see two identical charges.",
+   "clues": {
+    "logs": "Conflicting writes resolved by last-write-wins on server timestamps. ALSO: Two POST /charge requests with the same cart, 8 seconds apart.",
+    "metrics": "Edits lost mostly when two regions write within a second. ALSO: Duplicate charge rate rises when mobile errors rise.",
+    "traces": "Region B clock runs 4 seconds behind region A. ALSO: First request succeeded but the response timed out. The client retried.",
+    "deploys": "None. ALSO: None.",
+    "deps": "NTP is not configured on region B. ALSO: Payment provider healthy."
+   },
+   "acts": [
+    [
+     "a_versions",
+     "fix",
+     "Use version vectors or hybrid logical clocks and merge conflicts"
+    ],
+    [
+     "a_ntp",
+     "band",
+     "Force an NTP sync",
+     "Reduces skew but wall clocks still cannot order concurrent writes."
+    ],
+    [
+     "a_restart",
+     "wr",
+     "Restart region B",
+     "Clock stays wrong."
+    ],
+    [
+     "a_pin",
+     "wr",
+     "Send all writes to one region",
+     "Removes multi-region writes and adds latency."
+    ],
+    [
+     "a_scale",
+     "wr",
+     "Add replicas",
+     "Does not resolve conflicts."
+    ],
+    [
+     "b_idem",
+     "fix",
+     "Require an idempotency key and return the saved result for repeats"
+    ],
+    [
+     "b_refund",
+     "band",
+     "Refund duplicates by hand",
+     "Fixes today, not tomorrow."
+    ],
+    [
+     "b_noretry",
+     "wr",
+     "Turn off client retries",
+     "Users then get failures for real errors."
+    ],
+    [
+     "b_timeout",
+     "wr",
+     "Raise the client timeout",
+     "Still fails on bad networks."
+    ],
+    [
+     "b_limit",
+     "wr",
+     "Rate limit the charge endpoint",
+     "Does not distinguish a retry from a new purchase."
+    ]
+   ],
+   "need": [
+    "a_versions",
+    "b_idem"
+   ],
+   "par": 9,
+   "max": 16,
+   "start": 55,
+   "rise": 6,
+   "learn": "Wall clocks drift. Last-write-wins on timestamps loses data. Track causality instead. Retries are normal. Make unsafe operations safe to repeat with idempotency keys."
+  }
+ ],
+ "api": [
+  {
+   "lesson": "api",
+   "id": "double",
+   "title": "Customers charged twice",
+   "brief": "After mobile network drops, some customers see two identical charges.",
+   "clues": {
+    "logs": "Two POST /charge requests with the same cart, 8 seconds apart.",
+    "metrics": "Duplicate charge rate rises when mobile errors rise.",
+    "traces": "First request succeeded but the response timed out. The client retried.",
+    "deploys": "None.",
+    "deps": "Payment provider healthy."
+   },
+   "acts": [
+    [
+     "idem",
+     "fix",
+     "Require an idempotency key and return the saved result for repeats"
+    ],
+    [
+     "refund",
+     "band",
+     "Refund duplicates by hand",
+     "Fixes today, not tomorrow."
+    ],
+    [
+     "noretry",
+     "wr",
+     "Turn off client retries",
+     "Users then get failures for real errors."
+    ],
+    [
+     "timeout",
+     "wr",
+     "Raise the client timeout",
+     "Still fails on bad networks."
+    ],
+    [
+     "limit",
+     "wr",
+     "Rate limit the charge endpoint",
+     "Does not distinguish a retry from a new purchase."
+    ]
+   ],
+   "need": [
+    "idem"
+   ],
+   "par": 6,
+   "learn": "Retries are normal. Make unsafe operations safe to repeat with idempotency keys.",
+   "max": 12,
+   "start": 60,
+   "rise": 6,
+   "level": 1,
+   "name": "One failure"
+  },
+  {
+   "lesson": "api",
+   "id": "double+gateway",
+   "level": 2,
+   "name": "Double trouble",
+   "title": "Double trouble: Customers charged twice, and 502 errors everywhere",
+   "brief": "Two separate things are broken at the same time. First: After mobile network drops, some customers see two identical charges. Second: Traffic grew and every API call now returns 502, but the backends look healthy.",
+   "clues": {
+    "logs": "Two POST /charge requests with the same cart, 8 seconds apart. ALSO: Gateway: upstream connect error. Worker connections exhausted.",
+    "metrics": "Duplicate charge rate rises when mobile errors rise. ALSO: Backends at 20% CPU. Gateway at 100% CPU and connection limit.",
+    "traces": "First request succeeded but the response timed out. The client retried. ALSO: Requests fail before they reach any service.",
+    "deploys": "None. ALSO: None.",
+    "deps": "Payment provider healthy. ALSO: Only one gateway instance is running."
+   },
+   "acts": [
+    [
+     "a_idem",
+     "fix",
+     "Require an idempotency key and return the saved result for repeats"
+    ],
+    [
+     "a_refund",
+     "band",
+     "Refund duplicates by hand",
+     "Fixes today, not tomorrow."
+    ],
+    [
+     "a_noretry",
+     "wr",
+     "Turn off client retries",
+     "Users then get failures for real errors."
+    ],
+    [
+     "a_timeout",
+     "wr",
+     "Raise the client timeout",
+     "Still fails on bad networks."
+    ],
+    [
+     "a_limit",
+     "wr",
+     "Rate limit the charge endpoint",
+     "Does not distinguish a retry from a new purchase."
+    ],
+    [
+     "b_scalegw",
+     "fix",
+     "Run several gateway instances behind a load balancer and raise connection limits"
+    ],
+    [
+     "b_scaleback",
+     "wr",
+     "Scale the backend services",
+     "They are idle."
+    ],
+    [
+     "b_restart",
+     "band",
+     "Restart the gateway",
+     "Brief relief, then saturated again."
+    ],
+    [
+     "b_timeout",
+     "wr",
+     "Increase backend timeouts",
+     "The gateway itself is the bottleneck."
+    ],
+    [
+     "b_cache",
+     "wr",
+     "Cache everything at the gateway",
+     "Risky and does not fix capacity."
+    ]
+   ],
+   "need": [
+    "a_idem",
+    "b_scalegw"
+   ],
+   "par": 9,
+   "max": 16,
+   "start": 55,
+   "rise": 6,
+   "learn": "Retries are normal. Make unsafe operations safe to repeat with idempotency keys. A single gateway is a single point of failure and a bottleneck. Run several."
+  }
+ ],
+ "gateway": [
+  {
+   "lesson": "gateway",
+   "id": "gateway",
+   "title": "502 errors everywhere",
+   "brief": "Traffic grew and every API call now returns 502, but the backends look healthy.",
+   "clues": {
+    "logs": "Gateway: upstream connect error. Worker connections exhausted.",
+    "metrics": "Backends at 20% CPU. Gateway at 100% CPU and connection limit.",
+    "traces": "Requests fail before they reach any service.",
+    "deploys": "None.",
+    "deps": "Only one gateway instance is running."
+   },
+   "acts": [
+    [
+     "scalegw",
+     "fix",
+     "Run several gateway instances behind a load balancer and raise connection limits"
+    ],
+    [
+     "scaleback",
+     "wr",
+     "Scale the backend services",
+     "They are idle."
+    ],
+    [
+     "restart",
+     "band",
+     "Restart the gateway",
+     "Brief relief, then saturated again."
+    ],
+    [
+     "timeout",
+     "wr",
+     "Increase backend timeouts",
+     "The gateway itself is the bottleneck."
+    ],
+    [
+     "cache",
+     "wr",
+     "Cache everything at the gateway",
+     "Risky and does not fix capacity."
+    ]
+   ],
+   "need": [
+    "scalegw"
+   ],
+   "par": 6,
+   "learn": "A single gateway is a single point of failure and a bottleneck. Run several.",
+   "max": 12,
+   "start": 60,
+   "rise": 6,
+   "level": 1,
+   "name": "One failure"
+  },
+  {
+   "lesson": "gateway",
+   "id": "gateway+cascade",
+   "level": 2,
+   "name": "Double trouble",
+   "title": "Double trouble: 502 errors everywhere, and checkout is down because recommendations are slow",
+   "brief": "Two separate things are broken at the same time. First: Traffic grew and every API call now returns 502, but the backends look healthy. Second: Checkout fails entirely. The recommendation widget is slow.",
+   "clues": {
+    "logs": "Gateway: upstream connect error. Worker connections exhausted. ALSO: Checkout threads waiting on recommendation service.",
+    "metrics": "Backends at 20% CPU. Gateway at 100% CPU and connection limit. ALSO: Checkout error rate 90%. Recommendation latency 30 seconds.",
+    "traces": "Requests fail before they reach any service. ALSO: Checkout calls recommendations synchronously with no timeout.",
+    "deploys": "None. ALSO: Recommendation model changed this morning.",
+    "deps": "Only one gateway instance is running. ALSO: Recommendation service is overloaded."
+   },
+   "acts": [
+    [
+     "a_scalegw",
+     "fix",
+     "Run several gateway instances behind a load balancer and raise connection limits"
+    ],
+    [
+     "a_scaleback",
+     "wr",
+     "Scale the backend services",
+     "They are idle."
+    ],
+    [
+     "a_restart",
+     "band",
+     "Restart the gateway",
+     "Brief relief, then saturated again."
+    ],
+    [
+     "a_timeout",
+     "wr",
+     "Increase backend timeouts",
+     "The gateway itself is the bottleneck."
+    ],
+    [
+     "a_cache",
+     "wr",
+     "Cache everything at the gateway",
+     "Risky and does not fix capacity."
+    ],
+    [
+     "b_isolate",
+     "fix",
+     "Add a timeout, circuit breaker and fallback so recommendations are optional"
+    ],
+    [
+     "b_restart",
+     "band",
+     "Restart checkout",
+     "Frees threads, then they block again."
+    ],
+    [
+     "b_scale",
+     "wr",
+     "Scale checkout servers",
+     "They block on the same call."
+    ],
+    [
+     "b_rollback",
+     "wr",
+     "Roll back the model only",
+     "Helps recommendations but checkout stays fragile."
+    ],
+    [
+     "b_db",
+     "wr",
+     "Add database replicas",
+     "The database is fine."
+    ]
+   ],
+   "need": [
+    "a_scalegw",
+    "b_isolate"
+   ],
+   "par": 9,
+   "max": 16,
+   "start": 55,
+   "rise": 6,
+   "learn": "A single gateway is a single point of failure and a bottleneck. Run several. Optional features must not be able to take down critical paths. Use timeouts, breakers and fallbacks."
+  }
+ ],
+ "micro": [
+  {
+   "lesson": "micro",
+   "id": "cascade",
+   "title": "Checkout is down because recommendations are slow",
+   "brief": "Checkout fails entirely. The recommendation widget is slow.",
+   "clues": {
+    "logs": "Checkout threads waiting on recommendation service.",
+    "metrics": "Checkout error rate 90%. Recommendation latency 30 seconds.",
+    "traces": "Checkout calls recommendations synchronously with no timeout.",
+    "deploys": "Recommendation model changed this morning.",
+    "deps": "Recommendation service is overloaded."
+   },
+   "acts": [
+    [
+     "isolate",
+     "fix",
+     "Add a timeout, circuit breaker and fallback so recommendations are optional"
+    ],
+    [
+     "restart",
+     "band",
+     "Restart checkout",
+     "Frees threads, then they block again."
+    ],
+    [
+     "scale",
+     "wr",
+     "Scale checkout servers",
+     "They block on the same call."
+    ],
+    [
+     "rollback",
+     "wr",
+     "Roll back the model only",
+     "Helps recommendations but checkout stays fragile."
+    ],
+    [
+     "db",
+     "wr",
+     "Add database replicas",
+     "The database is fine."
+    ]
+   ],
+   "need": [
+    "isolate"
+   ],
+   "par": 6,
+   "learn": "Optional features must not be able to take down critical paths. Use timeouts, breakers and fallbacks.",
+   "max": 12,
+   "start": 60,
+   "rise": 6,
+   "level": 1,
+   "name": "One failure"
+  },
+  {
+   "lesson": "micro",
+   "id": "cascade+dupevents",
+   "level": 2,
+   "name": "Double trouble",
+   "title": "Double trouble: Checkout is down because recommendations are slow, and duplicate emails and stock counts",
+   "brief": "Two separate things are broken at the same time. First: Checkout fails entirely. The recommendation widget is slow. Second: Customers get the same email three times and stock is decremented twice.",
+   "clues": {
+    "logs": "Checkout threads waiting on recommendation service. ALSO: Same event ID processed 3 times after consumer restarts.",
+    "metrics": "Checkout error rate 90%. Recommendation latency 30 seconds. ALSO: Duplicate rate spikes after each deploy.",
+    "traces": "Checkout calls recommendations synchronously with no timeout. ALSO: Consumer crashes after side effects but before committing the offset.",
+    "deploys": "Recommendation model changed this morning. ALSO: Consumers deployed with rolling restarts.",
+    "deps": "Recommendation service is overloaded. ALSO: Broker healthy with at-least-once delivery."
+   },
+   "acts": [
+    [
+     "a_isolate",
+     "fix",
+     "Add a timeout, circuit breaker and fallback so recommendations are optional"
+    ],
+    [
+     "a_restart",
+     "band",
+     "Restart checkout",
+     "Frees threads, then they block again."
+    ],
+    [
+     "a_scale",
+     "wr",
+     "Scale checkout servers",
+     "They block on the same call."
+    ],
+    [
+     "a_rollback",
+     "wr",
+     "Roll back the model only",
+     "Helps recommendations but checkout stays fragile."
+    ],
+    [
+     "a_db",
+     "wr",
+     "Add database replicas",
+     "The database is fine."
+    ],
+    [
+     "b_idempotent",
+     "fix",
+     "Make consumers idempotent by recording processed event IDs"
+    ],
+    [
+     "b_dedupeemail",
+     "band",
+     "Dedupe only the email job",
+     "Stock is still wrong."
+    ],
+    [
+     "b_stopdeploy",
+     "wr",
+     "Stop deploying",
+     "Crashes will still redeliver."
+    ],
+    [
+     "b_exactly",
+     "wr",
+     "Switch the broker to exactly-once and change nothing else",
+     "Side effects outside the broker can still repeat."
+    ],
+    [
+     "b_scale",
+     "wr",
+     "Add consumers",
+     "More consumers means more duplicates."
+    ]
+   ],
+   "need": [
+    "a_isolate",
+    "b_idempotent"
+   ],
+   "par": 9,
+   "max": 16,
+   "start": 55,
+   "rise": 6,
+   "learn": "Optional features must not be able to take down critical paths. Use timeouts, breakers and fallbacks. At-least-once delivery means duplicates. Make handlers safe to run twice."
+  }
+ ],
+ "eventdriven": [
+  {
+   "lesson": "eventdriven",
+   "id": "dupevents",
+   "title": "Duplicate emails and stock counts",
+   "brief": "Customers get the same email three times and stock is decremented twice.",
+   "clues": {
+    "logs": "Same event ID processed 3 times after consumer restarts.",
+    "metrics": "Duplicate rate spikes after each deploy.",
+    "traces": "Consumer crashes after side effects but before committing the offset.",
+    "deploys": "Consumers deployed with rolling restarts.",
+    "deps": "Broker healthy with at-least-once delivery."
+   },
+   "acts": [
+    [
+     "idempotent",
+     "fix",
+     "Make consumers idempotent by recording processed event IDs"
+    ],
+    [
+     "dedupeemail",
+     "band",
+     "Dedupe only the email job",
+     "Stock is still wrong."
+    ],
+    [
+     "stopdeploy",
+     "wr",
+     "Stop deploying",
+     "Crashes will still redeliver."
+    ],
+    [
+     "exactly",
+     "wr",
+     "Switch the broker to exactly-once and change nothing else",
+     "Side effects outside the broker can still repeat."
+    ],
+    [
+     "scale",
+     "wr",
+     "Add consumers",
+     "More consumers means more duplicates."
+    ]
+   ],
+   "need": [
+    "idempotent"
+   ],
+   "par": 6,
+   "learn": "At-least-once delivery means duplicates. Make handlers safe to run twice.",
+   "max": 12,
+   "start": 60,
+   "rise": 6,
+   "level": 1,
+   "name": "One failure"
+  },
+  {
+   "lesson": "eventdriven",
+   "id": "dupevents+alerts",
+   "level": 2,
+   "name": "Double trouble",
+   "title": "Double trouble: Duplicate emails and stock counts, and 300 alerts in ten minutes",
+   "brief": "Two separate things are broken at the same time. First: Customers get the same email three times and stock is decremented twice. Second: The on-call engineer is buried in alerts and cannot find the real problem.",
+   "clues": {
+    "logs": "Same event ID processed 3 times after consumer restarts. ALSO: CPU, disk, memory and queue alerts for 40 hosts, all firing at once.",
+    "metrics": "Duplicate rate spikes after each deploy. ALSO: User-facing error rate 12%. Checkout latency 8 seconds.",
+    "traces": "Consumer crashes after side effects but before committing the offset. ALSO: Root cause is one database failover. Everything else is a result.",
+    "deploys": "Consumers deployed with rolling restarts. ALSO: None.",
+    "deps": "Broker healthy with at-least-once delivery. ALSO: Database failover happened five minutes ago."
+   },
+   "acts": [
+    [
+     "a_idempotent",
+     "fix",
+     "Make consumers idempotent by recording processed event IDs"
+    ],
+    [
+     "a_dedupeemail",
+     "band",
+     "Dedupe only the email job",
+     "Stock is still wrong."
+    ],
+    [
+     "a_stopdeploy",
+     "wr",
+     "Stop deploying",
+     "Crashes will still redeliver."
+    ],
+    [
+     "a_exactly",
+     "wr",
+     "Switch the broker to exactly-once and change nothing else",
+     "Side effects outside the broker can still repeat."
+    ],
+    [
+     "a_scale",
+     "wr",
+     "Add consumers",
+     "More consumers means more duplicates."
+    ],
+    [
+     "b_symptom",
+     "fix",
+     "Alert on user-facing symptoms and group or silence cause alerts"
+    ],
+    [
+     "b_mute",
+     "band",
+     "Mute all alerts",
+     "Quiet, but you are now blind."
+    ],
+    [
+     "b_more",
+     "wr",
+     "Add more alerts for every metric",
+     "Makes the noise worse."
+    ],
+    [
+     "b_page",
+     "wr",
+     "Page the whole company",
+     "More people, same noise."
+    ],
+    [
+     "b_threshold",
+     "band",
+     "Raise every threshold by 50%",
+     "Fewer alerts, but real problems may be missed."
+    ]
+   ],
+   "need": [
+    "a_idempotent",
+    "b_symptom"
+   ],
+   "par": 9,
+   "max": 16,
+   "start": 55,
+   "rise": 6,
+   "learn": "At-least-once delivery means duplicates. Make handlers safe to run twice. Alert on what users feel. Too many cause-based alerts hide the signal."
+  }
+ ],
+ "observe": [
+  {
+   "lesson": "observe",
+   "id": "alerts",
+   "title": "300 alerts in ten minutes",
+   "brief": "The on-call engineer is buried in alerts and cannot find the real problem.",
+   "clues": {
+    "logs": "CPU, disk, memory and queue alerts for 40 hosts, all firing at once.",
+    "metrics": "User-facing error rate 12%. Checkout latency 8 seconds.",
+    "traces": "Root cause is one database failover. Everything else is a result.",
+    "deploys": "None.",
+    "deps": "Database failover happened five minutes ago."
+   },
+   "acts": [
+    [
+     "symptom",
+     "fix",
+     "Alert on user-facing symptoms and group or silence cause alerts"
+    ],
+    [
+     "mute",
+     "band",
+     "Mute all alerts",
+     "Quiet, but you are now blind."
+    ],
+    [
+     "more",
+     "wr",
+     "Add more alerts for every metric",
+     "Makes the noise worse."
+    ],
+    [
+     "page",
+     "wr",
+     "Page the whole company",
+     "More people, same noise."
+    ],
+    [
+     "threshold",
+     "band",
+     "Raise every threshold by 50%",
+     "Fewer alerts, but real problems may be missed."
+    ]
+   ],
+   "need": [
+    "symptom"
+   ],
+   "par": 6,
+   "learn": "Alert on what users feel. Too many cause-based alerts hide the signal.",
+   "max": 12,
+   "start": 60,
+   "rise": 6,
+   "level": 1,
+   "name": "One failure"
+  },
+  {
+   "lesson": "observe",
+   "id": "alerts+budget",
+   "level": 2,
+   "name": "Double trouble",
+   "title": "Double trouble: 300 alerts in ten minutes, and the error budget is gone in week one",
+   "brief": "Two separate things are broken at the same time. First: The on-call engineer is buried in alerts and cannot find the real problem. Second: The service burned 85% of its monthly error budget in a week and product wants new releases.",
+   "clues": {
+    "logs": "CPU, disk, memory and queue alerts for 40 hosts, all firing at once. ALSO: Three incidents caused most of the budget burn.",
+    "metrics": "User-facing error rate 12%. Checkout latency 8 seconds. ALSO: Availability 99.6% against an SLO of 99.9%.",
+    "traces": "Root cause is one database failover. Everything else is a result. ALSO: Burn rate alert fired twice and was ignored.",
+    "deploys": "None. ALSO: Five releases in four days, two rolled back.",
+    "deps": "Database failover happened five minutes ago. ALSO: No dependency problems."
+   },
+   "acts": [
+    [
+     "a_symptom",
+     "fix",
+     "Alert on user-facing symptoms and group or silence cause alerts"
+    ],
+    [
+     "a_mute",
+     "band",
+     "Mute all alerts",
+     "Quiet, but you are now blind."
+    ],
+    [
+     "a_more",
+     "wr",
+     "Add more alerts for every metric",
+     "Makes the noise worse."
+    ],
+    [
+     "a_page",
+     "wr",
+     "Page the whole company",
+     "More people, same noise."
+    ],
+    [
+     "a_threshold",
+     "band",
+     "Raise every threshold by 50%",
+     "Fewer alerts, but real problems may be missed."
+    ],
+    [
+     "b_freeze",
+     "fix",
+     "Pause feature releases and invest in reliability until the budget recovers"
+    ],
+    [
+     "b_loosen",
+     "wr",
+     "Loosen the SLO so the budget looks healthy",
+     "Hides the problem instead of fixing it."
+    ],
+    [
+     "b_ship",
+     "wr",
+     "Keep shipping, we will fix it later",
+     "Burns the budget faster."
+    ],
+    [
+     "b_alert",
+     "band",
+     "Add more alerts",
+     "Alerts do not repair reliability."
+    ],
+    [
+     "b_hire",
+     "wr",
+     "Hire more testers",
+     "Slow and indirect."
+    ]
+   ],
+   "need": [
+    "a_symptom",
+    "b_freeze"
+   ],
+   "par": 9,
+   "max": 16,
+   "start": 55,
+   "rise": 6,
+   "learn": "Alert on what users feel. Too many cause-based alerts hide the signal. An error budget is a policy tool. When it runs out, reliability work comes before features."
+  }
+ ],
+ "slo": [
+  {
+   "lesson": "slo",
+   "id": "budget",
+   "title": "The error budget is gone in week one",
+   "brief": "The service burned 85% of its monthly error budget in a week and product wants new releases.",
+   "clues": {
+    "logs": "Three incidents caused most of the budget burn.",
+    "metrics": "Availability 99.6% against an SLO of 99.9%.",
+    "traces": "Burn rate alert fired twice and was ignored.",
+    "deploys": "Five releases in four days, two rolled back.",
+    "deps": "No dependency problems."
+   },
+   "acts": [
+    [
+     "freeze",
+     "fix",
+     "Pause feature releases and invest in reliability until the budget recovers"
+    ],
+    [
+     "loosen",
+     "wr",
+     "Loosen the SLO so the budget looks healthy",
+     "Hides the problem instead of fixing it."
+    ],
+    [
+     "ship",
+     "wr",
+     "Keep shipping, we will fix it later",
+     "Burns the budget faster."
+    ],
+    [
+     "alert",
+     "band",
+     "Add more alerts",
+     "Alerts do not repair reliability."
+    ],
+    [
+     "hire",
+     "wr",
+     "Hire more testers",
+     "Slow and indirect."
+    ]
+   ],
+   "need": [
+    "freeze"
+   ],
+   "par": 6,
+   "learn": "An error budget is a policy tool. When it runs out, reliability work comes before features.",
+   "max": 12,
+   "start": 60,
+   "rise": 6,
+   "level": 1,
+   "name": "One failure"
+  },
+  {
+   "lesson": "slo",
+   "id": "budget+gameday",
+   "level": 2,
+   "name": "Double trouble",
+   "title": "Double trouble: The error budget is gone in week one, and the chaos experiment hit real customers",
+   "brief": "Two separate things are broken at the same time. First: The service burned 85% of its monthly error budget in a week and product wants new releases. Second: A chaos test killed one instance and checkout broke for real users.",
+   "clues": {
+    "logs": "Three incidents caused most of the budget burn. ALSO: Experiment ran in production against 100% of traffic.",
+    "metrics": "Availability 99.6% against an SLO of 99.9%. ALSO: Checkout errors 35% since the experiment started.",
+    "traces": "Burn rate alert fired twice and was ignored. ALSO: No fallback for the killed instance.",
+    "deploys": "Five releases in four days, two rolled back. ALSO: No steady-state check was defined.",
+    "deps": "No dependency problems. ALSO: No abort button was prepared."
+   },
+   "acts": [
+    [
+     "a_freeze",
+     "fix",
+     "Pause feature releases and invest in reliability until the budget recovers"
+    ],
+    [
+     "a_loosen",
+     "wr",
+     "Loosen the SLO so the budget looks healthy",
+     "Hides the problem instead of fixing it."
+    ],
+    [
+     "a_ship",
+     "wr",
+     "Keep shipping, we will fix it later",
+     "Burns the budget faster."
+    ],
+    [
+     "a_alert",
+     "band",
+     "Add more alerts",
+     "Alerts do not repair reliability."
+    ],
+    [
+     "a_hire",
+     "wr",
+     "Hire more testers",
+     "Slow and indirect."
+    ],
+    [
+     "b_abort",
+     "fix",
+     "Abort the experiment, then rerun with a small blast radius and steady-state checks"
+    ],
+    [
+     "b_continue",
+     "wr",
+     "Continue, it is valuable data",
+     "Customers are being hurt."
+    ],
+    [
+     "b_blame",
+     "wr",
+     "Find who ran it and report them",
+     "Blameless review finds the real gaps."
+    ],
+    [
+     "b_scale",
+     "band",
+     "Add instances now",
+     "Helps recovery but the process is still unsafe."
+    ],
+    [
+     "b_stop",
+     "wr",
+     "Ban chaos testing forever",
+     "You lose the learning."
+    ]
+   ],
+   "need": [
+    "a_freeze",
+    "b_abort"
+   ],
+   "par": 9,
+   "max": 16,
+   "start": 55,
+   "rise": 6,
+   "learn": "An error budget is a policy tool. When it runs out, reliability work comes before features. Chaos engineering needs a hypothesis, a steady-state metric, a small blast radius and a way to stop."
+  }
+ ],
+ "chaos": [
+  {
+   "lesson": "chaos",
+   "id": "gameday",
+   "title": "The chaos experiment hit real customers",
+   "brief": "A chaos test killed one instance and checkout broke for real users.",
+   "clues": {
+    "logs": "Experiment ran in production against 100% of traffic.",
+    "metrics": "Checkout errors 35% since the experiment started.",
+    "traces": "No fallback for the killed instance.",
+    "deploys": "No steady-state check was defined.",
+    "deps": "No abort button was prepared."
+   },
+   "acts": [
+    [
+     "abort",
+     "fix",
+     "Abort the experiment, then rerun with a small blast radius and steady-state checks"
+    ],
+    [
+     "continue",
+     "wr",
+     "Continue, it is valuable data",
+     "Customers are being hurt."
+    ],
+    [
+     "blame",
+     "wr",
+     "Find who ran it and report them",
+     "Blameless review finds the real gaps."
+    ],
+    [
+     "scale",
+     "band",
+     "Add instances now",
+     "Helps recovery but the process is still unsafe."
+    ],
+    [
+     "stop",
+     "wr",
+     "Ban chaos testing forever",
+     "You lose the learning."
+    ]
+   ],
+   "need": [
+    "abort"
+   ],
+   "par": 6,
+   "learn": "Chaos engineering needs a hypothesis, a steady-state metric, a small blast radius and a way to stop.",
+   "max": 12,
+   "start": 60,
+   "rise": 6,
+   "level": 1,
+   "name": "One failure"
+  },
+  {
+   "lesson": "chaos",
+   "id": "gameday+idor",
+   "level": 2,
+   "name": "Double trouble",
+   "title": "Double trouble: The chaos experiment hit real customers, and invoices visible to the wrong users",
+   "brief": "Two separate things are broken at the same time. First: A chaos test killed one instance and checkout broke for real users. Second: A researcher can read other customers' invoices by changing the number in the URL.",
+   "clues": {
+    "logs": "Experiment ran in production against 100% of traffic. ALSO: GET /invoices/1043 returned data for a different account.",
+    "metrics": "Checkout errors 35% since the experiment started. ALSO: No unusual traffic, just sequential IDs being walked.",
+    "traces": "No fallback for the killed instance. ALSO: Handler checks that the caller is logged in but not who owns the invoice.",
+    "deploys": "No steady-state check was defined. ALSO: Invoice page added last month.",
+    "deps": "No abort button was prepared. ALSO: Authentication service healthy."
+   },
+   "acts": [
+    [
+     "a_abort",
+     "fix",
+     "Abort the experiment, then rerun with a small blast radius and steady-state checks"
+    ],
+    [
+     "a_continue",
+     "wr",
+     "Continue, it is valuable data",
+     "Customers are being hurt."
+    ],
+    [
+     "a_blame",
+     "wr",
+     "Find who ran it and report them",
+     "Blameless review finds the real gaps."
+    ],
+    [
+     "a_scale",
+     "band",
+     "Add instances now",
+     "Helps recovery but the process is still unsafe."
+    ],
+    [
+     "a_stop",
+     "wr",
+     "Ban chaos testing forever",
+     "You lose the learning."
+    ],
+    [
+     "b_authz",
+     "fix",
+     "Check object ownership on every request on the server"
+    ],
+    [
+     "b_obfuscate",
+     "band",
+     "Use random-looking IDs",
+     "Harder to guess, still not authorised."
+    ],
+    [
+     "b_captcha",
+     "wr",
+     "Add a CAPTCHA",
+     "Does not stop a logged-in user."
+    ],
+    [
+     "b_encrypt",
+     "wr",
+     "Encrypt the database",
+     "Does not stop authorised-looking requests."
+    ],
+    [
+     "b_takedown",
+     "band",
+     "Take the invoice page down",
+     "Stops it but removes the feature."
+    ]
+   ],
+   "need": [
+    "a_abort",
+    "b_authz"
+   ],
+   "par": 9,
+   "max": 16,
+   "start": 55,
+   "rise": 6,
+   "learn": "Chaos engineering needs a hypothesis, a steady-state metric, a small blast radius and a way to stop. Authentication is not authorisation. Check ownership on every object access."
+  }
+ ],
+ "auth": [
+  {
+   "lesson": "auth",
+   "id": "idor",
+   "title": "Invoices visible to the wrong users",
+   "brief": "A researcher can read other customers' invoices by changing the number in the URL.",
+   "clues": {
+    "logs": "GET /invoices/1043 returned data for a different account.",
+    "metrics": "No unusual traffic, just sequential IDs being walked.",
+    "traces": "Handler checks that the caller is logged in but not who owns the invoice.",
+    "deploys": "Invoice page added last month.",
+    "deps": "Authentication service healthy."
+   },
+   "acts": [
+    [
+     "authz",
+     "fix",
+     "Check object ownership on every request on the server"
+    ],
+    [
+     "obfuscate",
+     "band",
+     "Use random-looking IDs",
+     "Harder to guess, still not authorised."
+    ],
+    [
+     "captcha",
+     "wr",
+     "Add a CAPTCHA",
+     "Does not stop a logged-in user."
+    ],
+    [
+     "encrypt",
+     "wr",
+     "Encrypt the database",
+     "Does not stop authorised-looking requests."
+    ],
+    [
+     "takedown",
+     "band",
+     "Take the invoice page down",
+     "Stops it but removes the feature."
+    ]
+   ],
+   "need": [
+    "authz"
+   ],
+   "par": 6,
+   "learn": "Authentication is not authorisation. Check ownership on every object access.",
+   "max": 12,
+   "start": 60,
+   "rise": 6,
+   "level": 1,
+   "name": "One failure"
+  },
+  {
+   "lesson": "auth",
+   "id": "idor+exposed",
+   "level": 2,
+   "name": "Double trouble",
+   "title": "Double trouble: Invoices visible to the wrong users, and a public database",
+   "brief": "Two separate things are broken at the same time. First: A researcher can read other customers' invoices by changing the number in the URL. Second: A scan shows the database is open to the internet, with reads from unknown IPs.",
+   "clues": {
+    "logs": "GET /invoices/1043 returned data for a different account. ALSO: Connections from 40 unknown IPs to port 5432.",
+    "metrics": "No unusual traffic, just sequential IDs being walked. ALSO: Outbound data transfer 10x normal.",
+    "traces": "Handler checks that the caller is logged in but not who owns the invoice. ALSO: Security group allows 0.0.0.0/0 on the database port.",
+    "deploys": "Invoice page added last month. ALSO: Security group edited two days ago to debug a problem.",
+    "deps": "Authentication service healthy. ALSO: Database credentials are in a shared document."
+   },
+   "acts": [
+    [
+     "a_authz",
+     "fix",
+     "Check object ownership on every request on the server"
+    ],
+    [
+     "a_obfuscate",
+     "band",
+     "Use random-looking IDs",
+     "Harder to guess, still not authorised."
+    ],
+    [
+     "a_captcha",
+     "wr",
+     "Add a CAPTCHA",
+     "Does not stop a logged-in user."
+    ],
+    [
+     "a_encrypt",
+     "wr",
+     "Encrypt the database",
+     "Does not stop authorised-looking requests."
+    ],
+    [
+     "a_takedown",
+     "band",
+     "Take the invoice page down",
+     "Stops it but removes the feature."
+    ],
+    [
+     "b_private",
+     "fix",
+     "Move it to a private subnet, restrict security groups and rotate credentials"
+    ],
+    [
+     "b_password",
+     "band",
+     "Change the database password only",
+     "It is still exposed to the internet."
+    ],
+    [
+     "b_ids",
+     "wr",
+     "Add an intrusion detection alert",
+     "Detects, does not stop."
+    ],
+    [
+     "b_scale",
+     "wr",
+     "Scale the database up",
+     "Not a capacity problem."
+    ],
+    [
+     "b_ignore",
+     "wr",
+     "Wait and see",
+     "Data is leaving now."
+    ]
+   ],
+   "need": [
+    "a_authz",
+    "b_private"
+   ],
+   "par": 9,
+   "max": 16,
+   "start": 55,
+   "rise": 6,
+   "learn": "Authentication is not authorisation. Check ownership on every object access. Databases belong in private networks. Apply least privilege and rotate leaked secrets."
+  }
+ ],
+ "netsec": [
+  {
+   "lesson": "netsec",
+   "id": "exposed",
+   "title": "A public database",
+   "brief": "A scan shows the database is open to the internet, with reads from unknown IPs.",
+   "clues": {
+    "logs": "Connections from 40 unknown IPs to port 5432.",
+    "metrics": "Outbound data transfer 10x normal.",
+    "traces": "Security group allows 0.0.0.0/0 on the database port.",
+    "deploys": "Security group edited two days ago to debug a problem.",
+    "deps": "Database credentials are in a shared document."
+   },
+   "acts": [
+    [
+     "private",
+     "fix",
+     "Move it to a private subnet, restrict security groups and rotate credentials"
+    ],
+    [
+     "password",
+     "band",
+     "Change the database password only",
+     "It is still exposed to the internet."
+    ],
+    [
+     "ids",
+     "wr",
+     "Add an intrusion detection alert",
+     "Detects, does not stop."
+    ],
+    [
+     "scale",
+     "wr",
+     "Scale the database up",
+     "Not a capacity problem."
+    ],
+    [
+     "ignore",
+     "wr",
+     "Wait and see",
+     "Data is leaving now."
+    ]
+   ],
+   "need": [
+    "private"
+   ],
+   "par": 6,
+   "learn": "Databases belong in private networks. Apply least privilege and rotate leaked secrets.",
+   "max": 12,
+   "start": 60,
+   "rise": 6,
+   "level": 1,
+   "name": "One failure"
+  },
+  {
+   "lesson": "netsec",
+   "id": "exposed+oom",
+   "level": 2,
+   "name": "Double trouble",
+   "title": "Double trouble: A public database, and pods keep restarting",
+   "brief": "Two separate things are broken at the same time. First: A scan shows the database is open to the internet, with reads from unknown IPs. Second: Pods restart every few minutes with OOMKilled after traffic grew.",
+   "clues": {
+    "logs": "Connections from 40 unknown IPs to port 5432. ALSO: Container killed: out of memory, limit 256Mi.",
+    "metrics": "Outbound data transfer 10x normal. ALSO: Memory climbs steadily to the limit then drops on restart.",
+    "traces": "Security group allows 0.0.0.0/0 on the database port. ALSO: Heap grows with each request and is never released.",
+    "deploys": "Security group edited two days ago to debug a problem. ALSO: Traffic grew 3x this week.",
+    "deps": "Database credentials are in a shared document. ALSO: Nodes have free memory."
+   },
+   "acts": [
+    [
+     "a_private",
+     "fix",
+     "Move it to a private subnet, restrict security groups and rotate credentials"
+    ],
+    [
+     "a_password",
+     "band",
+     "Change the database password only",
+     "It is still exposed to the internet."
+    ],
+    [
+     "a_ids",
+     "wr",
+     "Add an intrusion detection alert",
+     "Detects, does not stop."
+    ],
+    [
+     "a_scale",
+     "wr",
+     "Scale the database up",
+     "Not a capacity problem."
+    ],
+    [
+     "a_ignore",
+     "wr",
+     "Wait and see",
+     "Data is leaving now."
+    ],
+    [
+     "b_memory",
+     "fix",
+     "Profile and fix the leak, and set sensible memory requests and limits"
+    ],
+    [
+     "b_restart",
+     "band",
+     "Restart the pods on a schedule",
+     "Hides the leak."
+    ],
+    [
+     "b_cpu",
+     "wr",
+     "Raise the CPU limit",
+     "Memory is the problem."
+    ],
+    [
+     "b_nodes",
+     "wr",
+     "Add more nodes",
+     "The limit is per pod."
+    ],
+    [
+     "b_probe",
+     "wr",
+     "Disable the liveness probe",
+     "Pods would be killed by the OOM killer anyway."
+    ]
+   ],
+   "need": [
+    "a_private",
+    "b_memory"
+   ],
+   "par": 9,
+   "max": 16,
+   "start": 55,
+   "rise": 6,
+   "learn": "Databases belong in private networks. Apply least privilege and rotate leaked secrets. Set resource requests and limits, and fix leaks instead of restarting around them."
+  }
+ ],
+ "containers": [
+  {
+   "lesson": "containers",
+   "id": "oom",
+   "title": "Pods keep restarting",
+   "brief": "Pods restart every few minutes with OOMKilled after traffic grew.",
+   "clues": {
+    "logs": "Container killed: out of memory, limit 256Mi.",
+    "metrics": "Memory climbs steadily to the limit then drops on restart.",
+    "traces": "Heap grows with each request and is never released.",
+    "deploys": "Traffic grew 3x this week.",
+    "deps": "Nodes have free memory."
+   },
+   "acts": [
+    [
+     "memory",
+     "fix",
+     "Profile and fix the leak, and set sensible memory requests and limits"
+    ],
+    [
+     "restart",
+     "band",
+     "Restart the pods on a schedule",
+     "Hides the leak."
+    ],
+    [
+     "cpu",
+     "wr",
+     "Raise the CPU limit",
+     "Memory is the problem."
+    ],
+    [
+     "nodes",
+     "wr",
+     "Add more nodes",
+     "The limit is per pod."
+    ],
+    [
+     "probe",
+     "wr",
+     "Disable the liveness probe",
+     "Pods would be killed by the OOM killer anyway."
+    ]
+   ],
+   "need": [
+    "memory"
+   ],
+   "par": 6,
+   "learn": "Set resource requests and limits, and fix leaks instead of restarting around them.",
+   "max": 12,
+   "start": 60,
+   "rise": 6,
+   "level": 1,
+   "name": "One failure"
+  },
+  {
+   "lesson": "containers",
+   "id": "oom+drift",
+   "level": 2,
+   "name": "Double trouble",
+   "title": "Double trouble: Pods keep restarting, and production differs from staging",
+   "brief": "Two separate things are broken at the same time. First: Pods restart every few minutes with OOMKilled after traffic grew. Second: Production behaves differently from staging and nobody remembers changing anything.",
+   "clues": {
+    "logs": "Container killed: out of memory, limit 256Mi. ALSO: A security group rule exists in production that is not in the repository.",
+    "metrics": "Memory climbs steadily to the limit then drops on restart. ALSO: Terraform plan shows 14 unexpected changes.",
+    "traces": "Heap grows with each request and is never released. ALSO: Several resources were edited in the console.",
+    "deploys": "Traffic grew 3x this week. ALSO: No change reviews for the last month.",
+    "deps": "Nodes have free memory. ALSO: Two engineers have console admin access."
+   },
+   "acts": [
+    [
+     "a_memory",
+     "fix",
+     "Profile and fix the leak, and set sensible memory requests and limits"
+    ],
+    [
+     "a_restart",
+     "band",
+     "Restart the pods on a schedule",
+     "Hides the leak."
+    ],
+    [
+     "a_cpu",
+     "wr",
+     "Raise the CPU limit",
+     "Memory is the problem."
+    ],
+    [
+     "a_nodes",
+     "wr",
+     "Add more nodes",
+     "The limit is per pod."
+    ],
+    [
+     "a_probe",
+     "wr",
+     "Disable the liveness probe",
+     "Pods would be killed by the OOM killer anyway."
+    ],
+    [
+     "b_iac",
+     "fix",
+     "Codify the changes in Terraform, review with plan, and block console edits"
+    ],
+    [
+     "b_apply",
+     "wr",
+     "Run apply blindly to reset everything",
+     "It could destroy things that matter."
+    ],
+    [
+     "b_copy",
+     "band",
+     "Copy production settings into staging by hand",
+     "Matches today, drifts again tomorrow."
+    ],
+    [
+     "b_docs",
+     "wr",
+     "Write a wiki page",
+     "Documentation drifts too."
+    ],
+    [
+     "b_access",
+     "band",
+     "Remove everyone's access",
+     "Stops changes but also stops work."
+    ]
+   ],
+   "need": [
+    "a_memory",
+    "b_iac"
+   ],
+   "par": 9,
+   "max": 16,
+   "start": 55,
+   "rise": 6,
+   "learn": "Set resource requests and limits, and fix leaks instead of restarting around them. Infrastructure as code with reviewed plans keeps environments in step."
+  }
+ ],
+ "iac": [
+  {
+   "lesson": "iac",
+   "id": "drift",
+   "title": "Production differs from staging",
+   "brief": "Production behaves differently from staging and nobody remembers changing anything.",
+   "clues": {
+    "logs": "A security group rule exists in production that is not in the repository.",
+    "metrics": "Terraform plan shows 14 unexpected changes.",
+    "traces": "Several resources were edited in the console.",
+    "deploys": "No change reviews for the last month.",
+    "deps": "Two engineers have console admin access."
+   },
+   "acts": [
+    [
+     "iac",
+     "fix",
+     "Codify the changes in Terraform, review with plan, and block console edits"
+    ],
+    [
+     "apply",
+     "wr",
+     "Run apply blindly to reset everything",
+     "It could destroy things that matter."
+    ],
+    [
+     "copy",
+     "band",
+     "Copy production settings into staging by hand",
+     "Matches today, drifts again tomorrow."
+    ],
+    [
+     "docs",
+     "wr",
+     "Write a wiki page",
+     "Documentation drifts too."
+    ],
+    [
+     "access",
+     "band",
+     "Remove everyone's access",
+     "Stops changes but also stops work."
+    ]
+   ],
+   "need": [
+    "iac"
+   ],
+   "par": 6,
+   "learn": "Infrastructure as code with reviewed plans keeps environments in step.",
+   "max": 12,
+   "start": 60,
+   "rise": 6,
+   "level": 1,
+   "name": "One failure"
+  },
+  {
+   "lesson": "iac",
+   "id": "drift+migration",
+   "level": 2,
+   "name": "Double trouble",
+   "title": "Double trouble: Production differs from staging, and half the requests fail during deploy",
+   "brief": "Two separate things are broken at the same time. First: Production behaves differently from staging and nobody remembers changing anything. Second: During a rolling deploy, requests to old and new servers start failing.",
+   "clues": {
+    "logs": "A security group rule exists in production that is not in the repository. ALSO: column \"legacy_name\" does not exist, from old servers.",
+    "metrics": "Terraform plan shows 14 unexpected changes. ALSO: Errors began when the migration ran.",
+    "traces": "Several resources were edited in the console. ALSO: Old code still reads a column the migration dropped.",
+    "deploys": "No change reviews for the last month. ALSO: Migration drops a column in the same release.",
+    "deps": "Two engineers have console admin access. ALSO: Rollout is 50% complete."
+   },
+   "acts": [
+    [
+     "a_iac",
+     "fix",
+     "Codify the changes in Terraform, review with plan, and block console edits"
+    ],
+    [
+     "a_apply",
+     "wr",
+     "Run apply blindly to reset everything",
+     "It could destroy things that matter."
+    ],
+    [
+     "a_copy",
+     "band",
+     "Copy production settings into staging by hand",
+     "Matches today, drifts again tomorrow."
+    ],
+    [
+     "a_docs",
+     "wr",
+     "Write a wiki page",
+     "Documentation drifts too."
+    ],
+    [
+     "a_access",
+     "band",
+     "Remove everyone's access",
+     "Stops changes but also stops work."
+    ],
+    [
+     "b_rollback",
+     "fix",
+     "Roll back, then redo it as expand and contract in separate releases"
+    ],
+    [
+     "b_pause",
+     "band",
+     "Pause the rollout",
+     "Stops it getting worse, errors remain."
+    ],
+    [
+     "b_scale",
+     "wr",
+     "Add servers",
+     "More servers, same error."
+    ],
+    [
+     "b_restart",
+     "wr",
+     "Restart the old servers",
+     "They still read the missing column."
+    ],
+    [
+     "b_cache",
+     "wr",
+     "Clear the cache",
+     "Not a cache issue."
+    ]
+   ],
+   "need": [
+    "a_iac",
+    "b_rollback"
+   ],
+   "par": 9,
+   "max": 16,
+   "start": 55,
+   "rise": 6,
+   "learn": "Infrastructure as code with reviewed plans keeps environments in step. During a rollout old and new code overlap. Use expand and contract migrations."
+  }
+ ],
+ "deploy": [
+  {
+   "lesson": "deploy",
+   "id": "migration",
+   "title": "Half the requests fail during deploy",
+   "brief": "During a rolling deploy, requests to old and new servers start failing.",
+   "clues": {
+    "logs": "column \"legacy_name\" does not exist, from old servers.",
+    "metrics": "Errors began when the migration ran.",
+    "traces": "Old code still reads a column the migration dropped.",
+    "deploys": "Migration drops a column in the same release.",
+    "deps": "Rollout is 50% complete."
+   },
+   "acts": [
+    [
+     "rollback",
+     "fix",
+     "Roll back, then redo it as expand and contract in separate releases"
+    ],
+    [
+     "pause",
+     "band",
+     "Pause the rollout",
+     "Stops it getting worse, errors remain."
+    ],
+    [
+     "scale",
+     "wr",
+     "Add servers",
+     "More servers, same error."
+    ],
+    [
+     "restart",
+     "wr",
+     "Restart the old servers",
+     "They still read the missing column."
+    ],
+    [
+     "cache",
+     "wr",
+     "Clear the cache",
+     "Not a cache issue."
+    ]
+   ],
+   "need": [
+    "rollback"
+   ],
+   "par": 6,
+   "learn": "During a rollout old and new code overlap. Use expand and contract migrations.",
+   "max": 12,
+   "start": 60,
+   "rise": 6,
+   "level": 1,
+   "name": "One failure"
+  },
+  {
+   "lesson": "deploy",
+   "id": "migration+lag",
+   "level": 2,
+   "name": "Double trouble",
+   "title": "Double trouble: Half the requests fail during deploy, and the dashboard is 40 minutes behind",
+   "brief": "Two separate things are broken at the same time. First: During a rolling deploy, requests to old and new servers start failing. Second: Consumer lag on the events topic keeps growing.",
+   "clues": {
+    "logs": "column \"legacy_name\" does not exist, from old servers. ALSO: Consumer group has 2 consumers for 12 partitions.",
+    "metrics": "Errors began when the migration ran. ALSO: Lag 4 million messages and rising. Handler takes 200 ms per message.",
+    "traces": "Old code still reads a column the migration dropped. ALSO: Time is spent calling a slow enrichment API per message.",
+    "deploys": "Migration drops a column in the same release. ALSO: Event volume doubled last week.",
+    "deps": "Rollout is 50% complete. ALSO: Broker healthy."
+   },
+   "acts": [
+    [
+     "a_rollback",
+     "fix",
+     "Roll back, then redo it as expand and contract in separate releases"
+    ],
+    [
+     "a_pause",
+     "band",
+     "Pause the rollout",
+     "Stops it getting worse, errors remain."
+    ],
+    [
+     "a_scale",
+     "wr",
+     "Add servers",
+     "More servers, same error."
+    ],
+    [
+     "a_restart",
+     "wr",
+     "Restart the old servers",
+     "They still read the missing column."
+    ],
+    [
+     "a_cache",
+     "wr",
+     "Clear the cache",
+     "Not a cache issue."
+    ],
+    [
+     "b_consumers",
+     "fix",
+     "Add consumers (up to the partition count) and batch the enrichment calls"
+    ],
+    [
+     "b_skip",
+     "band",
+     "Skip to the latest offset",
+     "Lag disappears but data is lost."
+    ],
+    [
+     "b_retention",
+     "wr",
+     "Increase retention",
+     "Gives time, does not add capacity."
+    ],
+    [
+     "b_partitions",
+     "wr",
+     "Add more partitions only",
+     "Without more consumers nothing changes."
+    ],
+    [
+     "b_broker",
+     "wr",
+     "Add brokers",
+     "Brokers are healthy."
+    ]
+   ],
+   "need": [
+    "a_rollback",
+    "b_consumers"
+   ],
+   "par": 9,
+   "max": 16,
+   "start": 55,
+   "rise": 6,
+   "learn": "During a rollout old and new code overlap. Use expand and contract migrations. Consumer groups scale with partitions. Add consumers and speed up the handler."
+  }
+ ],
+ "streaming": [
+  {
+   "lesson": "streaming",
+   "id": "lag",
+   "title": "The dashboard is 40 minutes behind",
+   "brief": "Consumer lag on the events topic keeps growing.",
+   "clues": {
+    "logs": "Consumer group has 2 consumers for 12 partitions.",
+    "metrics": "Lag 4 million messages and rising. Handler takes 200 ms per message.",
+    "traces": "Time is spent calling a slow enrichment API per message.",
+    "deploys": "Event volume doubled last week.",
+    "deps": "Broker healthy."
+   },
+   "acts": [
+    [
+     "consumers",
+     "fix",
+     "Add consumers (up to the partition count) and batch the enrichment calls"
+    ],
+    [
+     "skip",
+     "band",
+     "Skip to the latest offset",
+     "Lag disappears but data is lost."
+    ],
+    [
+     "retention",
+     "wr",
+     "Increase retention",
+     "Gives time, does not add capacity."
+    ],
+    [
+     "partitions",
+     "wr",
+     "Add more partitions only",
+     "Without more consumers nothing changes."
+    ],
+    [
+     "broker",
+     "wr",
+     "Add brokers",
+     "Brokers are healthy."
+    ]
+   ],
+   "need": [
+    "consumers"
+   ],
+   "par": 6,
+   "learn": "Consumer groups scale with partitions. Add consumers and speed up the handler.",
+   "max": 12,
+   "start": 60,
+   "rise": 6,
+   "level": 1,
+   "name": "One failure"
+  },
+  {
+   "lesson": "streaming",
+   "id": "lag+skewjob",
+   "level": 2,
+   "name": "Double trouble",
+   "title": "Double trouble: The dashboard is 40 minutes behind, and the nightly job takes nine hours",
+   "brief": "Two separate things are broken at the same time. First: Consumer lag on the events topic keeps growing. Second: One task of the Spark job runs eight hours while the others finish quickly.",
+   "clues": {
+    "logs": "Consumer group has 2 consumers for 12 partitions. ALSO: One partition holds 70% of the rows, all with key \"unknown\".",
+    "metrics": "Lag 4 million messages and rising. Handler takes 200 ms per message. ALSO: Cluster mostly idle while a single task runs.",
+    "traces": "Time is spent calling a slow enrichment API per message. ALSO: Join on a key with a heavy skew.",
+    "deploys": "Event volume doubled last week. ALSO: Job unchanged for months, data changed.",
+    "deps": "Broker healthy. ALSO: No node failures."
+   },
+   "acts": [
+    [
+     "a_consumers",
+     "fix",
+     "Add consumers (up to the partition count) and batch the enrichment calls"
+    ],
+    [
+     "a_skip",
+     "band",
+     "Skip to the latest offset",
+     "Lag disappears but data is lost."
+    ],
+    [
+     "a_retention",
+     "wr",
+     "Increase retention",
+     "Gives time, does not add capacity."
+    ],
+    [
+     "a_partitions",
+     "wr",
+     "Add more partitions only",
+     "Without more consumers nothing changes."
+    ],
+    [
+     "a_broker",
+     "wr",
+     "Add brokers",
+     "Brokers are healthy."
+    ],
+    [
+     "b_salt",
+     "fix",
+     "Fix the key skew by salting the hot key or repartitioning"
+    ],
+    [
+     "b_nodes",
+     "wr",
+     "Add more nodes",
+     "The skewed task still runs on one node."
+    ],
+    [
+     "b_retry",
+     "wr",
+     "Retry the job",
+     "Same skew, same result."
+    ],
+    [
+     "b_memory",
+     "band",
+     "Give executors more memory",
+     "Prevents a crash but it is still slow."
+    ],
+    [
+     "b_skipnull",
+     "band",
+     "Drop the unknown rows",
+     "Loses data."
+    ]
+   ],
+   "need": [
+    "a_consumers",
+    "b_salt"
+   ],
+   "par": 9,
+   "max": 16,
+   "start": 55,
+   "rise": 6,
+   "learn": "Consumer groups scale with partitions. Add consumers and speed up the handler. Data skew makes one task a straggler. Spread hot keys."
+  }
+ ],
+ "batch": [
+  {
+   "lesson": "batch",
+   "id": "skewjob",
+   "title": "The nightly job takes nine hours",
+   "brief": "One task of the Spark job runs eight hours while the others finish quickly.",
+   "clues": {
+    "logs": "One partition holds 70% of the rows, all with key \"unknown\".",
+    "metrics": "Cluster mostly idle while a single task runs.",
+    "traces": "Join on a key with a heavy skew.",
+    "deploys": "Job unchanged for months, data changed.",
+    "deps": "No node failures."
+   },
+   "acts": [
+    [
+     "salt",
+     "fix",
+     "Fix the key skew by salting the hot key or repartitioning"
+    ],
+    [
+     "nodes",
+     "wr",
+     "Add more nodes",
+     "The skewed task still runs on one node."
+    ],
+    [
+     "retry",
+     "wr",
+     "Retry the job",
+     "Same skew, same result."
+    ],
+    [
+     "memory",
+     "band",
+     "Give executors more memory",
+     "Prevents a crash but it is still slow."
+    ],
+    [
+     "skipnull",
+     "band",
+     "Drop the unknown rows",
+     "Loses data."
+    ]
+   ],
+   "need": [
+    "salt"
+   ],
+   "par": 6,
+   "learn": "Data skew makes one task a straggler. Spread hot keys.",
+   "max": 12,
+   "start": 60,
+   "rise": 6,
+   "level": 1,
+   "name": "One failure"
+  },
+  {
+   "lesson": "batch",
+   "id": "skewjob+deadlock",
+   "level": 2,
+   "name": "Double trouble",
+   "title": "Double trouble: The nightly job takes nine hours, and transfers hang under load",
+   "brief": "Two separate things are broken at the same time. First: One task of the Spark job runs eight hours while the others finish quickly. Second: Money transfers freeze when many run at once.",
+   "clues": {
+    "logs": "One partition holds 70% of the rows, all with key \"unknown\". ALSO: Thread A holds account 1 and waits for 2. Thread B holds 2 and waits for 1.",
+    "metrics": "Cluster mostly idle while a single task runs. ALSO: Locks held forever, throughput zero for those accounts.",
+    "traces": "Join on a key with a heavy skew. ALSO: Transfer locks the source then the destination.",
+    "deploys": "Job unchanged for months, data changed. ALSO: None.",
+    "deps": "No node failures. ALSO: Database healthy."
+   },
+   "acts": [
+    [
+     "a_salt",
+     "fix",
+     "Fix the key skew by salting the hot key or repartitioning"
+    ],
+    [
+     "a_nodes",
+     "wr",
+     "Add more nodes",
+     "The skewed task still runs on one node."
+    ],
+    [
+     "a_retry",
+     "wr",
+     "Retry the job",
+     "Same skew, same result."
+    ],
+    [
+     "a_memory",
+     "band",
+     "Give executors more memory",
+     "Prevents a crash but it is still slow."
+    ],
+    [
+     "a_skipnull",
+     "band",
+     "Drop the unknown rows",
+     "Loses data."
+    ],
+    [
+     "b_order",
+     "fix",
+     "Always acquire locks in a consistent order, for example by account ID"
+    ],
+    [
+     "b_timeout",
+     "band",
+     "Add a lock timeout and retry",
+     "Breaks the stall but the cycle remains."
+    ],
+    [
+     "b_restart",
+     "band",
+     "Restart the service",
+     "Releases locks until it happens again."
+    ],
+    [
+     "b_threads",
+     "wr",
+     "Add more threads",
+     "More threads, more deadlocks."
+    ],
+    [
+     "b_bigdb",
+     "wr",
+     "Use a bigger database",
+     "Not a capacity issue."
+    ]
+   ],
+   "need": [
+    "a_salt",
+    "b_order"
+   ],
+   "par": 9,
+   "max": 16,
+   "start": 55,
+   "rise": 6,
+   "learn": "Data skew makes one task a straggler. Spread hot keys. Deadlocks need a cycle. A global lock order removes the cycle."
+  }
+ ],
+ "conc": [
+  {
+   "lesson": "conc",
+   "id": "deadlock",
+   "title": "Transfers hang under load",
+   "brief": "Money transfers freeze when many run at once.",
+   "clues": {
+    "logs": "Thread A holds account 1 and waits for 2. Thread B holds 2 and waits for 1.",
+    "metrics": "Locks held forever, throughput zero for those accounts.",
+    "traces": "Transfer locks the source then the destination.",
+    "deploys": "None.",
+    "deps": "Database healthy."
+   },
+   "acts": [
+    [
+     "order",
+     "fix",
+     "Always acquire locks in a consistent order, for example by account ID"
+    ],
+    [
+     "timeout",
+     "band",
+     "Add a lock timeout and retry",
+     "Breaks the stall but the cycle remains."
+    ],
+    [
+     "restart",
+     "band",
+     "Restart the service",
+     "Releases locks until it happens again."
+    ],
+    [
+     "threads",
+     "wr",
+     "Add more threads",
+     "More threads, more deadlocks."
+    ],
+    [
+     "bigdb",
+     "wr",
+     "Use a bigger database",
+     "Not a capacity issue."
+    ]
+   ],
+   "need": [
+    "order"
+   ],
+   "par": 6,
+   "learn": "Deadlocks need a cycle. A global lock order removes the cycle.",
+   "max": 12,
+   "start": 60,
+   "rise": 6,
+   "level": 1,
+   "name": "One failure"
+  },
+  {
+   "lesson": "conc",
+   "id": "deadlock+doublealloc",
+   "level": 2,
+   "name": "Double trouble",
+   "title": "Double trouble: Transfers hang under load, and two cars, one spot",
+   "brief": "Two separate things are broken at the same time. First: Money transfers freeze when many run at once. Second: At rush hour two cars were assigned the same parking spot.",
+   "clues": {
+    "logs": "Thread A holds account 1 and waits for 2. Thread B holds 2 and waits for 1. ALSO: Two tickets with spot A-17 created 3 ms apart.",
+    "metrics": "Locks held forever, throughput zero for those accounts. ALSO: Only under concurrent arrivals at two gates.",
+    "traces": "Transfer locks the source then the destination. ALSO: Allocation checks for a free spot and then assigns it in two steps.",
+    "deploys": "None. ALSO: Second entry gate added last week.",
+    "deps": "Database healthy. ALSO: No errors thrown."
+   },
+   "acts": [
+    [
+     "a_order",
+     "fix",
+     "Always acquire locks in a consistent order, for example by account ID"
+    ],
+    [
+     "a_timeout",
+     "band",
+     "Add a lock timeout and retry",
+     "Breaks the stall but the cycle remains."
+    ],
+    [
+     "a_restart",
+     "band",
+     "Restart the service",
+     "Releases locks until it happens again."
+    ],
+    [
+     "a_threads",
+     "wr",
+     "Add more threads",
+     "More threads, more deadlocks."
+    ],
+    [
+     "a_bigdb",
+     "wr",
+     "Use a bigger database",
+     "Not a capacity issue."
+    ],
+    [
+     "b_atomic",
+     "fix",
+     "Make allocation atomic with a lock or a conditional update"
+    ],
+    [
+     "b_manual",
+     "band",
+     "Attendants resolve conflicts by hand",
+     "Works until it does not."
+    ],
+    [
+     "b_gate",
+     "wr",
+     "Close the second gate",
+     "Hides the race."
+    ],
+    [
+     "b_bigger",
+     "wr",
+     "Add more spots",
+     "Does not stop the double assignment."
+    ],
+    [
+     "b_retry",
+     "wr",
+     "Retry when a customer complains",
+     "The race still happens."
+    ]
+   ],
+   "need": [
+    "a_order",
+    "b_atomic"
+   ],
+   "par": 9,
+   "max": 16,
+   "start": 55,
+   "rise": 6,
+   "learn": "Deadlocks need a cycle. A global lock order removes the cycle. Check then assign is a race. Make it a single atomic step."
+  }
+ ],
+ "parking": [
+  {
+   "lesson": "parking",
+   "id": "doublealloc",
+   "title": "Two cars, one spot",
+   "brief": "At rush hour two cars were assigned the same parking spot.",
+   "clues": {
+    "logs": "Two tickets with spot A-17 created 3 ms apart.",
+    "metrics": "Only under concurrent arrivals at two gates.",
+    "traces": "Allocation checks for a free spot and then assigns it in two steps.",
+    "deploys": "Second entry gate added last week.",
+    "deps": "No errors thrown."
+   },
+   "acts": [
+    [
+     "atomic",
+     "fix",
+     "Make allocation atomic with a lock or a conditional update"
+    ],
+    [
+     "manual",
+     "band",
+     "Attendants resolve conflicts by hand",
+     "Works until it does not."
+    ],
+    [
+     "gate",
+     "wr",
+     "Close the second gate",
+     "Hides the race."
+    ],
+    [
+     "bigger",
+     "wr",
+     "Add more spots",
+     "Does not stop the double assignment."
+    ],
+    [
+     "retry",
+     "wr",
+     "Retry when a customer complains",
+     "The race still happens."
+    ]
+   ],
+   "need": [
+    "atomic"
+   ],
+   "par": 6,
+   "learn": "Check then assign is a race. Make it a single atomic step.",
+   "max": 12,
+   "start": 60,
+   "rise": 6,
+   "level": 1,
+   "name": "One failure"
+  },
+  {
+   "lesson": "parking",
+   "id": "doublealloc+leak",
+   "level": 2,
+   "name": "Double trouble",
+   "title": "Double trouble: Two cars, one spot, and memory grows until the service dies",
+   "brief": "Two separate things are broken at the same time. First: At rush hour two cars were assigned the same parking spot. Second: The service memory climbs for hours and then it is killed.",
+   "clues": {
+    "logs": "Two tickets with spot A-17 created 3 ms apart. ALSO: Heap dominated by a Map with 40 million entries.",
+    "metrics": "Only under concurrent arrivals at two gates. ALSO: Memory rises linearly with unique keys.",
+    "traces": "Allocation checks for a free spot and then assigns it in two steps. ALSO: In-process cache has no maximum size and no expiry.",
+    "deploys": "Second entry gate added last week. ALSO: Cache added last month.",
+    "deps": "No errors thrown. ALSO: Traffic normal."
+   },
+   "acts": [
+    [
+     "a_atomic",
+     "fix",
+     "Make allocation atomic with a lock or a conditional update"
+    ],
+    [
+     "a_manual",
+     "band",
+     "Attendants resolve conflicts by hand",
+     "Works until it does not."
+    ],
+    [
+     "a_gate",
+     "wr",
+     "Close the second gate",
+     "Hides the race."
+    ],
+    [
+     "a_bigger",
+     "wr",
+     "Add more spots",
+     "Does not stop the double assignment."
+    ],
+    [
+     "a_retry",
+     "wr",
+     "Retry when a customer complains",
+     "The race still happens."
+    ],
+    [
+     "b_bound",
+     "fix",
+     "Bound the cache with LRU eviction and a TTL"
+    ],
+    [
+     "b_restart",
+     "band",
+     "Restart nightly",
+     "Hides the leak."
+    ],
+    [
+     "b_ram",
+     "wr",
+     "Add more RAM",
+     "Delays the crash."
+    ],
+    [
+     "b_gc",
+     "wr",
+     "Force garbage collection more often",
+     "Entries are still referenced."
+    ],
+    [
+     "b_remove",
+     "band",
+     "Remove the cache entirely",
+     "Fixes memory, hurts latency."
+    ]
+   ],
+   "need": [
+    "a_atomic",
+    "b_bound"
+   ],
+   "par": 9,
+   "max": 16,
+   "start": 55,
+   "rise": 6,
+   "learn": "Check then assign is a race. Make it a single atomic step. Every cache needs a bound. Use LRU and a TTL."
+  }
+ ],
+ "lru": [
+  {
+   "lesson": "lru",
+   "id": "leak",
+   "title": "Memory grows until the service dies",
+   "brief": "The service memory climbs for hours and then it is killed.",
+   "clues": {
+    "logs": "Heap dominated by a Map with 40 million entries.",
+    "metrics": "Memory rises linearly with unique keys.",
+    "traces": "In-process cache has no maximum size and no expiry.",
+    "deploys": "Cache added last month.",
+    "deps": "Traffic normal."
+   },
+   "acts": [
+    [
+     "bound",
+     "fix",
+     "Bound the cache with LRU eviction and a TTL"
+    ],
+    [
+     "restart",
+     "band",
+     "Restart nightly",
+     "Hides the leak."
+    ],
+    [
+     "ram",
+     "wr",
+     "Add more RAM",
+     "Delays the crash."
+    ],
+    [
+     "gc",
+     "wr",
+     "Force garbage collection more often",
+     "Entries are still referenced."
+    ],
+    [
+     "remove",
+     "band",
+     "Remove the cache entirely",
+     "Fixes memory, hurts latency."
+    ]
+   ],
+   "need": [
+    "bound"
+   ],
+   "par": 6,
+   "learn": "Every cache needs a bound. Use LRU and a TTL.",
+   "max": 12,
+   "start": 60,
+   "rise": 6,
+   "level": 1,
+   "name": "One failure"
+  },
+  {
+   "lesson": "lru",
+   "id": "leak+hotpart",
+   "level": 2,
+   "name": "Double trouble",
+   "title": "Double trouble: Memory grows until the service dies, and one partition is on fire",
+   "brief": "Two separate things are broken at the same time. First: The service memory climbs for hours and then it is killed. Second: One partition of the key-value store is at 100% while the others sit idle.",
+   "clues": {
+    "logs": "Heap dominated by a Map with 40 million entries. ALSO: 70% of traffic goes to the key \"global-counter\".",
+    "metrics": "Memory rises linearly with unique keys. ALSO: Partition 3 at 100% CPU. Others under 10%.",
+    "traces": "In-process cache has no maximum size and no expiry. ALSO: Every request updates the same key.",
+    "deploys": "Cache added last month. ALSO: New feature uses a single counter.",
+    "deps": "Traffic normal. ALSO: No node failures."
+   },
+   "acts": [
+    [
+     "a_bound",
+     "fix",
+     "Bound the cache with LRU eviction and a TTL"
+    ],
+    [
+     "a_restart",
+     "band",
+     "Restart nightly",
+     "Hides the leak."
+    ],
+    [
+     "a_ram",
+     "wr",
+     "Add more RAM",
+     "Delays the crash."
+    ],
+    [
+     "a_gc",
+     "wr",
+     "Force garbage collection more often",
+     "Entries are still referenced."
+    ],
+    [
+     "a_remove",
+     "band",
+     "Remove the cache entirely",
+     "Fixes memory, hurts latency."
+    ],
+    [
+     "b_keys",
+     "fix",
+     "Spread the hot key (shard the counter) and cache reads"
+    ],
+    [
+     "b_scale",
+     "band",
+     "Add partitions",
+     "The hot key still lives on one partition."
+    ],
+    [
+     "b_restart",
+     "wr",
+     "Restart partition 3",
+     "Load returns at once."
+    ],
+    [
+     "b_bigger",
+     "band",
+     "Move partition 3 to a bigger machine",
+     "Buys time only."
+    ],
+    [
+     "b_ttl",
+     "wr",
+     "Lower every TTL",
+     "Does not spread load."
+    ]
+   ],
+   "need": [
+    "a_bound",
+    "b_keys"
+   ],
+   "par": 9,
+   "max": 16,
+   "start": 55,
+   "rise": 6,
+   "learn": "Every cache needs a bound. Use LRU and a TTL. A hot key defeats partitioning. Spread it or absorb it with a cache."
+  }
+ ],
+ "kvstore": [
+  {
+   "lesson": "kvstore",
+   "id": "hotpart",
+   "title": "One partition is on fire",
+   "brief": "One partition of the key-value store is at 100% while the others sit idle.",
+   "clues": {
+    "logs": "70% of traffic goes to the key \"global-counter\".",
+    "metrics": "Partition 3 at 100% CPU. Others under 10%.",
+    "traces": "Every request updates the same key.",
+    "deploys": "New feature uses a single counter.",
+    "deps": "No node failures."
+   },
+   "acts": [
+    [
+     "keys",
+     "fix",
+     "Spread the hot key (shard the counter) and cache reads"
+    ],
+    [
+     "scale",
+     "band",
+     "Add partitions",
+     "The hot key still lives on one partition."
+    ],
+    [
+     "restart",
+     "wr",
+     "Restart partition 3",
+     "Load returns at once."
+    ],
+    [
+     "bigger",
+     "band",
+     "Move partition 3 to a bigger machine",
+     "Buys time only."
+    ],
+    [
+     "ttl",
+     "wr",
+     "Lower every TTL",
+     "Does not spread load."
+    ]
+   ],
+   "need": [
+    "keys"
+   ],
+   "par": 6,
+   "learn": "A hot key defeats partitioning. Spread it or absorb it with a cache.",
+   "max": 12,
+   "start": 60,
+   "rise": 6,
+   "level": 1,
+   "name": "One failure"
+  },
+  {
+   "lesson": "kvstore",
+   "id": "hotpart+pagination",
+   "level": 2,
+   "name": "Double trouble",
+   "title": "Double trouble: One partition is on fire, and the orders endpoint times out",
+   "brief": "Two separate things are broken at the same time. First: One partition of the key-value store is at 100% while the others sit idle. Second: GET /orders times out for customers with many orders.",
+   "clues": {
+    "logs": "70% of traffic goes to the key \"global-counter\". ALSO: Query returns 250,000 rows into memory.",
+    "metrics": "Partition 3 at 100% CPU. Others under 10%. ALSO: Response size 90 MB. Latency 30 seconds.",
+    "traces": "Every request updates the same key. ALSO: No limit and no index on the sort column.",
+    "deploys": "New feature uses a single counter. ALSO: None.",
+    "deps": "No node failures. ALSO: Database healthy."
+   },
+   "acts": [
+    [
+     "a_keys",
+     "fix",
+     "Spread the hot key (shard the counter) and cache reads"
+    ],
+    [
+     "a_scale",
+     "band",
+     "Add partitions",
+     "The hot key still lives on one partition."
+    ],
+    [
+     "a_restart",
+     "wr",
+     "Restart partition 3",
+     "Load returns at once."
+    ],
+    [
+     "a_bigger",
+     "band",
+     "Move partition 3 to a bigger machine",
+     "Buys time only."
+    ],
+    [
+     "a_ttl",
+     "wr",
+     "Lower every TTL",
+     "Does not spread load."
+    ],
+    [
+     "b_paginate",
+     "fix",
+     "Add cursor pagination and an index on the sort column"
+    ],
+    [
+     "b_timeout",
+     "band",
+     "Raise the timeout",
+     "Slow responses still time out the browser."
+    ],
+    [
+     "b_scale",
+     "wr",
+     "Add servers",
+     "Each request is still huge."
+    ],
+    [
+     "b_cache",
+     "band",
+     "Cache the full response",
+     "Stale and still enormous."
+    ],
+    [
+     "b_compress",
+     "wr",
+     "Compress the response",
+     "Still reads 250,000 rows."
+    ]
+   ],
+   "need": [
+    "a_keys",
+    "b_paginate"
+   ],
+   "par": 9,
+   "max": 16,
+   "start": 55,
+   "rise": 6,
+   "learn": "A hot key defeats partitioning. Spread it or absorb it with a cache. Always paginate lists and index the sort column."
+  }
+ ],
+ "backend": [
+  {
+   "lesson": "backend",
+   "id": "pagination",
+   "title": "The orders endpoint times out",
+   "brief": "GET /orders times out for customers with many orders.",
+   "clues": {
+    "logs": "Query returns 250,000 rows into memory.",
+    "metrics": "Response size 90 MB. Latency 30 seconds.",
+    "traces": "No limit and no index on the sort column.",
+    "deploys": "None.",
+    "deps": "Database healthy."
+   },
+   "acts": [
+    [
+     "paginate",
+     "fix",
+     "Add cursor pagination and an index on the sort column"
+    ],
+    [
+     "timeout",
+     "band",
+     "Raise the timeout",
+     "Slow responses still time out the browser."
+    ],
+    [
+     "scale",
+     "wr",
+     "Add servers",
+     "Each request is still huge."
+    ],
+    [
+     "cache",
+     "band",
+     "Cache the full response",
+     "Stale and still enormous."
+    ],
+    [
+     "compress",
+     "wr",
+     "Compress the response",
+     "Still reads 250,000 rows."
+    ]
+   ],
+   "need": [
+    "paginate"
+   ],
+   "par": 6,
+   "learn": "Always paginate lists and index the sort column.",
+   "max": 12,
+   "start": 60,
+   "rise": 6,
+   "level": 1,
+   "name": "One failure"
+  },
+  {
+   "lesson": "backend",
+   "id": "pagination+dns",
+   "level": 2,
+   "name": "Double trouble",
+   "title": "Double trouble: The orders endpoint times out, and users still reach the dead server",
+   "brief": "Two separate things are broken at the same time. First: GET /orders times out for customers with many orders. Second: You moved the site to a new IP an hour ago and shut the old server down. About 40% of users still see timeouts.",
+   "clues": {
+    "logs": "Query returns 250,000 rows into memory. ALSO: New server healthy. All its traffic comes from users whose resolvers already refreshed.",
+    "metrics": "Response size 90 MB. Latency 30 seconds. ALSO: Requests to the new IP rise slowly. The old IP still receives about 40% of attempts.",
+    "traces": "No limit and no index on the sort column. ALSO: Failures are connection timeouts to the old IP, not application errors.",
+    "deploys": "None. ALSO: DNS record changed 50 minutes ago. TTL on the record is 86,400 seconds.",
+    "deps": "Database healthy. ALSO: The old server was powered off at the same time as the DNS change."
+   },
+   "acts": [
+    [
+     "a_paginate",
+     "fix",
+     "Add cursor pagination and an index on the sort column"
+    ],
+    [
+     "a_timeout",
+     "band",
+     "Raise the timeout",
+     "Slow responses still time out the browser."
+    ],
+    [
+     "a_scale",
+     "wr",
+     "Add servers",
+     "Each request is still huge."
+    ],
+    [
+     "a_cache",
+     "band",
+     "Cache the full response",
+     "Stale and still enormous."
+    ],
+    [
+     "a_compress",
+     "wr",
+     "Compress the response",
+     "Still reads 250,000 rows."
+    ],
+    [
+     "b_revive",
+     "fix",
+     "Bring the old server back, or forward its traffic, until caches expire"
+    ],
+    [
+     "b_restartnew",
+     "wr",
+     "Restart the new server",
+     "It is healthy. Nothing changes."
+    ],
+    [
+     "b_scale",
+     "wr",
+     "Add more servers on the new IP",
+     "The failing users never reach the new IP."
+    ],
+    [
+     "b_flush",
+     "band",
+     "Ask users to flush their DNS cache",
+     "A few users recover, most never see the message."
+    ],
+    [
+     "b_cdn",
+     "wr",
+     "Purge the CDN cache",
+     "This is a DNS problem, not a content problem."
+    ]
+   ],
+   "need": [
+    "a_paginate",
+    "b_revive"
+   ],
+   "par": 9,
+   "max": 16,
+   "start": 55,
+   "rise": 6,
+   "learn": "Always paginate lists and index the sort column. DNS answers are cached for as long as the TTL says. Lower the TTL before a planned move, and keep the old endpoint alive until it expires."
+  }
+ ]
+}

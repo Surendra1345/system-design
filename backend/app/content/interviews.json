@@ -1,0 +1,1594 @@
+{
+ "req": [
+  {
+   "title": "Consistency in a shopping cart and a bank ledger",
+   "prompt": "A shopping cart service and a bank ledger service both keep running during a network partition between two data centres. For each one, say whether you favour consistency or availability, and explain what the user experiences and why that is acceptable.",
+   "tips": [
+    "Name the failure you are designing for.",
+    "Say what the user sees in each case."
+   ],
+   "rubric": [
+    {
+     "id": "p1",
+     "point": "Chooses consistency for the bank ledger",
+     "keywords": [
+      "ledger",
+      "bank"
+     ]
+    },
+    {
+     "id": "p2",
+     "point": "Chooses availability for the shopping cart",
+     "keywords": [
+      "availab",
+      "always writable",
+      "keep adding"
+     ]
+    },
+    {
+     "id": "p3",
+     "point": "Mentions the network partition and that a choice is forced",
+     "keywords": [
+      "partition",
+      "network split",
+      "split brain"
+     ]
+    },
+    {
+     "id": "p4",
+     "point": "Describes the user-visible consequence (error versus stale data)",
+     "keywords": [
+      "stale",
+      "reject",
+      "refuse",
+      "error",
+      "fail"
+     ]
+    },
+    {
+     "id": "p5",
+     "point": "Explains how cart conflicts are reconciled later",
+     "keywords": [
+      "merge",
+      "reconcil",
+      "eventual",
+      "converge"
+     ]
+    }
+   ],
+   "level": 1,
+   "name": "First question"
+  },
+  {
+   "title": "Payments and notifications across a broken link",
+   "prompt": "Two services in different data centres lose their connection for ten minutes: a payments service and a notifications service. Explain what each should do while the link is down, and how you make sure nothing is lost or duplicated afterwards.",
+   "tips": [
+    "Explain your reasoning, not just the names."
+   ],
+   "rubric": [
+    {
+     "id": "p1",
+     "point": "Payments avoid guessing and stay correct (refuse or queue as pending)",
+     "keywords": [
+      "refuse",
+      "queue",
+      "pending",
+      "not charge",
+      "wait"
+     ]
+    },
+    {
+     "id": "p2",
+     "point": "Notifications keep working (availability first)",
+     "keywords": [
+      "availab",
+      "keep sending",
+      "buffer",
+      "retry later"
+     ]
+    },
+    {
+     "id": "p3",
+     "point": "Uses idempotency or de-duplication",
+     "keywords": [
+      "idempoten",
+      "dedupe",
+      "duplicate",
+      "unique id",
+      "request id"
+     ]
+    },
+    {
+     "id": "p4",
+     "point": "Reconciles after the link returns",
+     "keywords": [
+      "reconcil",
+      "replay",
+      "catch up",
+      "sync",
+      "compare"
+     ]
+    },
+    {
+     "id": "p5",
+     "point": "Detects the problem with monitoring or alerts",
+     "keywords": [
+      "alert",
+      "monitor",
+      "metric",
+      "detect"
+     ]
+    }
+   ],
+   "level": 2,
+   "name": "Second question"
+  }
+ ],
+ "db": [
+  {
+   "title": "Choosing stores for a small marketplace",
+   "prompt": "You are building a marketplace with orders and payments, user login sessions, and product search with typo tolerance. Which data stores would you use, and why? Say which one is the source of truth.",
+   "tips": [
+    "One store per job.",
+    "Say how the stores stay in sync."
+   ],
+   "rubric": [
+    {
+     "id": "p1",
+     "point": "Uses a relational database for orders and payments because of transactions",
+     "keywords": [
+      "postgres",
+      "mysql",
+      "relational",
+      "sql",
+      "transaction",
+      "acid"
+     ]
+    },
+    {
+     "id": "p2",
+     "point": "Uses a key-value store such as Redis for sessions",
+     "keywords": [
+      "redis",
+      "key-value",
+      "key value",
+      "session store"
+     ]
+    },
+    {
+     "id": "p3",
+     "point": "Uses a search engine for product search",
+     "keywords": [
+      "elasticsearch",
+      "opensearch",
+      "search engine",
+      "full-text",
+      "full text",
+      "solr"
+     ]
+    },
+    {
+     "id": "p4",
+     "point": "Names a single source of truth and explains how other stores are fed from it",
+     "keywords": [
+      "source of truth",
+      "sync",
+      "derived",
+      "rebuilt",
+      "cdc",
+      "change data capture",
+      "event"
+     ]
+    },
+    {
+     "id": "p5",
+     "point": "Gives a trade-off or reason rather than just naming products",
+     "keywords": [
+      "because",
+      "trade-off",
+      "tradeoff",
+      "since",
+      "so that"
+     ]
+    }
+   ],
+   "level": 1,
+   "name": "First question"
+  },
+  {
+   "title": "Stores for a fitness app",
+   "prompt": "A fitness app stores workouts, a social feed of friends' activity, and a leaderboard that updates every few seconds. Choose stores and explain how data moves between them.",
+   "tips": [
+    "Explain your reasoning, not just the names."
+   ],
+   "rubric": [
+    {
+     "id": "p1",
+     "point": "A durable relational source of truth for workouts",
+     "keywords": [
+      "postgres",
+      "relational",
+      "source of truth",
+      "sql",
+      "durable"
+     ]
+    },
+    {
+     "id": "p2",
+     "point": "An in-memory store such as Redis sorted sets for the leaderboard",
+     "keywords": [
+      "redis",
+      "sorted set",
+      "in-memory",
+      "leaderboard"
+     ]
+    },
+    {
+     "id": "p3",
+     "point": "A precomputed or cached feed",
+     "keywords": [
+      "feed",
+      "fan-out",
+      "timeline",
+      "precompute",
+      "cache"
+     ]
+    },
+    {
+     "id": "p4",
+     "point": "Moves data between stores with events, queues or change data capture",
+     "keywords": [
+      "event",
+      "queue",
+      "kafka",
+      "change data capture",
+      "cdc",
+      "pipeline"
+     ]
+    },
+    {
+     "id": "p5",
+     "point": "Accepts that derived stores can lag",
+     "keywords": [
+      "eventual",
+      "stale",
+      "lag",
+      "consisten"
+     ]
+    }
+   ],
+   "level": 2,
+   "name": "Second question"
+  }
+ ],
+ "datatypes": [
+  {
+   "title": "Matching workloads to specialised stores",
+   "prompt": "Pick a data store for each of these and justify it: (1) CPU metrics every 10 seconds, (2) friend-of-friend recommendations, (3) find images that look similar to an uploaded one, (4) billions of sensor writes per day.",
+   "tips": [
+    "Name the access pattern, not just the product."
+   ],
+   "rubric": [
+    {
+     "id": "p1",
+     "point": "Time-series database for metrics",
+     "keywords": [
+      "time-series",
+      "time series",
+      "influx",
+      "timescale",
+      "prometheus"
+     ]
+    },
+    {
+     "id": "p2",
+     "point": "Graph database for friend-of-friend queries",
+     "keywords": [
+      "graph",
+      "neo4j",
+      "traversal"
+     ]
+    },
+    {
+     "id": "p3",
+     "point": "Vector database or embeddings for similar images",
+     "keywords": [
+      "vector",
+      "embedding",
+      "nearest",
+      "pgvector",
+      "pinecone",
+      "milvus"
+     ]
+    },
+    {
+     "id": "p4",
+     "point": "Wide-column or write-optimised store for sensor writes",
+     "keywords": [
+      "cassandra",
+      "wide-column",
+      "wide column",
+      "hbase",
+      "lsm",
+      "write-heavy",
+      "write heavy"
+     ]
+    },
+    {
+     "id": "p5",
+     "point": "Mentions keeping a source of truth or syncing between stores",
+     "keywords": [
+      "source of truth",
+      "sync",
+      "polyglot",
+      "derived"
+     ]
+    }
+   ],
+   "level": 1,
+   "name": "First question"
+  },
+  {
+   "title": "Stores for a smart city",
+   "prompt": "A smart-city project collects traffic-camera images, bus GPS positions every second, citizen complaints as free text, and a map of roads. Choose a store for each and justify it.",
+   "tips": [
+    "Explain your reasoning, not just the names."
+   ],
+   "rubric": [
+    {
+     "id": "p1",
+     "point": "A time-series or wide-column store for GPS positions",
+     "keywords": [
+      "time-series",
+      "time series",
+      "timescale",
+      "cassandra",
+      "wide-column",
+      "influx"
+     ]
+    },
+    {
+     "id": "p2",
+     "point": "Object storage for images",
+     "keywords": [
+      "object storage",
+      "s3",
+      "blob"
+     ]
+    },
+    {
+     "id": "p3",
+     "point": "A search engine for free-text complaints",
+     "keywords": [
+      "elasticsearch",
+      "opensearch",
+      "search engine",
+      "full-text",
+      "full text"
+     ]
+    },
+    {
+     "id": "p4",
+     "point": "A graph or spatial store for the road map",
+     "keywords": [
+      "graph",
+      "postgis",
+      "spatial",
+      "geo"
+     ]
+    },
+    {
+     "id": "p5",
+     "point": "Keeps metadata or references in a database",
+     "keywords": [
+      "metadata",
+      "reference",
+      "index",
+      "database"
+     ]
+    }
+   ],
+   "level": 2,
+   "name": "Second question"
+  }
+ ],
+ "cap": [
+  {
+   "title": "Explain CAP with a real database",
+   "prompt": "Pick a real database you know. Using the CAP theorem, explain what it does during a network partition, and give an example of a system that makes the opposite choice.",
+   "tips": [
+    "Be concrete: what happens to reads and writes?"
+   ],
+   "rubric": [
+    {
+     "id": "p1",
+     "point": "States that during a partition you must choose between consistency and availability",
+     "keywords": [
+      "partition"
+     ]
+    },
+    {
+     "id": "p2",
+     "point": "Names a consistent (CP) system such as etcd, ZooKeeper, HBase or MongoDB",
+     "keywords": [
+      "etcd",
+      "zookeeper",
+      "hbase",
+      "mongodb",
+      "spanner",
+      "cp "
+     ]
+    },
+    {
+     "id": "p3",
+     "point": "Names an available (AP) system such as Cassandra or DynamoDB",
+     "keywords": [
+      "cassandra",
+      "dynamo",
+      "couchdb",
+      "riak",
+      "ap "
+     ]
+    },
+    {
+     "id": "p4",
+     "point": "Describes the concrete behaviour: refuses writes, or serves stale or conflicting data",
+     "keywords": [
+      "refuse",
+      "reject",
+      "stale",
+      "conflict",
+      "unavailable",
+      "error"
+     ]
+    },
+    {
+     "id": "p5",
+     "point": "Mentions tunable consistency, quorums or PACELC",
+     "keywords": [
+      "quorum",
+      "tunable",
+      "pacelc",
+      "latency"
+     ]
+    }
+   ],
+   "level": 1,
+   "name": "First question"
+  },
+  {
+   "title": "The last item in two regions",
+   "prompt": "Your shopping site runs in two regions. During a network split between them, a customer in each region tries to buy the very last item. Explain the options and pick one.",
+   "tips": [
+    "Explain your reasoning, not just the names."
+   ],
+   "rubric": [
+    {
+     "id": "p1",
+     "point": "Names the risk of selling it twice",
+     "keywords": [
+      "oversell",
+      "last item",
+      "twice",
+      "both",
+      "double"
+     ]
+    },
+    {
+     "id": "p2",
+     "point": "Describes a consistent option (single leader, quorum or refusing one sale)",
+     "keywords": [
+      "leader",
+      "quorum",
+      "reject",
+      "refuse",
+      "single region",
+      "consisten"
+     ]
+    },
+    {
+     "id": "p3",
+     "point": "Describes an available option and how to fix it later (apologise, back-order, compensate)",
+     "keywords": [
+      "accept",
+      "apolog",
+      "compensat",
+      "backorder",
+      "back-order",
+      "cancel",
+      "reconcil"
+     ]
+    },
+    {
+     "id": "p4",
+     "point": "Connects the choice to partitions and CAP",
+     "keywords": [
+      "partition",
+      "cap"
+     ]
+    },
+    {
+     "id": "p5",
+     "point": "Justifies the choice with a business cost",
+     "keywords": [
+      "business",
+      "cost",
+      "refund",
+      "customer",
+      "trade-off"
+     ]
+    }
+   ],
+   "level": 2,
+   "name": "Second question"
+  }
+ ],
+ "apistyles": [
+  {
+   "title": "REST, GraphQL or gRPC",
+   "prompt": "Your company has a public partner API, a mobile app with varied screens, and many internal microservices. Choose REST, GraphQL or gRPC for each, and give the main trade-off of your choice.",
+   "tips": [
+    "Think about who the caller is."
+   ],
+   "rubric": [
+    {
+     "id": "p1",
+     "point": "REST for the public partner API",
+     "keywords": [
+      "rest"
+     ]
+    },
+    {
+     "id": "p2",
+     "point": "GraphQL for the mobile app to avoid over-fetching",
+     "keywords": [
+      "graphql",
+      "over-fetch",
+      "overfetch",
+      "under-fetch"
+     ]
+    },
+    {
+     "id": "p3",
+     "point": "gRPC for internal service-to-service calls",
+     "keywords": [
+      "grpc",
+      "protobuf",
+      "protocol buffers"
+     ]
+    },
+    {
+     "id": "p4",
+     "point": "Mentions caching, simplicity or tooling as a reason for REST",
+     "keywords": [
+      "cach",
+      "simple",
+      "universal",
+      "http"
+     ]
+    },
+    {
+     "id": "p5",
+     "point": "Mentions a downside such as GraphQL query cost or gRPC browser support",
+     "keywords": [
+      "n+1",
+      "complexity",
+      "cost",
+      "browser",
+      "grpc-web",
+      "depth limit"
+     ]
+    }
+   ],
+   "level": 1,
+   "name": "First question"
+  },
+  {
+   "title": "APIs for a delivery company",
+   "prompt": "A food delivery company has a driver app that needs live location updates, a restaurant dashboard that shows orders with many details, and a public API for partners. Choose API styles and justify each.",
+   "tips": [
+    "Explain your reasoning, not just the names."
+   ],
+   "rubric": [
+    {
+     "id": "p1",
+     "point": "Streaming for live driver location (WebSocket, gRPC streaming or server-sent events)",
+     "keywords": [
+      "websocket",
+      "streaming",
+      "grpc",
+      "server-sent",
+      "sse"
+     ]
+    },
+    {
+     "id": "p2",
+     "point": "GraphQL for the detail-heavy dashboard",
+     "keywords": [
+      "graphql"
+     ]
+    },
+    {
+     "id": "p3",
+     "point": "REST for the public partner API",
+     "keywords": [
+      "rest"
+     ]
+    },
+    {
+     "id": "p4",
+     "point": "Plans for versioning and backward compatibility",
+     "keywords": [
+      "version",
+      "backward",
+      "compatib"
+     ]
+    },
+    {
+     "id": "p5",
+     "point": "Protects the API with authentication and rate limits",
+     "keywords": [
+      "rate limit",
+      "auth",
+      "api key",
+      "oauth",
+      "token"
+     ]
+    }
+   ],
+   "level": 2,
+   "name": "Second question"
+  }
+ ],
+ "solid": [
+  {
+   "title": "Refactor a God class",
+   "prompt": "An OrderService class validates orders, saves them to MySQL, sends confirmation emails, and has a long if/else chain for discount types. Describe how you would refactor it using SOLID principles, and what you would not over-engineer.",
+   "tips": [
+    "Name the principle behind each change."
+   ],
+   "rubric": [
+    {
+     "id": "p1",
+     "point": "Splits responsibilities (validation, persistence, notification)",
+     "keywords": [
+      "single responsibility",
+      "srp",
+      "separate",
+      "split",
+      "repository",
+      "validator",
+      "notifier"
+     ]
+    },
+    {
+     "id": "p2",
+     "point": "Replaces the if/else with strategies or polymorphism (open/closed)",
+     "keywords": [
+      "strategy",
+      "polymorph",
+      "open/closed",
+      "open closed",
+      "ocp",
+      "interface"
+     ]
+    },
+    {
+     "id": "p3",
+     "point": "Depends on abstractions and injects them",
+     "keywords": [
+      "dependency inversion",
+      "inject",
+      "abstraction",
+      "dip",
+      "interface"
+     ]
+    },
+    {
+     "id": "p4",
+     "point": "Mentions testability",
+     "keywords": [
+      "test",
+      "mock",
+      "fake"
+     ]
+    },
+    {
+     "id": "p5",
+     "point": "Warns against over-engineering or needless abstraction",
+     "keywords": [
+      "over-engineer",
+      "overengineer",
+      "too many",
+      "unnecessary",
+      "premature",
+      "yagni",
+      "only when"
+     ]
+    }
+   ],
+   "level": 1,
+   "name": "First question"
+  },
+  {
+   "title": "Redesign a notification service",
+   "prompt": "You have a NotificationService with sendEmail, sendSms and sendPush and a growing if/else on channel. You will soon need WhatsApp, and you want to test the service without sending real messages. How do you redesign it?",
+   "tips": [
+    "Explain your reasoning, not just the names."
+   ],
+   "rubric": [
+    {
+     "id": "p1",
+     "point": "One interface with a class per channel (strategy)",
+     "keywords": [
+      "interface",
+      "strategy",
+      "channel class",
+      "polymorph"
+     ]
+    },
+    {
+     "id": "p2",
+     "point": "Adds WhatsApp without editing existing code (open/closed)",
+     "keywords": [
+      "open/closed",
+      "open closed",
+      "new class",
+      "without changing",
+      "extend",
+      "add a new"
+     ]
+    },
+    {
+     "id": "p3",
+     "point": "Injects the channel so tests can use a fake",
+     "keywords": [
+      "inject",
+      "fake",
+      "mock",
+      "test double",
+      "dependency"
+     ]
+    },
+    {
+     "id": "p4",
+     "point": "Separates formatting from sending (single responsibility)",
+     "keywords": [
+      "single responsibility",
+      "separate",
+      "template",
+      "formatter"
+     ]
+    },
+    {
+     "id": "p5",
+     "point": "Avoids over-engineering",
+     "keywords": [
+      "over-engineer",
+      "too many",
+      "simple",
+      "only when"
+     ]
+    }
+   ],
+   "level": 2,
+   "name": "Second question"
+  }
+ ],
+ "oop": [
+  {
+   "title": "Model a parking lot",
+   "prompt": "Design the classes for a parking lot. List the entities, how they relate, and the key methods. Mention one concurrency concern.",
+   "tips": [
+    "Nouns become classes, verbs become methods."
+   ],
+   "rubric": [
+    {
+     "id": "p1",
+     "point": "Identifies the core entities (Vehicle, Spot, Ticket, ParkingLot or Level)",
+     "keywords": [
+      "vehicle",
+      "spot",
+      "ticket",
+      "level"
+     ]
+    },
+    {
+     "id": "p2",
+     "point": "Describes relationships such as has-a, composition or is-a",
+     "keywords": [
+      "has-a",
+      "has a",
+      "composition",
+      "inherit",
+      "is-a",
+      "is a",
+      "contains"
+     ]
+    },
+    {
+     "id": "p3",
+     "point": "Lists key methods such as park, unpark and calculate fee",
+     "keywords": [
+      "park(",
+      "unpark",
+      "park ",
+      "fee",
+      "exit",
+      "leave"
+     ]
+    },
+    {
+     "id": "p4",
+     "point": "Uses a pricing or allocation strategy rather than hard-coding",
+     "keywords": [
+      "strategy",
+      "policy",
+      "pricing",
+      "fee policy",
+      "pluggable"
+     ]
+    },
+    {
+     "id": "p5",
+     "point": "Raises concurrent allocation of the same spot and a fix (lock or atomic update)",
+     "keywords": [
+      "concurren",
+      "race",
+      "lock",
+      "atomic",
+      "two cars",
+      "same spot",
+      "thread"
+     ]
+    }
+   ],
+   "level": 1,
+   "name": "First question"
+  },
+  {
+   "title": "Design an elevator system",
+   "prompt": "Design the classes for an elevator system in a building with several elevators. Cover the entities, how a request is assigned to an elevator, and one tricky edge case.",
+   "tips": [
+    "Explain your reasoning, not just the names."
+   ],
+   "rubric": [
+    {
+     "id": "p1",
+     "point": "Identifies the entities (Elevator, Request, Floor, Controller)",
+     "keywords": [
+      "elevator",
+      "request",
+      "controller",
+      "floor",
+      "button"
+     ]
+    },
+    {
+     "id": "p2",
+     "point": "Models elevator states (idle, moving up, moving down)",
+     "keywords": [
+      "state",
+      "idle",
+      "moving",
+      "direction"
+     ]
+    },
+    {
+     "id": "p3",
+     "point": "Uses an assignment strategy (nearest, scheduling)",
+     "keywords": [
+      "strategy",
+      "nearest",
+      "scheduling",
+      "assign",
+      "algorithm"
+     ]
+    },
+    {
+     "id": "p4",
+     "point": "Handles concurrent requests with a queue or locking",
+     "keywords": [
+      "queue",
+      "concurren",
+      "thread",
+      "lock",
+      "thread-safe"
+     ]
+    },
+    {
+     "id": "p5",
+     "point": "Names a tricky edge case (overload, emergency stop, door)",
+     "keywords": [
+      "overload",
+      "emergency",
+      "door",
+      "stuck",
+      "capacity"
+     ]
+    }
+   ],
+   "level": 2,
+   "name": "Second question"
+  }
+ ],
+ "patterns": [
+  {
+   "title": "Pick a pattern for a vending machine",
+   "prompt": "A vending machine behaves differently when it is idle, holding money, dispensing, or out of stock. Which design pattern would you use? Sketch the classes and say why an if/else chain is worse.",
+   "tips": [
+    "Name the pattern and its parts."
+   ],
+   "rubric": [
+    {
+     "id": "p1",
+     "point": "Identifies the State pattern",
+     "keywords": [
+      "state pattern",
+      "state design",
+      "state machine",
+      "the state"
+     ]
+    },
+    {
+     "id": "p2",
+     "point": "Defines a state interface with concrete states",
+     "keywords": [
+      "interface",
+      "abstract",
+      "idlestate",
+      "hasmoney",
+      "concrete state",
+      "each state"
+     ]
+    },
+    {
+     "id": "p3",
+     "point": "Has a context class that delegates to the current state",
+     "keywords": [
+      "context",
+      "delegate",
+      "current state"
+     ]
+    },
+    {
+     "id": "p4",
+     "point": "Describes state transitions",
+     "keywords": [
+      "transition",
+      "moves to",
+      "changes to",
+      "next state"
+     ]
+    },
+    {
+     "id": "p5",
+     "point": "Explains why if/else chains get hard to maintain",
+     "keywords": [
+      "if/else",
+      "if else",
+      "switch",
+      "grows",
+      "hard to",
+      "every new state",
+      "open/closed"
+     ]
+    }
+   ],
+   "level": 1,
+   "name": "First question"
+  },
+  {
+   "title": "Undo and plugins in an editor",
+   "prompt": "A text editor needs undo and redo, and also lets users add many kinds of toolbar buttons from plugins. Which design patterns would you use and how?",
+   "tips": [
+    "Explain your reasoning, not just the names."
+   ],
+   "rubric": [
+    {
+     "id": "p1",
+     "point": "Command pattern for undoable actions",
+     "keywords": [
+      "command pattern",
+      "command",
+      "undo stack",
+      "execute"
+     ]
+    },
+    {
+     "id": "p2",
+     "point": "Undo and redo stacks for history",
+     "keywords": [
+      "stack",
+      "history",
+      "redo"
+     ]
+    },
+    {
+     "id": "p3",
+     "point": "A plugin interface, factory or registry for toolbar buttons",
+     "keywords": [
+      "plugin",
+      "factory",
+      "registry",
+      "interface",
+      "extension"
+     ]
+    },
+    {
+     "id": "p4",
+     "point": "Observer to keep the user interface updated",
+     "keywords": [
+      "observer",
+      "notify",
+      "subscribe",
+      "listener"
+     ]
+    },
+    {
+     "id": "p5",
+     "point": "Mentions a trade-off such as memory or complexity",
+     "keywords": [
+      "trade-off",
+      "memory",
+      "complexity",
+      "over"
+     ]
+    }
+   ],
+   "level": 2,
+   "name": "Second question"
+  }
+ ],
+ "interview": [
+  {
+   "title": "Start a URL shortener design",
+   "prompt": "You are asked to design a URL shortener. Describe the first steps you take before drawing any boxes.",
+   "tips": [
+    "What do you ask? What do you calculate?"
+   ],
+   "rubric": [
+    {
+     "id": "p1",
+     "point": "Clarifies requirements and scope",
+     "keywords": [
+      "clarif",
+      "requirement",
+      "scope",
+      "ask",
+      "functional"
+     ]
+    },
+    {
+     "id": "p2",
+     "point": "Asks about scale such as users, requests per second or links per day",
+     "keywords": [
+      "scale",
+      "users",
+      "per second",
+      "per day",
+      "qps",
+      "rps",
+      "traffic"
+     ]
+    },
+    {
+     "id": "p3",
+     "point": "Estimates traffic or storage",
+     "keywords": [
+      "estimate",
+      "storage",
+      "back-of-the-envelope",
+      "back of the envelope",
+      "tb",
+      "gb"
+     ]
+    },
+    {
+     "id": "p4",
+     "point": "Notes the read-heavy ratio",
+     "keywords": [
+      "read-heavy",
+      "read heavy",
+      "read to write",
+      "reads",
+      "100:1"
+     ]
+    },
+    {
+     "id": "p5",
+     "point": "Mentions defining the API or data model before the design",
+     "keywords": [
+      "api",
+      "endpoint",
+      "data model",
+      "schema"
+     ]
+    }
+   ],
+   "level": 1,
+   "name": "First question"
+  },
+  {
+   "title": "Open a ride-hailing design",
+   "prompt": "You are asked to design a ride-hailing service like Uber. List the clarifying questions you would ask and the main components you would sketch first.",
+   "tips": [
+    "Explain your reasoning, not just the names."
+   ],
+   "rubric": [
+    {
+     "id": "p1",
+     "point": "Asks clarifying questions about scope and requirements",
+     "keywords": [
+      "clarif",
+      "ask",
+      "scope",
+      "requirements"
+     ]
+    },
+    {
+     "id": "p2",
+     "point": "Handles live location with GPS, WebSockets or geospatial indexing",
+     "keywords": [
+      "location",
+      "gps",
+      "websocket",
+      "real-time",
+      "geohash",
+      "quadtree"
+     ]
+    },
+    {
+     "id": "p3",
+     "point": "Includes a matching or dispatch service",
+     "keywords": [
+      "matching",
+      "dispatch",
+      "nearest",
+      "match"
+     ]
+    },
+    {
+     "id": "p4",
+     "point": "Includes payments and pricing",
+     "keywords": [
+      "payment",
+      "pricing",
+      "surge",
+      "fare"
+     ]
+    },
+    {
+     "id": "p5",
+     "point": "Estimates scale (users, drivers, requests per second)",
+     "keywords": [
+      "estimate",
+      "scale",
+      "per second",
+      "drivers"
+     ]
+    }
+   ],
+   "level": 2,
+   "name": "Second question"
+  }
+ ],
+ "mvp": [
+  {
+   "title": "Scope a first release",
+   "prompt": "You have one engineer and no users yet. List what you will build first and what you will deliberately leave out, with reasons.",
+   "tips": [
+    "Think about the one loop that proves the idea."
+   ],
+   "rubric": [
+    {
+     "id": "p1",
+     "point": "Builds the single core user loop first",
+     "keywords": [
+      "core loop",
+      "core flow",
+      "core feature",
+      "one thing",
+      "main flow",
+      "vertical slice",
+      "mvp"
+     ]
+    },
+    {
+     "id": "p2",
+     "point": "Chooses a simple stack such as a monolith and one database",
+     "keywords": [
+      "monolith",
+      "one database",
+      "single server",
+      "postgres",
+      "simple",
+      "boring"
+     ]
+    },
+    {
+     "id": "p3",
+     "point": "Leaves out Kubernetes, microservices or multi-region",
+     "keywords": [
+      "kubernetes",
+      "microservice",
+      "multi-region",
+      "skip",
+      "later",
+      "not yet",
+      "defer"
+     ]
+    },
+    {
+     "id": "p4",
+     "point": "Keeps cheap essentials like backups, logging or basic security",
+     "keywords": [
+      "backup",
+      "logging",
+      "monitor",
+      "auth",
+      "security"
+     ]
+    },
+    {
+     "id": "p5",
+     "point": "Plans to learn from real users early",
+     "keywords": [
+      "users",
+      "feedback",
+      "learn",
+      "measure",
+      "analytics"
+     ]
+    }
+   ],
+   "level": 1,
+   "name": "First question"
+  },
+  {
+   "title": "Scope a delivery marketplace",
+   "prompt": "A founder wants to launch a food-delivery marketplace in one city with a team of three. What do you build first, what do you buy instead of building, and what do you postpone?",
+   "tips": [
+    "Explain your reasoning, not just the names."
+   ],
+   "rubric": [
+    {
+     "id": "p1",
+     "point": "Builds the core order-to-delivery loop for one city first",
+     "keywords": [
+      "core loop",
+      "order",
+      "vertical slice",
+      "one city",
+      "manual"
+     ]
+    },
+    {
+     "id": "p2",
+     "point": "Buys instead of builds (payments, maps, notifications)",
+     "keywords": [
+      "stripe",
+      "payment provider",
+      "buy",
+      "third-party",
+      "third party",
+      "existing service",
+      "maps api"
+     ]
+    },
+    {
+     "id": "p3",
+     "point": "Postpones custom routing, microservices or other heavy parts",
+     "keywords": [
+      "postpone",
+      "later",
+      "skip",
+      "not yet",
+      "defer"
+     ]
+    },
+    {
+     "id": "p4",
+     "point": "Runs some steps manually at first",
+     "keywords": [
+      "manual",
+      "concierge",
+      "by hand"
+     ]
+    },
+    {
+     "id": "p5",
+     "point": "Measures with real users",
+     "keywords": [
+      "measure",
+      "metrics",
+      "feedback",
+      "users",
+      "learn"
+     ]
+    }
+   ],
+   "level": 2,
+   "name": "Second question"
+  }
+ ],
+ "search": [
+  {
+   "title": "Design search for an online shop",
+   "level": 1,
+   "name": "First question",
+   "prompt": "An online shop has 20 million products. Design its search box with typo-tolerant results and suggestions while the user types. Say what you store, how a query is answered quickly, how the index stays up to date and how suggestions work.",
+   "tips": [
+    "Say what the index is made of.",
+    "Say how it stays in sync with the database."
+   ],
+   "rubric": [
+    {
+     "id": "p1",
+     "point": "Uses an inverted index (word to documents) rather than scanning the database",
+     "keywords": [
+      "inverted index",
+      "elasticsearch",
+      "lucene",
+      "opensearch",
+      "index"
+     ]
+    },
+    {
+     "id": "p2",
+     "point": "Explains analysis of text (tokenising, lowercasing, stemming) and using it for both documents and queries",
+     "keywords": [
+      "analy",
+      "token",
+      "stem",
+      "lowercase"
+     ]
+    },
+    {
+     "id": "p3",
+     "point": "Explains ranking, for example BM25 or TF-IDF plus business signals",
+     "keywords": [
+      "bm25",
+      "tf-idf",
+      "rank",
+      "relevance",
+      "score"
+     ]
+    },
+    {
+     "id": "p4",
+     "point": "Keeps the index in sync from the database through a queue or change feed and accepts a small lag",
+     "keywords": [
+      "queue",
+      "change",
+      "cdc",
+      "stream",
+      "eventual",
+      "lag",
+      "sync"
+     ]
+    },
+    {
+     "id": "p5",
+     "point": "Designs suggestions with a trie, n-grams or precomputed popular prefixes, with caching or debouncing",
+     "keywords": [
+      "trie",
+      "prefix",
+      "n-gram",
+      "ngram",
+      "autocomplete",
+      "debounce",
+      "cache"
+     ]
+    }
+   ]
+  }
+ ],
+ "geo": [
+  {
+   "title": "Design 'find nearby drivers'",
+   "level": 1,
+   "name": "First question",
+   "prompt": "A ride app has one million drivers online, each sending a position every few seconds. Design the service that returns the closest available drivers to a rider. Explain how you index locations, how you store the live positions and how you scale it.",
+   "tips": [
+    "Say how you avoid scanning every driver.",
+    "Say what happens at the border of a cell."
+   ],
+   "rubric": [
+    {
+     "id": "p1",
+     "point": "Divides the map into cells (geohash, quadtree, H3 or S2) so a search reads only a few cells",
+     "keywords": [
+      "geohash",
+      "quadtree",
+      "h3",
+      "s2",
+      "cell",
+      "grid"
+     ]
+    },
+    {
+     "id": "p2",
+     "point": "Searches neighbouring cells too, because the nearest driver may be across a border",
+     "keywords": [
+      "neighbo",
+      "adjacent",
+      "border",
+      "boundary"
+     ]
+    },
+    {
+     "id": "p3",
+     "point": "Keeps live positions in memory (for example Redis), not in a disk database",
+     "keywords": [
+      "redis",
+      "in-memory",
+      "in memory",
+      "memory"
+     ]
+    },
+    {
+     "id": "p4",
+     "point": "Expires stale positions with a time to live or heartbeat",
+     "keywords": [
+      "ttl",
+      "expire",
+      "stale",
+      "heartbeat",
+      "time to live"
+     ]
+    },
+    {
+     "id": "p5",
+     "point": "Partitions by area or city and handles hot dense cells",
+     "keywords": [
+      "partition",
+      "shard",
+      "city",
+      "region",
+      "hot",
+      "dense"
+     ]
+    }
+   ]
+  }
+ ],
+ "notify": [
+  {
+   "title": "Design a notification system",
+   "level": 1,
+   "name": "First question",
+   "prompt": "Design a system that sends push, SMS and email notifications for an app with 50 million users. It must send urgent one-time codes within seconds, run a campaign to all users, and never send the same message twice. Explain the components, the queues, retries and how you prevent duplicates.",
+   "tips": [
+    "Separate urgent from bulk.",
+    "Say what a retry does to duplicates."
+   ],
+   "rubric": [
+    {
+     "id": "p1",
+     "point": "Uses a queue between the event and the senders, with workers per channel",
+     "keywords": [
+      "queue",
+      "worker",
+      "kafka",
+      "sqs",
+      "channel"
+     ]
+    },
+    {
+     "id": "p2",
+     "point": "Hands delivery to providers such as APNs, FCM, Twilio or SES",
+     "keywords": [
+      "apns",
+      "fcm",
+      "twilio",
+      "ses",
+      "provider",
+      "firebase"
+     ]
+    },
+    {
+     "id": "p3",
+     "point": "Separates urgent messages from bulk campaigns using separate queues or priorities",
+     "keywords": [
+      "priority",
+      "separate queue",
+      "urgent",
+      "otp",
+      "one-time"
+     ]
+    },
+    {
+     "id": "p4",
+     "point": "Retries with backoff, and prevents duplicates with an idempotency key",
+     "keywords": [
+      "idempoten",
+      "dedup",
+      "retry",
+      "backoff",
+      "duplicate"
+     ]
+    },
+    {
+     "id": "p5",
+     "point": "Checks user preferences and rate limits, and processes bounces or unsubscribes",
+     "keywords": [
+      "preference",
+      "opt",
+      "unsubscribe",
+      "bounce",
+      "rate limit",
+      "quiet"
+     ]
+    }
+   ]
+  }
+ ],
+ "dr": [
+  {
+   "title": "Plan disaster recovery for a payment service",
+   "level": 1,
+   "name": "First question",
+   "prompt": "A payment service runs in one cloud region. Leadership wants it to survive the loss of that whole region. Explain how you would choose the recovery objectives, what architecture you would pick, how data reaches the second region and how you would prove it works.",
+   "tips": [
+    "Name RPO and RTO.",
+    "Say how you will test it."
+   ],
+   "rubric": [
+    {
+     "id": "p1",
+     "point": "Defines RPO and RTO and links them to business cost",
+     "keywords": [
+      "rpo",
+      "rto",
+      "recovery point",
+      "recovery time"
+     ]
+    },
+    {
+     "id": "p2",
+     "point": "Chooses a strategy (pilot light, warm standby or active-active) and justifies it",
+     "keywords": [
+      "pilot light",
+      "warm standby",
+      "active-active",
+      "active active",
+      "standby"
+     ]
+    },
+    {
+     "id": "p3",
+     "point": "Replicates data to the second region and discusses sync versus async and the resulting lag",
+     "keywords": [
+      "replicat",
+      "async",
+      "synchronous",
+      "lag"
+     ]
+    },
+    {
+     "id": "p4",
+     "point": "Covers failover steps such as health checks, promoting the database and moving traffic with DNS or a global load balancer",
+     "keywords": [
+      "failover",
+      "dns",
+      "load balancer",
+      "promote",
+      "health check"
+     ]
+    },
+    {
+     "id": "p5",
+     "point": "Tests the plan with restore tests or game days and keeps a runbook",
+     "keywords": [
+      "test",
+      "game day",
+      "drill",
+      "runbook",
+      "rehears"
+     ]
+    }
+   ]
+  }
+ ]
+}

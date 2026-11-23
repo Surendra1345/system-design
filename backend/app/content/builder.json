@@ -1,0 +1,2292 @@
+{
+ "numbers": [
+  {
+   "lesson": "numbers",
+   "id": "numbers",
+   "title": "Survive the failures",
+   "brief": "Servers will crash twice. Keep the site up. You start with one server and 70 coins.",
+   "ticks": 40,
+   "seed": 7,
+   "min": 0.8,
+   "start": {},
+   "events": [
+    {
+     "t": 8,
+     "type": "crash",
+     "dur": 12
+    },
+    {
+     "t": 26,
+     "type": "crash",
+     "dur": 10
+    }
+   ],
+   "traffic": [
+    [
+     0,
+     40,
+     {
+      "read": 50,
+      "write": 6
+     }
+    ]
+   ],
+   "avail": [
+    "server",
+    "lb",
+    "autoscale"
+   ],
+   "budget": 70,
+   "par": 45,
+   "solution": [
+    {
+     "t": 0,
+     "buy": "lb"
+    },
+    {
+     "t": 0,
+     "buy": "server"
+    },
+    {
+     "t": 0,
+     "buy": "server"
+    }
+   ],
+   "level": 1,
+   "name": "Warm-up"
+  },
+  {
+   "lesson": "numbers",
+   "id": "numbers",
+   "title": "Survive the failures: rush hour",
+   "brief": "Servers will crash twice. Keep the site up. You start with one server and 70 coins. Now it gets harder. Traffic is 40% higher and a server will crash.",
+   "ticks": 40,
+   "seed": 7,
+   "min": 0.8,
+   "start": {},
+   "events": [
+    {
+     "t": 8,
+     "type": "crash",
+     "dur": 12
+    },
+    {
+     "t": 26,
+     "type": "crash",
+     "dur": 10
+    },
+    {
+     "t": 22,
+     "type": "crash",
+     "dur": 10
+    }
+   ],
+   "traffic": [
+    [
+     0,
+     40,
+     {
+      "read": 70,
+      "write": 8
+     }
+    ]
+   ],
+   "avail": [
+    "server",
+    "lb",
+    "autoscale"
+   ],
+   "budget": 85,
+   "par": 45,
+   "solution": [
+    {
+     "t": 0,
+     "buy": "server"
+    },
+    {
+     "t": 0,
+     "buy": "server"
+    },
+    {
+     "t": 0,
+     "buy": "lb"
+    }
+   ],
+   "level": 2,
+   "name": "Rush hour"
+  },
+  {
+   "lesson": "numbers",
+   "id": "numbers",
+   "title": "Survive the failures: perfect storm",
+   "brief": "Servers will crash twice. Keep the site up. You start with one server and 70 coins. Now everything goes wrong at once, and money is tight. Traffic is 40% higher and servers will crash twice.",
+   "ticks": 40,
+   "seed": 7,
+   "min": 0.8,
+   "start": {},
+   "events": [
+    {
+     "t": 8,
+     "type": "crash",
+     "dur": 12
+    },
+    {
+     "t": 26,
+     "type": "crash",
+     "dur": 10
+    },
+    {
+     "t": 6,
+     "type": "crash",
+     "dur": 8
+    },
+    {
+     "t": 24,
+     "type": "crash",
+     "dur": 10
+    }
+   ],
+   "traffic": [
+    [
+     0,
+     40,
+     {
+      "read": 70,
+      "write": 8
+     }
+    ]
+   ],
+   "avail": [
+    "server",
+    "lb",
+    "autoscale"
+   ],
+   "budget": 85,
+   "par": 45,
+   "solution": [
+    {
+     "t": 0,
+     "buy": "server"
+    },
+    {
+     "t": 0,
+     "buy": "server"
+    },
+    {
+     "t": 0,
+     "buy": "lb"
+    }
+   ],
+   "level": 3,
+   "name": "Perfect storm"
+  }
+ ],
+ "estimate": [
+  {
+   "lesson": "estimate",
+   "id": "estimate",
+   "title": "Provision for the peak",
+   "brief": "Traffic triples for a while. Work out what you need before it arrives, then buy it.",
+   "ticks": 40,
+   "seed": 7,
+   "min": 0.8,
+   "start": {},
+   "events": [],
+   "traffic": [
+    [
+     0,
+     10,
+     {
+      "read": 30,
+      "write": 5
+     }
+    ],
+    [
+     10,
+     30,
+     {
+      "read": 90,
+      "write": 15
+     }
+    ],
+    [
+     30,
+     40,
+     {
+      "read": 40,
+      "write": 6
+     }
+    ]
+   ],
+   "avail": [
+    "server",
+    "lb",
+    "cache",
+    "replica"
+   ],
+   "budget": 100,
+   "par": 75,
+   "solution": [
+    {
+     "t": 0,
+     "buy": "lb"
+    },
+    {
+     "t": 0,
+     "buy": "server"
+    },
+    {
+     "t": 0,
+     "buy": "server"
+    },
+    {
+     "t": 0,
+     "buy": "cache"
+    }
+   ],
+   "level": 1,
+   "name": "Warm-up"
+  },
+  {
+   "lesson": "estimate",
+   "id": "estimate",
+   "title": "Provision for the peak: rush hour",
+   "brief": "Traffic triples for a while. Work out what you need before it arrives, then buy it. Now it gets harder. Traffic is 40% higher and a server will crash, a popular cache key will expire.",
+   "ticks": 40,
+   "seed": 7,
+   "min": 0.8,
+   "start": {},
+   "events": [
+    {
+     "t": 22,
+     "type": "crash",
+     "dur": 10
+    },
+    {
+     "t": 14,
+     "type": "hotkey",
+     "dur": 10
+    }
+   ],
+   "traffic": [
+    [
+     0,
+     10,
+     {
+      "read": 42,
+      "write": 7
+     }
+    ],
+    [
+     10,
+     30,
+     {
+      "read": 126,
+      "write": 21
+     }
+    ],
+    [
+     30,
+     40,
+     {
+      "read": 56,
+      "write": 8
+     }
+    ]
+   ],
+   "avail": [
+    "server",
+    "lb",
+    "cache",
+    "replica"
+   ],
+   "budget": 130,
+   "par": 85,
+   "solution": [
+    {
+     "t": 0,
+     "buy": "server"
+    },
+    {
+     "t": 0,
+     "buy": "server"
+    },
+    {
+     "t": 0,
+     "buy": "server"
+    },
+    {
+     "t": 0,
+     "buy": "server"
+    },
+    {
+     "t": 0,
+     "buy": "lb"
+    },
+    {
+     "t": 0,
+     "buy": "replica"
+    }
+   ],
+   "level": 2,
+   "name": "Rush hour"
+  },
+  {
+   "lesson": "estimate",
+   "id": "estimate",
+   "title": "Provision for the peak: perfect storm",
+   "brief": "Traffic triples for a while. Work out what you need before it arrives, then buy it. Now everything goes wrong at once, and money is tight. Traffic is 80% higher and servers will crash twice, a popular cache key will expire.",
+   "ticks": 40,
+   "seed": 7,
+   "min": 0.8,
+   "start": {},
+   "events": [
+    {
+     "t": 6,
+     "type": "crash",
+     "dur": 8
+    },
+    {
+     "t": 24,
+     "type": "crash",
+     "dur": 10
+    },
+    {
+     "t": 14,
+     "type": "hotkey",
+     "dur": 10
+    }
+   ],
+   "traffic": [
+    [
+     0,
+     10,
+     {
+      "read": 54,
+      "write": 9
+     }
+    ],
+    [
+     10,
+     30,
+     {
+      "read": 162,
+      "write": 27
+     }
+    ],
+    [
+     30,
+     40,
+     {
+      "read": 72,
+      "write": 11
+     }
+    ]
+   ],
+   "avail": [
+    "server",
+    "lb",
+    "cache",
+    "replica"
+   ],
+   "budget": 175,
+   "par": 115,
+   "solution": [
+    {
+     "t": 0,
+     "buy": "server"
+    },
+    {
+     "t": 0,
+     "buy": "server"
+    },
+    {
+     "t": 0,
+     "buy": "server"
+    },
+    {
+     "t": 0,
+     "buy": "server"
+    },
+    {
+     "t": 0,
+     "buy": "server"
+    },
+    {
+     "t": 0,
+     "buy": "lb"
+    },
+    {
+     "t": 0,
+     "buy": "replica"
+    },
+    {
+     "t": 0,
+     "buy": "replica"
+    }
+   ],
+   "level": 3,
+   "name": "Perfect storm"
+  }
+ ],
+ "scale": [
+  {
+   "lesson": "scale",
+   "id": "scale",
+   "title": "One to a million",
+   "brief": "Your product takes off. Traffic grows every few seconds. Add each building block when it is needed.",
+   "ticks": 40,
+   "seed": 7,
+   "min": 0.8,
+   "start": {},
+   "events": [],
+   "traffic": [
+    [
+     0,
+     10,
+     {
+      "read": 30,
+      "write": 5,
+      "static": 20
+     }
+    ],
+    [
+     10,
+     20,
+     {
+      "read": 70,
+      "write": 10,
+      "static": 50,
+      "job": 5
+     }
+    ],
+    [
+     20,
+     30,
+     {
+      "read": 120,
+      "write": 20,
+      "static": 80,
+      "job": 10
+     }
+    ],
+    [
+     30,
+     40,
+     {
+      "read": 160,
+      "write": 30,
+      "static": 100,
+      "job": 15
+     }
+    ]
+   ],
+   "avail": [
+    "server",
+    "lb",
+    "cache",
+    "replica",
+    "cdn",
+    "queue",
+    "shard",
+    "autoscale"
+   ],
+   "budget": 230,
+   "par": 200,
+   "solution": [
+    {
+     "t": 0,
+     "buy": "lb"
+    },
+    {
+     "t": 0,
+     "buy": "cdn"
+    },
+    {
+     "t": 0,
+     "buy": "cache"
+    },
+    {
+     "t": 0,
+     "buy": "cache"
+    },
+    {
+     "t": 0,
+     "buy": "queue"
+    },
+    {
+     "t": 0,
+     "buy": "shard"
+    },
+    {
+     "t": 0,
+     "buy": "server"
+    },
+    {
+     "t": 0,
+     "buy": "server"
+    },
+    {
+     "t": 0,
+     "buy": "server"
+    },
+    {
+     "t": 0,
+     "buy": "server"
+    }
+   ],
+   "level": 1,
+   "name": "Warm-up"
+  },
+  {
+   "lesson": "scale",
+   "id": "scale",
+   "title": "One to a million: rush hour",
+   "brief": "Your product takes off. Traffic grows every few seconds. Add each building block when it is needed. Now it gets harder. Traffic is 40% higher and a server will crash, a popular cache key will expire.",
+   "ticks": 40,
+   "seed": 7,
+   "min": 0.8,
+   "start": {},
+   "events": [
+    {
+     "t": 22,
+     "type": "crash",
+     "dur": 10
+    },
+    {
+     "t": 14,
+     "type": "hotkey",
+     "dur": 10
+    }
+   ],
+   "traffic": [
+    [
+     0,
+     10,
+     {
+      "read": 42,
+      "write": 7,
+      "static": 28
+     }
+    ],
+    [
+     10,
+     20,
+     {
+      "read": 98,
+      "write": 14,
+      "static": 70,
+      "job": 7
+     }
+    ],
+    [
+     20,
+     30,
+     {
+      "read": 168,
+      "write": 28,
+      "static": 112,
+      "job": 14
+     }
+    ],
+    [
+     30,
+     40,
+     {
+      "read": 224,
+      "write": 42,
+      "static": 140,
+      "job": 21
+     }
+    ]
+   ],
+   "avail": [
+    "server",
+    "lb",
+    "cache",
+    "replica",
+    "cdn",
+    "queue",
+    "shard",
+    "autoscale"
+   ],
+   "budget": 295,
+   "par": 195,
+   "solution": [
+    {
+     "t": 0,
+     "buy": "lb"
+    },
+    {
+     "t": 0,
+     "buy": "replica"
+    },
+    {
+     "t": 0,
+     "buy": "replica"
+    },
+    {
+     "t": 0,
+     "buy": "replica"
+    },
+    {
+     "t": 0,
+     "buy": "cdn"
+    },
+    {
+     "t": 0,
+     "buy": "queue"
+    },
+    {
+     "t": 0,
+     "buy": "autoscale"
+    }
+   ],
+   "level": 2,
+   "name": "Rush hour"
+  },
+  {
+   "lesson": "scale",
+   "id": "scale",
+   "title": "One to a million: perfect storm",
+   "brief": "Your product takes off. Traffic grows every few seconds. Add each building block when it is needed. Now everything goes wrong at once, and money is tight. Traffic is 80% higher and servers will crash twice, a popular cache key will expire.",
+   "ticks": 40,
+   "seed": 7,
+   "min": 0.8,
+   "start": {},
+   "events": [
+    {
+     "t": 6,
+     "type": "crash",
+     "dur": 8
+    },
+    {
+     "t": 24,
+     "type": "crash",
+     "dur": 10
+    },
+    {
+     "t": 14,
+     "type": "hotkey",
+     "dur": 10
+    }
+   ],
+   "traffic": [
+    [
+     0,
+     10,
+     {
+      "read": 54,
+      "write": 9,
+      "static": 36
+     }
+    ],
+    [
+     10,
+     20,
+     {
+      "read": 126,
+      "write": 18,
+      "static": 90,
+      "job": 9
+     }
+    ],
+    [
+     20,
+     30,
+     {
+      "read": 216,
+      "write": 36,
+      "static": 144,
+      "job": 18
+     }
+    ],
+    [
+     30,
+     40,
+     {
+      "read": 288,
+      "write": 54,
+      "static": 180,
+      "job": 27
+     }
+    ]
+   ],
+   "avail": [
+    "server",
+    "lb",
+    "cache",
+    "replica",
+    "cdn",
+    "queue",
+    "shard",
+    "autoscale"
+   ],
+   "budget": 340,
+   "par": 225,
+   "solution": [
+    {
+     "t": 0,
+     "buy": "lb"
+    },
+    {
+     "t": 0,
+     "buy": "replica"
+    },
+    {
+     "t": 0,
+     "buy": "replica"
+    },
+    {
+     "t": 0,
+     "buy": "replica"
+    },
+    {
+     "t": 0,
+     "buy": "cdn"
+    },
+    {
+     "t": 0,
+     "buy": "queue"
+    },
+    {
+     "t": 0,
+     "buy": "autoscale"
+    },
+    {
+     "t": 0,
+     "buy": "shard"
+    }
+   ],
+   "level": 3,
+   "name": "Perfect storm"
+  }
+ ],
+ "urlshort": [
+  {
+   "lesson": "urlshort",
+   "id": "urlshort",
+   "title": "The viral link",
+   "brief": "One short link goes viral. Redirects are all reads, and a hot key will expire.",
+   "ticks": 40,
+   "seed": 7,
+   "min": 0.8,
+   "start": {},
+   "events": [
+    {
+     "t": 10,
+     "type": "hotkey",
+     "dur": 15
+    }
+   ],
+   "traffic": [
+    [
+     0,
+     40,
+     {
+      "read": 85,
+      "write": 3
+     }
+    ]
+   ],
+   "avail": [
+    "server",
+    "lb",
+    "cache",
+    "coalesce",
+    "cdn"
+   ],
+   "budget": 110,
+   "par": 90,
+   "solution": [
+    {
+     "t": 0,
+     "buy": "lb"
+    },
+    {
+     "t": 0,
+     "buy": "server"
+    },
+    {
+     "t": 0,
+     "buy": "server"
+    },
+    {
+     "t": 0,
+     "buy": "cache"
+    },
+    {
+     "t": 0,
+     "buy": "coalesce"
+    }
+   ],
+   "level": 1,
+   "name": "Warm-up"
+  },
+  {
+   "lesson": "urlshort",
+   "id": "urlshort",
+   "title": "The viral link: rush hour",
+   "brief": "One short link goes viral. Redirects are all reads, and a hot key will expire. Now it gets harder. Traffic is 40% higher and a server will crash, a popular cache key will expire.",
+   "ticks": 40,
+   "seed": 7,
+   "min": 0.8,
+   "start": {},
+   "events": [
+    {
+     "t": 10,
+     "type": "hotkey",
+     "dur": 15
+    },
+    {
+     "t": 22,
+     "type": "crash",
+     "dur": 10
+    },
+    {
+     "t": 14,
+     "type": "hotkey",
+     "dur": 10
+    }
+   ],
+   "traffic": [
+    [
+     0,
+     40,
+     {
+      "read": 119,
+      "write": 4
+     }
+    ]
+   ],
+   "avail": [
+    "server",
+    "lb",
+    "cache",
+    "coalesce",
+    "cdn"
+   ],
+   "budget": 160,
+   "par": 105,
+   "solution": [
+    {
+     "t": 0,
+     "buy": "server"
+    },
+    {
+     "t": 0,
+     "buy": "server"
+    },
+    {
+     "t": 0,
+     "buy": "server"
+    },
+    {
+     "t": 0,
+     "buy": "lb"
+    },
+    {
+     "t": 0,
+     "buy": "cache"
+    },
+    {
+     "t": 0,
+     "buy": "cache"
+    },
+    {
+     "t": 0,
+     "buy": "coalesce"
+    }
+   ],
+   "level": 2,
+   "name": "Rush hour"
+  },
+  {
+   "lesson": "urlshort",
+   "id": "urlshort",
+   "title": "The viral link: perfect storm",
+   "brief": "One short link goes viral. Redirects are all reads, and a hot key will expire. Now everything goes wrong at once, and money is tight. Traffic is 80% higher and servers will crash twice, a popular cache key will expire.",
+   "ticks": 40,
+   "seed": 7,
+   "min": 0.8,
+   "start": {},
+   "events": [
+    {
+     "t": 10,
+     "type": "hotkey",
+     "dur": 15
+    },
+    {
+     "t": 6,
+     "type": "crash",
+     "dur": 8
+    },
+    {
+     "t": 24,
+     "type": "crash",
+     "dur": 10
+    },
+    {
+     "t": 14,
+     "type": "hotkey",
+     "dur": 10
+    }
+   ],
+   "traffic": [
+    [
+     0,
+     40,
+     {
+      "read": 153,
+      "write": 5
+     }
+    ]
+   ],
+   "avail": [
+    "server",
+    "lb",
+    "cache",
+    "coalesce",
+    "cdn"
+   ],
+   "budget": 205,
+   "par": 135,
+   "solution": [
+    {
+     "t": 0,
+     "buy": "server"
+    },
+    {
+     "t": 0,
+     "buy": "server"
+    },
+    {
+     "t": 0,
+     "buy": "server"
+    },
+    {
+     "t": 0,
+     "buy": "server"
+    },
+    {
+     "t": 0,
+     "buy": "lb"
+    },
+    {
+     "t": 0,
+     "buy": "cache"
+    },
+    {
+     "t": 0,
+     "buy": "cache"
+    },
+    {
+     "t": 0,
+     "buy": "cache"
+    },
+    {
+     "t": 0,
+     "buy": "coalesce"
+    }
+   ],
+   "level": 3,
+   "name": "Perfect storm"
+  }
+ ],
+ "chat": [
+  {
+   "lesson": "chat",
+   "id": "chat",
+   "title": "The message storm",
+   "brief": "Chat traffic is write-heavy and notifications are slow work. A server will crash mid-run.",
+   "ticks": 40,
+   "seed": 7,
+   "min": 0.8,
+   "start": {},
+   "events": [
+    {
+     "t": 15,
+     "type": "crash",
+     "dur": 10
+    }
+   ],
+   "traffic": [
+    [
+     0,
+     40,
+     {
+      "read": 30,
+      "write": 40,
+      "job": 15
+     }
+    ]
+   ],
+   "avail": [
+    "server",
+    "lb",
+    "queue",
+    "shard",
+    "cache"
+   ],
+   "budget": 140,
+   "par": 110,
+   "solution": [
+    {
+     "t": 0,
+     "buy": "lb"
+    },
+    {
+     "t": 0,
+     "buy": "server"
+    },
+    {
+     "t": 0,
+     "buy": "server"
+    },
+    {
+     "t": 0,
+     "buy": "queue"
+    },
+    {
+     "t": 0,
+     "buy": "shard"
+    }
+   ],
+   "level": 1,
+   "name": "Warm-up"
+  },
+  {
+   "lesson": "chat",
+   "id": "chat",
+   "title": "The message storm: rush hour",
+   "brief": "Chat traffic is write-heavy and notifications are slow work. A server will crash mid-run. Now it gets harder. Traffic is 40% higher and a server will crash, a popular cache key will expire.",
+   "ticks": 40,
+   "seed": 7,
+   "min": 0.8,
+   "start": {},
+   "events": [
+    {
+     "t": 15,
+     "type": "crash",
+     "dur": 10
+    },
+    {
+     "t": 22,
+     "type": "crash",
+     "dur": 10
+    },
+    {
+     "t": 14,
+     "type": "hotkey",
+     "dur": 10
+    }
+   ],
+   "traffic": [
+    [
+     0,
+     40,
+     {
+      "read": 42,
+      "write": 56,
+      "job": 21
+     }
+    ]
+   ],
+   "avail": [
+    "server",
+    "lb",
+    "queue",
+    "shard",
+    "cache"
+   ],
+   "budget": 145,
+   "par": 95,
+   "solution": [
+    {
+     "t": 0,
+     "buy": "server"
+    },
+    {
+     "t": 0,
+     "buy": "server"
+    },
+    {
+     "t": 0,
+     "buy": "server"
+    },
+    {
+     "t": 0,
+     "buy": "lb"
+    },
+    {
+     "t": 0,
+     "buy": "queue"
+    },
+    {
+     "t": 0,
+     "buy": "shard"
+    }
+   ],
+   "level": 2,
+   "name": "Rush hour"
+  },
+  {
+   "lesson": "chat",
+   "id": "chat",
+   "title": "The message storm: perfect storm",
+   "brief": "Chat traffic is write-heavy and notifications are slow work. A server will crash mid-run. Now everything goes wrong at once, and money is tight. Traffic is 80% higher and servers will crash twice, a popular cache key will expire.",
+   "ticks": 40,
+   "seed": 7,
+   "min": 0.8,
+   "start": {},
+   "events": [
+    {
+     "t": 15,
+     "type": "crash",
+     "dur": 10
+    },
+    {
+     "t": 6,
+     "type": "crash",
+     "dur": 8
+    },
+    {
+     "t": 24,
+     "type": "crash",
+     "dur": 10
+    },
+    {
+     "t": 14,
+     "type": "hotkey",
+     "dur": 10
+    }
+   ],
+   "traffic": [
+    [
+     0,
+     40,
+     {
+      "read": 54,
+      "write": 72,
+      "job": 27
+     }
+    ]
+   ],
+   "avail": [
+    "server",
+    "lb",
+    "queue",
+    "shard",
+    "cache"
+   ],
+   "budget": 195,
+   "par": 130,
+   "solution": [
+    {
+     "t": 0,
+     "buy": "server"
+    },
+    {
+     "t": 0,
+     "buy": "server"
+    },
+    {
+     "t": 0,
+     "buy": "server"
+    },
+    {
+     "t": 0,
+     "buy": "server"
+    },
+    {
+     "t": 0,
+     "buy": "lb"
+    },
+    {
+     "t": 0,
+     "buy": "queue"
+    },
+    {
+     "t": 0,
+     "buy": "shard"
+    },
+    {
+     "t": 0,
+     "buy": "shard"
+    }
+   ],
+   "level": 3,
+   "name": "Perfect storm"
+  }
+ ],
+ "feed": [
+  {
+   "lesson": "feed",
+   "id": "feed",
+   "title": "The celebrity post",
+   "brief": "Everyone reads the same popular posts. Reads are huge and a hot key will expire.",
+   "ticks": 40,
+   "seed": 7,
+   "min": 0.8,
+   "start": {},
+   "events": [
+    {
+     "t": 12,
+     "type": "hotkey",
+     "dur": 12
+    }
+   ],
+   "traffic": [
+    [
+     0,
+     40,
+     {
+      "read": 130,
+      "write": 8
+     }
+    ]
+   ],
+   "avail": [
+    "server",
+    "lb",
+    "cache",
+    "coalesce",
+    "replica"
+   ],
+   "budget": 140,
+   "par": 120,
+   "solution": [
+    {
+     "t": 0,
+     "buy": "lb"
+    },
+    {
+     "t": 0,
+     "buy": "server"
+    },
+    {
+     "t": 0,
+     "buy": "server"
+    },
+    {
+     "t": 0,
+     "buy": "server"
+    },
+    {
+     "t": 0,
+     "buy": "cache"
+    },
+    {
+     "t": 0,
+     "buy": "cache"
+    },
+    {
+     "t": 0,
+     "buy": "coalesce"
+    },
+    {
+     "t": 0,
+     "buy": "replica"
+    }
+   ],
+   "level": 1,
+   "name": "Warm-up"
+  },
+  {
+   "lesson": "feed",
+   "id": "feed",
+   "title": "The celebrity post: rush hour",
+   "brief": "Everyone reads the same popular posts. Reads are huge and a hot key will expire. Now it gets harder. Traffic is 40% higher and a server will crash, a popular cache key will expire.",
+   "ticks": 40,
+   "seed": 7,
+   "min": 0.8,
+   "start": {},
+   "events": [
+    {
+     "t": 12,
+     "type": "hotkey",
+     "dur": 12
+    },
+    {
+     "t": 22,
+     "type": "crash",
+     "dur": 10
+    },
+    {
+     "t": 14,
+     "type": "hotkey",
+     "dur": 10
+    }
+   ],
+   "traffic": [
+    [
+     0,
+     40,
+     {
+      "read": 182,
+      "write": 11
+     }
+    ]
+   ],
+   "avail": [
+    "server",
+    "lb",
+    "cache",
+    "coalesce",
+    "replica"
+   ],
+   "budget": 175,
+   "par": 115,
+   "solution": [
+    {
+     "t": 0,
+     "buy": "server"
+    },
+    {
+     "t": 0,
+     "buy": "server"
+    },
+    {
+     "t": 0,
+     "buy": "server"
+    },
+    {
+     "t": 0,
+     "buy": "server"
+    },
+    {
+     "t": 0,
+     "buy": "server"
+    },
+    {
+     "t": 0,
+     "buy": "lb"
+    },
+    {
+     "t": 0,
+     "buy": "replica"
+    },
+    {
+     "t": 0,
+     "buy": "replica"
+    }
+   ],
+   "level": 2,
+   "name": "Rush hour"
+  },
+  {
+   "lesson": "feed",
+   "id": "feed",
+   "title": "The celebrity post: perfect storm",
+   "brief": "Everyone reads the same popular posts. Reads are huge and a hot key will expire. Now everything goes wrong at once, and money is tight. Traffic is 80% higher and servers will crash twice, a popular cache key will expire.",
+   "ticks": 40,
+   "seed": 7,
+   "min": 0.8,
+   "start": {},
+   "events": [
+    {
+     "t": 12,
+     "type": "hotkey",
+     "dur": 12
+    },
+    {
+     "t": 6,
+     "type": "crash",
+     "dur": 8
+    },
+    {
+     "t": 24,
+     "type": "crash",
+     "dur": 10
+    },
+    {
+     "t": 14,
+     "type": "hotkey",
+     "dur": 10
+    }
+   ],
+   "traffic": [
+    [
+     0,
+     40,
+     {
+      "read": 234,
+      "write": 14
+     }
+    ]
+   ],
+   "avail": [
+    "server",
+    "lb",
+    "cache",
+    "coalesce",
+    "replica"
+   ],
+   "budget": 220,
+   "par": 145,
+   "solution": [
+    {
+     "t": 0,
+     "buy": "server"
+    },
+    {
+     "t": 0,
+     "buy": "server"
+    },
+    {
+     "t": 0,
+     "buy": "server"
+    },
+    {
+     "t": 0,
+     "buy": "server"
+    },
+    {
+     "t": 0,
+     "buy": "server"
+    },
+    {
+     "t": 0,
+     "buy": "server"
+    },
+    {
+     "t": 0,
+     "buy": "lb"
+    },
+    {
+     "t": 0,
+     "buy": "replica"
+    },
+    {
+     "t": 0,
+     "buy": "replica"
+    },
+    {
+     "t": 0,
+     "buy": "replica"
+    }
+   ],
+   "level": 3,
+   "name": "Perfect storm"
+  }
+ ],
+ "ecommerce": [
+  {
+   "lesson": "ecommerce",
+   "id": "ecommerce",
+   "title": "The flash sale",
+   "brief": "A sale starts. Traffic and orders spike, and the payment provider slows down in the middle.",
+   "ticks": 40,
+   "seed": 7,
+   "min": 0.8,
+   "start": {},
+   "events": [
+    {
+     "t": 14,
+     "type": "depslow",
+     "dur": 10
+    }
+   ],
+   "traffic": [
+    [
+     0,
+     12,
+     {
+      "read": 40,
+      "write": 8,
+      "job": 3
+     }
+    ],
+    [
+     12,
+     28,
+     {
+      "read": 130,
+      "write": 30,
+      "job": 10
+     }
+    ],
+    [
+     28,
+     40,
+     {
+      "read": 40,
+      "write": 8,
+      "job": 3
+     }
+    ]
+   ],
+   "avail": [
+    "server",
+    "lb",
+    "cache",
+    "queue",
+    "breaker",
+    "limiter",
+    "replica",
+    "shard"
+   ],
+   "budget": 190,
+   "par": 160,
+   "solution": [
+    {
+     "t": 0,
+     "buy": "lb"
+    },
+    {
+     "t": 0,
+     "buy": "server"
+    },
+    {
+     "t": 0,
+     "buy": "server"
+    },
+    {
+     "t": 0,
+     "buy": "server"
+    },
+    {
+     "t": 0,
+     "buy": "server"
+    },
+    {
+     "t": 0,
+     "buy": "cache"
+    },
+    {
+     "t": 0,
+     "buy": "cache"
+    },
+    {
+     "t": 0,
+     "buy": "queue"
+    },
+    {
+     "t": 0,
+     "buy": "breaker"
+    },
+    {
+     "t": 0,
+     "buy": "shard"
+    }
+   ],
+   "level": 1,
+   "name": "Warm-up"
+  },
+  {
+   "lesson": "ecommerce",
+   "id": "ecommerce",
+   "title": "The flash sale: rush hour",
+   "brief": "A sale starts. Traffic and orders spike, and the payment provider slows down in the middle. Now it gets harder. Traffic is 40% higher and a server will crash, a popular cache key will expire.",
+   "ticks": 40,
+   "seed": 7,
+   "min": 0.8,
+   "start": {},
+   "events": [
+    {
+     "t": 14,
+     "type": "depslow",
+     "dur": 10
+    },
+    {
+     "t": 22,
+     "type": "crash",
+     "dur": 10
+    },
+    {
+     "t": 14,
+     "type": "hotkey",
+     "dur": 10
+    }
+   ],
+   "traffic": [
+    [
+     0,
+     12,
+     {
+      "read": 56,
+      "write": 11,
+      "job": 4
+     }
+    ],
+    [
+     12,
+     28,
+     {
+      "read": 182,
+      "write": 42,
+      "job": 14
+     }
+    ],
+    [
+     28,
+     40,
+     {
+      "read": 56,
+      "write": 11,
+      "job": 4
+     }
+    ]
+   ],
+   "avail": [
+    "server",
+    "lb",
+    "cache",
+    "queue",
+    "breaker",
+    "limiter",
+    "replica",
+    "shard"
+   ],
+   "budget": 225,
+   "par": 150,
+   "solution": [
+    {
+     "t": 0,
+     "buy": "server"
+    },
+    {
+     "t": 0,
+     "buy": "server"
+    },
+    {
+     "t": 0,
+     "buy": "server"
+    },
+    {
+     "t": 0,
+     "buy": "server"
+    },
+    {
+     "t": 0,
+     "buy": "server"
+    },
+    {
+     "t": 0,
+     "buy": "server"
+    },
+    {
+     "t": 0,
+     "buy": "lb"
+    },
+    {
+     "t": 0,
+     "buy": "replica"
+    },
+    {
+     "t": 0,
+     "buy": "replica"
+    },
+    {
+     "t": 0,
+     "buy": "queue"
+    },
+    {
+     "t": 0,
+     "buy": "breaker"
+    }
+   ],
+   "level": 2,
+   "name": "Rush hour"
+  },
+  {
+   "lesson": "ecommerce",
+   "id": "ecommerce",
+   "title": "The flash sale: perfect storm",
+   "brief": "A sale starts. Traffic and orders spike, and the payment provider slows down in the middle. Now everything goes wrong at once, and money is tight. Traffic is 80% higher and servers will crash twice, a popular cache key will expire, a dependency will slow down, an abusive client will flood you.",
+   "ticks": 40,
+   "seed": 7,
+   "min": 0.8,
+   "start": {},
+   "events": [
+    {
+     "t": 14,
+     "type": "depslow",
+     "dur": 10
+    },
+    {
+     "t": 6,
+     "type": "crash",
+     "dur": 8
+    },
+    {
+     "t": 24,
+     "type": "crash",
+     "dur": 10
+    },
+    {
+     "t": 14,
+     "type": "hotkey",
+     "dur": 10
+    },
+    {
+     "t": 16,
+     "type": "depslow",
+     "dur": 14
+    }
+   ],
+   "traffic": [
+    [
+     0,
+     12,
+     {
+      "read": 72,
+      "write": 14,
+      "job": 5
+     }
+    ],
+    [
+     12,
+     28,
+     {
+      "read": 234,
+      "write": 54,
+      "job": 18
+     }
+    ],
+    [
+     28,
+     40,
+     {
+      "read": 72,
+      "write": 14,
+      "job": 5
+     }
+    ],
+    [
+     10,
+     30,
+     {
+      "abuse": 162
+     }
+    ]
+   ],
+   "avail": [
+    "server",
+    "lb",
+    "cache",
+    "queue",
+    "breaker",
+    "limiter",
+    "replica",
+    "shard"
+   ],
+   "budget": 325,
+   "par": 215,
+   "solution": [
+    {
+     "t": 0,
+     "buy": "server"
+    },
+    {
+     "t": 0,
+     "buy": "server"
+    },
+    {
+     "t": 0,
+     "buy": "server"
+    },
+    {
+     "t": 0,
+     "buy": "server"
+    },
+    {
+     "t": 0,
+     "buy": "server"
+    },
+    {
+     "t": 0,
+     "buy": "server"
+    },
+    {
+     "t": 0,
+     "buy": "server"
+    },
+    {
+     "t": 0,
+     "buy": "lb"
+    },
+    {
+     "t": 0,
+     "buy": "replica"
+    },
+    {
+     "t": 0,
+     "buy": "replica"
+    },
+    {
+     "t": 0,
+     "buy": "replica"
+    },
+    {
+     "t": 0,
+     "buy": "queue"
+    },
+    {
+     "t": 0,
+     "buy": "limiter"
+    },
+    {
+     "t": 0,
+     "buy": "breaker"
+    },
+    {
+     "t": 0,
+     "buy": "shard"
+    }
+   ],
+   "level": 3,
+   "name": "Perfect storm"
+  }
+ ],
+ "netflix": [
+  {
+   "lesson": "netflix",
+   "id": "netflix",
+   "title": "Premiere night",
+   "brief": "A big premiere sends video and image traffic through the roof. Serve it from the edge.",
+   "ticks": 40,
+   "seed": 7,
+   "min": 0.8,
+   "start": {},
+   "events": [],
+   "traffic": [
+    [
+     0,
+     10,
+     {
+      "static": 80,
+      "read": 20
+     }
+    ],
+    [
+     10,
+     30,
+     {
+      "static": 300,
+      "read": 60,
+      "write": 5
+     }
+    ],
+    [
+     30,
+     40,
+     {
+      "static": 80,
+      "read": 20
+     }
+    ]
+   ],
+   "avail": [
+    "server",
+    "lb",
+    "cdn",
+    "cache",
+    "autoscale"
+   ],
+   "budget": 100,
+   "par": 70,
+   "solution": [
+    {
+     "t": 0,
+     "buy": "cdn"
+    },
+    {
+     "t": 0,
+     "buy": "lb"
+    },
+    {
+     "t": 0,
+     "buy": "server"
+    }
+   ],
+   "level": 1,
+   "name": "Warm-up"
+  },
+  {
+   "lesson": "netflix",
+   "id": "netflix",
+   "title": "Premiere night: rush hour",
+   "brief": "A big premiere sends video and image traffic through the roof. Serve it from the edge. Now it gets harder. Traffic is 40% higher and a server will crash, a popular cache key will expire.",
+   "ticks": 40,
+   "seed": 7,
+   "min": 0.8,
+   "start": {},
+   "events": [
+    {
+     "t": 22,
+     "type": "crash",
+     "dur": 10
+    },
+    {
+     "t": 14,
+     "type": "hotkey",
+     "dur": 10
+    }
+   ],
+   "traffic": [
+    [
+     0,
+     10,
+     {
+      "static": 112,
+      "read": 28
+     }
+    ],
+    [
+     10,
+     30,
+     {
+      "static": 420,
+      "read": 84,
+      "write": 7
+     }
+    ],
+    [
+     30,
+     40,
+     {
+      "static": 112,
+      "read": 28
+     }
+    ]
+   ],
+   "avail": [
+    "server",
+    "lb",
+    "cdn",
+    "cache",
+    "autoscale"
+   ],
+   "budget": 115,
+   "par": 75,
+   "solution": [
+    {
+     "t": 0,
+     "buy": "server"
+    },
+    {
+     "t": 0,
+     "buy": "server"
+    },
+    {
+     "t": 0,
+     "buy": "server"
+    },
+    {
+     "t": 0,
+     "buy": "lb"
+    },
+    {
+     "t": 0,
+     "buy": "cdn"
+    }
+   ],
+   "level": 2,
+   "name": "Rush hour"
+  },
+  {
+   "lesson": "netflix",
+   "id": "netflix",
+   "title": "Premiere night: perfect storm",
+   "brief": "A big premiere sends video and image traffic through the roof. Serve it from the edge. Now everything goes wrong at once, and money is tight. Traffic is 80% higher and servers will crash twice, a popular cache key will expire.",
+   "ticks": 40,
+   "seed": 7,
+   "min": 0.8,
+   "start": {},
+   "events": [
+    {
+     "t": 6,
+     "type": "crash",
+     "dur": 8
+    },
+    {
+     "t": 24,
+     "type": "crash",
+     "dur": 10
+    },
+    {
+     "t": 14,
+     "type": "hotkey",
+     "dur": 10
+    }
+   ],
+   "traffic": [
+    [
+     0,
+     10,
+     {
+      "static": 144,
+      "read": 36
+     }
+    ],
+    [
+     10,
+     30,
+     {
+      "static": 540,
+      "read": 108,
+      "write": 9
+     }
+    ],
+    [
+     30,
+     40,
+     {
+      "static": 144,
+      "read": 36
+     }
+    ]
+   ],
+   "avail": [
+    "server",
+    "lb",
+    "cdn",
+    "cache",
+    "autoscale"
+   ],
+   "budget": 175,
+   "par": 115,
+   "solution": [
+    {
+     "t": 0,
+     "buy": "lb"
+    },
+    {
+     "t": 0,
+     "buy": "cache"
+    },
+    {
+     "t": 0,
+     "buy": "cdn"
+    },
+    {
+     "t": 0,
+     "buy": "autoscale"
+    }
+   ],
+   "level": 3,
+   "name": "Perfect storm"
+  }
+ ],
+ "clickstream": [
+  {
+   "lesson": "clickstream",
+   "id": "clickstream",
+   "title": "The event firehose",
+   "brief": "Millions of click events stream in. Absorb them without dropping any.",
+   "ticks": 40,
+   "seed": 7,
+   "min": 0.8,
+   "start": {},
+   "events": [],
+   "traffic": [
+    [
+     0,
+     40,
+     {
+      "read": 10,
+      "write": 80,
+      "job": 30
+     }
+    ]
+   ],
+   "avail": [
+    "server",
+    "lb",
+    "queue",
+    "shard",
+    "autoscale"
+   ],
+   "budget": 150,
+   "par": 120,
+   "solution": [
+    {
+     "t": 0,
+     "buy": "lb"
+    },
+    {
+     "t": 0,
+     "buy": "server"
+    },
+    {
+     "t": 0,
+     "buy": "server"
+    },
+    {
+     "t": 0,
+     "buy": "queue"
+    },
+    {
+     "t": 0,
+     "buy": "shard"
+    },
+    {
+     "t": 0,
+     "buy": "shard"
+    }
+   ],
+   "level": 1,
+   "name": "Warm-up"
+  },
+  {
+   "lesson": "clickstream",
+   "id": "clickstream",
+   "title": "The event firehose: rush hour",
+   "brief": "Millions of click events stream in. Absorb them without dropping any. Now it gets harder. Traffic is 40% higher and a server will crash.",
+   "ticks": 40,
+   "seed": 7,
+   "min": 0.8,
+   "start": {},
+   "events": [
+    {
+     "t": 22,
+     "type": "crash",
+     "dur": 10
+    }
+   ],
+   "traffic": [
+    [
+     0,
+     40,
+     {
+      "read": 14,
+      "write": 112,
+      "job": 42
+     }
+    ]
+   ],
+   "avail": [
+    "server",
+    "lb",
+    "queue",
+    "shard",
+    "autoscale"
+   ],
+   "budget": 295,
+   "par": 195,
+   "solution": [
+    {
+     "t": 0,
+     "buy": "server"
+    },
+    {
+     "t": 0,
+     "buy": "server"
+    },
+    {
+     "t": 0,
+     "buy": "server"
+    },
+    {
+     "t": 0,
+     "buy": "lb"
+    },
+    {
+     "t": 0,
+     "buy": "autoscale"
+    },
+    {
+     "t": 0,
+     "buy": "shard"
+    },
+    {
+     "t": 0,
+     "buy": "shard"
+    },
+    {
+     "t": 0,
+     "buy": "shard"
+    }
+   ],
+   "level": 2,
+   "name": "Rush hour"
+  },
+  {
+   "lesson": "clickstream",
+   "id": "clickstream",
+   "title": "The event firehose: perfect storm",
+   "brief": "Millions of click events stream in. Absorb them without dropping any. Now everything goes wrong at once, and money is tight. Traffic is 50% higher and servers will crash twice.",
+   "ticks": 40,
+   "seed": 7,
+   "min": 0.8,
+   "start": {},
+   "events": [
+    {
+     "t": 6,
+     "type": "crash",
+     "dur": 8
+    },
+    {
+     "t": 24,
+     "type": "crash",
+     "dur": 10
+    }
+   ],
+   "traffic": [
+    [
+     0,
+     40,
+     {
+      "read": 15,
+      "write": 120,
+      "job": 45
+     }
+    ]
+   ],
+   "avail": [
+    "server",
+    "lb",
+    "queue",
+    "shard",
+    "autoscale"
+   ],
+   "budget": 300,
+   "par": 200,
+   "solution": [
+    {
+     "t": 0,
+     "buy": "server"
+    },
+    {
+     "t": 0,
+     "buy": "server"
+    },
+    {
+     "t": 0,
+     "buy": "server"
+    },
+    {
+     "t": 0,
+     "buy": "server"
+    },
+    {
+     "t": 0,
+     "buy": "server"
+    },
+    {
+     "t": 0,
+     "buy": "lb"
+    },
+    {
+     "t": 0,
+     "buy": "autoscale"
+    },
+    {
+     "t": 0,
+     "buy": "shard"
+    },
+    {
+     "t": 0,
+     "buy": "shard"
+    },
+    {
+     "t": 0,
+     "buy": "shard"
+    }
+   ],
+   "level": 3,
+   "name": "Perfect storm"
+  }
+ ]
+}

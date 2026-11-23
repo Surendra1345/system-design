@@ -1,0 +1,891 @@
+{
+ "cache:0": {
+  "best": 25.2,
+  "default": 139.6,
+  "solution": {
+   "coalesce": true,
+   "jitter": false,
+   "policy": "lfu",
+   "size": 40,
+   "ttl": 40
+  },
+  "stars": [
+   33.5,
+   51.36,
+   87.6
+  ]
+ },
+ "cache:1": {
+  "best": 34.6,
+  "default": 135.2,
+  "solution": {
+   "coalesce": true,
+   "jitter": false,
+   "policy": "lfu",
+   "size": 40,
+   "ttl": 45
+  },
+  "stars": [
+   45.25,
+   68.28,
+   94.96
+  ]
+ },
+ "cache:2": {
+  "best": 14.0,
+  "default": 133.8,
+  "solution": {
+   "coalesce": true,
+   "jitter": false,
+   "policy": "lfu",
+   "size": 58,
+   "ttl": 40
+  },
+  "stars": [
+   19.5,
+   31.2,
+   54.0
+  ]
+ },
+ "cap:0": {
+  "best": 2.35,
+  "default": 44.1,
+  "solution": {
+   "conflict": "merge",
+   "r": 1,
+   "w": 1
+  },
+  "stars": [
+   4.94,
+   10.23,
+   19.05
+  ]
+ },
+ "cap:1": {
+  "best": 9.94,
+  "default": 27.42,
+  "solution": {
+   "conflict": "lww",
+   "r": 1,
+   "w": 3
+  },
+  "stars": [
+   12.56,
+   16.93,
+   20.43
+  ]
+ },
+ "cap:2": {
+  "best": 1.14,
+  "default": 85.8,
+  "solution": {
+   "conflict": "merge",
+   "r": 1,
+   "w": 1
+  },
+  "stars": [
+   3.42,
+   8.05,
+   15.42
+  ]
+ },
+ "cdn:0": {
+  "best": 37.7,
+  "default": 331.6,
+  "solution": {
+   "shield": false,
+   "sites": [
+    "me",
+    "oc",
+    "na_e"
+   ],
+   "ttl": "long"
+  },
+  "stars": [
+   49.12,
+   73.86,
+   125.1
+  ]
+ },
+ "cdn:1": {
+  "best": 17.6,
+  "default": 521.1,
+  "solution": {
+   "shield": false,
+   "sites": [
+    "na_e",
+    "in",
+    "eu",
+    "as"
+   ],
+   "ttl": "long"
+  },
+  "stars": [
+   24.0,
+   37.68,
+   64.8
+  ]
+ },
+ "cdn:2": {
+  "best": 17.6,
+  "default": 934.8,
+  "solution": {
+   "shield": false,
+   "sites": [
+    "na_e",
+    "in",
+    "eu",
+    "as"
+   ],
+   "ttl": "long"
+  },
+  "stars": [
+   24.0,
+   37.68,
+   64.8
+  ]
+ },
+ "clocks:0": {
+  "best": 0.5,
+  "default": 26.1,
+  "solution": {
+   "ntp": 60,
+   "stamp": "hlc"
+  },
+  "stars": [
+   2.62,
+   6.9,
+   13.5
+  ]
+ },
+ "clocks:1": {
+  "best": 0.54,
+  "default": 38.5,
+  "solution": {
+   "ntp": 1,
+   "stamp": "hlc"
+  },
+  "stars": [
+   2.67,
+   6.97,
+   13.62
+  ]
+ },
+ "clocks:2": {
+  "best": 3.0,
+  "default": 45.0,
+  "solution": {
+   "ntp": 1,
+   "stamp": "hlc"
+  },
+  "stars": [
+   5.75,
+   11.4,
+   21.0
+  ]
+ },
+ "consensus:0": {
+  "best": 5.0,
+  "default": 110.0,
+  "solution": {
+   "etmax": 4,
+   "etmin": 3,
+   "hb": 2,
+   "quorum": "majority",
+   "randomize": true
+  },
+  "stars": [
+   8.25,
+   15.0,
+   27.0
+  ]
+ },
+ "consensus:1": {
+  "best": 7.0,
+  "default": 122.0,
+  "solution": {
+   "etmax": 14,
+   "etmin": 2,
+   "hb": 1,
+   "quorum": "two",
+   "randomize": true
+  },
+  "stars": [
+   10.75,
+   18.6,
+   33.0
+  ]
+ },
+ "consensus:2": {
+  "best": 12.0,
+  "default": 145.0,
+  "solution": {
+   "etmax": 26,
+   "etmin": 4,
+   "hb": 9,
+   "quorum": "majority",
+   "randomize": true
+  },
+  "stars": [
+   17.0,
+   27.6,
+   48.0
+  ]
+ },
+ "deploy:0": {
+  "best": 0.26,
+  "default": 23.2,
+  "solution": {
+   "auto_rollback": true,
+   "canary_pct": 16,
+   "strategy": "canary",
+   "watch": 12
+  },
+  "stars": [
+   2.33,
+   6.47,
+   12.78
+  ]
+ },
+ "deploy:1": {
+  "best": 0.25,
+  "default": 6.15,
+  "solution": {
+   "auto_rollback": true,
+   "canary_pct": 42,
+   "strategy": "canary",
+   "watch": 19
+  },
+  "stars": [
+   1.14,
+   2.61,
+   3.79
+  ]
+ },
+ "deploy:2": {
+  "best": 0.6,
+  "default": 37.2,
+  "solution": {
+   "auto_rollback": true,
+   "canary_pct": 6,
+   "strategy": "rolling",
+   "watch": 18
+  },
+  "stars": [
+   2.75,
+   7.08,
+   13.8
+  ]
+ },
+ "engines:0": {
+  "best": 38.77,
+  "default": 43.25,
+  "solution": {
+   "bloom": true,
+   "compaction": "leveled",
+   "engine": "lsm",
+   "fsync": true,
+   "memtable": 11
+  },
+  "stars": [
+   39.44,
+   40.56,
+   41.46
+  ]
+ },
+ "engines:1": {
+  "best": 37.72,
+  "default": 94.1,
+  "solution": {
+   "bloom": false,
+   "compaction": "tiered",
+   "engine": "btree",
+   "fsync": true,
+   "memtable": 2
+  },
+  "stars": [
+   46.17,
+   60.27,
+   71.55
+  ]
+ },
+ "engines:2": {
+  "best": 55.52,
+  "default": 80.95,
+  "solution": {
+   "bloom": true,
+   "compaction": "leveled",
+   "engine": "lsm",
+   "fsync": true,
+   "memtable": 11
+  },
+  "stars": [
+   59.33,
+   65.69,
+   70.78
+  ]
+ },
+ "journey:0": {
+  "best": 19.2,
+  "default": 52.8,
+  "solution": {
+   "cdn": true,
+   "dns_cached": true,
+   "http": "h3",
+   "preconnect": true,
+   "tls": "1.3"
+  },
+  "stars": [
+   24.24,
+   32.64,
+   39.36
+  ]
+ },
+ "journey:1": {
+  "best": 36.0,
+  "default": 158.0,
+  "solution": {
+   "cdn": true,
+   "dns_cached": true,
+   "http": "h3",
+   "preconnect": true,
+   "tls": "1.3"
+  },
+  "stars": [
+   47.0,
+   70.8,
+   109.2
+  ]
+ },
+ "journey:2": {
+  "best": 39.0,
+  "default": 180.0,
+  "solution": {
+   "cdn": true,
+   "dns_cached": true,
+   "http": "h3",
+   "preconnect": true,
+   "tls": "1.3"
+  },
+  "stars": [
+   50.75,
+   76.2,
+   123.6
+  ]
+ },
+ "lb:0": {
+  "best": 4.0,
+  "default": 8.0,
+  "solution": {
+   "algorithm": "least_connections",
+   "health_checks": false,
+   "sticky": false,
+   "w0": 2,
+   "w1": 4,
+   "w2": 6
+  },
+  "stars": [
+   4.6,
+   5.6,
+   6.4
+  ]
+ },
+ "lb:1": {
+  "best": 2.0,
+  "default": 20.0,
+  "solution": {
+   "algorithm": "weighted",
+   "health_checks": false,
+   "sticky": false,
+   "w0": 6,
+   "w1": 2,
+   "w2": 1
+  },
+  "stars": [
+   4.5,
+   9.2,
+   12.8
+  ]
+ },
+ "lb:2": {
+  "best": 3.0,
+  "default": 21.0,
+  "solution": {
+   "algorithm": "round_robin",
+   "health_checks": true,
+   "sticky": false,
+   "w0": 2,
+   "w1": 4,
+   "w2": 5,
+   "w3": 3
+  },
+  "stars": [
+   5.7,
+   10.2,
+   13.8
+  ]
+ },
+ "micro:0": {
+  "best": 15.98,
+  "default": 28.04,
+  "solution": {
+   "async": false,
+   "fallback": true,
+   "monolith_core": true,
+   "timeout": 200
+  },
+  "stars": [
+   17.79,
+   20.81,
+   23.22
+  ]
+ },
+ "micro:1": {
+  "best": 28.13,
+  "default": 444.1,
+  "solution": {
+   "async": false,
+   "fallback": true,
+   "monolith_core": true,
+   "timeout": 200
+  },
+  "stars": [
+   37.16,
+   56.63,
+   96.39
+  ]
+ },
+ "micro:2": {
+  "best": 11.26,
+  "default": 548.49,
+  "solution": {
+   "async": true,
+   "fallback": false,
+   "monolith_core": true,
+   "timeout": 500
+  },
+  "stars": [
+   16.08,
+   26.27,
+   45.78
+  ]
+ },
+ "queue:0": {
+  "best": 6.4,
+  "default": 488.2,
+  "solution": {
+   "dlq": false,
+   "idempotent": false,
+   "retries": 6,
+   "workers": 9
+  },
+  "stars": [
+   10.0,
+   17.52,
+   31.2
+  ]
+ },
+ "queue:1": {
+  "best": 5.2,
+  "default": 417.2,
+  "solution": {
+   "dlq": true,
+   "idempotent": false,
+   "retries": 0,
+   "workers": 7
+  },
+  "stars": [
+   8.5,
+   15.36,
+   27.6
+  ]
+ },
+ "queue:2": {
+  "best": 5.8,
+  "default": 418.2,
+  "solution": {
+   "dlq": false,
+   "idempotent": true,
+   "retries": 0,
+   "workers": 8
+  },
+  "stars": [
+   9.25,
+   16.44,
+   29.4
+  ]
+ },
+ "ratelimiter:0": {
+  "best": 5.6,
+  "default": 27.8,
+  "solution": {
+   "algo": "sliding",
+   "bucket": 2,
+   "key": "user",
+   "limit": 5,
+   "refill": 1.5,
+   "window": 5
+  },
+  "stars": [
+   8.93,
+   14.48,
+   18.92
+  ]
+ },
+ "ratelimiter:1": {
+  "best": 11.1,
+  "default": 28.5,
+  "solution": {
+   "algo": "fixed",
+   "bucket": 12,
+   "key": "ip",
+   "limit": 10,
+   "refill": 2.5,
+   "window": 2
+  },
+  "stars": [
+   13.71,
+   18.06,
+   21.54
+  ]
+ },
+ "ratelimiter:2": {
+  "best": 10.4,
+  "default": 78.9,
+  "solution": {
+   "algo": "bucket",
+   "bucket": 38,
+   "key": "user",
+   "limit": 7,
+   "refill": 1.0,
+   "window": 8
+  },
+  "stars": [
+   15.0,
+   24.72,
+   43.2
+  ]
+ },
+ "repl:0": {
+  "best": 5.7,
+  "default": 50.5,
+  "solution": {
+   "ack": "async",
+   "followers": 1,
+   "read_from": "followers"
+  },
+  "stars": [
+   9.12,
+   16.26,
+   29.1
+  ]
+ },
+ "repl:1": {
+  "best": 4.5,
+  "default": 50.5,
+  "solution": {
+   "ack": "async",
+   "followers": 1,
+   "read_from": "smart"
+  },
+  "stars": [
+   7.62,
+   14.1,
+   25.5
+  ]
+ },
+ "repl:2": {
+  "best": 44.47,
+  "default": 1037.0,
+  "solution": {
+   "ack": "semi",
+   "followers": 3,
+   "read_from": "smart"
+  },
+  "stars": [
+   57.59,
+   86.05,
+   145.41
+  ]
+ },
+ "resil:0": {
+  "best": 12.99,
+  "default": 32.8,
+  "solution": {
+   "backoff": "none",
+   "breaker": false,
+   "fallback": true,
+   "open_ticks": 19,
+   "retries": 0,
+   "threshold": 19,
+   "timeout": 10
+  },
+  "stars": [
+   15.96,
+   20.91,
+   24.88
+  ]
+ },
+ "resil:1": {
+  "best": 5.67,
+  "default": 12.4,
+  "solution": {
+   "backoff": "none",
+   "breaker": false,
+   "fallback": true,
+   "open_ticks": 10,
+   "retries": 5,
+   "threshold": 19,
+   "timeout": 3
+  },
+  "stars": [
+   6.68,
+   8.36,
+   9.71
+  ]
+ },
+ "resil:2": {
+  "best": 8.0,
+  "default": 22.0,
+  "solution": {
+   "backoff": "jitter",
+   "breaker": false,
+   "fallback": true,
+   "open_ticks": 5,
+   "retries": 0,
+   "threshold": 17,
+   "timeout": 1
+  },
+  "stars": [
+   10.1,
+   13.6,
+   16.4
+  ]
+ },
+ "serverless:0": {
+  "best": 6.6,
+  "default": 51.32,
+  "solution": {
+   "cooldown": 0,
+   "down_at": 55,
+   "max": 12,
+   "min": 1,
+   "step": 1,
+   "up_at": 90,
+   "warm": true
+  },
+  "stars": [
+   10.25,
+   17.88,
+   31.8
+  ]
+ },
+ "serverless:1": {
+  "best": 8.67,
+  "default": 49.28,
+  "solution": {
+   "cooldown": 1,
+   "down_at": 60,
+   "max": 20,
+   "min": 8,
+   "step": 5,
+   "up_at": 40,
+   "warm": true
+  },
+  "stars": [
+   12.84,
+   21.61,
+   33.04
+  ]
+ },
+ "serverless:2": {
+  "best": 10.12,
+  "default": 56.92,
+  "solution": {
+   "cooldown": 16,
+   "down_at": 20,
+   "max": 13,
+   "min": 10,
+   "step": 2,
+   "up_at": 50,
+   "warm": false
+  },
+  "stars": [
+   14.65,
+   24.22,
+   38.2
+  ]
+ },
+ "shard:0": {
+  "best": 8.0,
+  "default": 204.1,
+  "solution": {
+   "shards": 4,
+   "strategy": "range",
+   "vnodes": 10
+  },
+  "stars": [
+   12.0,
+   20.4,
+   36.0
+  ]
+ },
+ "shard:1": {
+  "best": 20.5,
+  "default": 483.6,
+  "solution": {
+   "shards": 6,
+   "strategy": "mod",
+   "vnodes": 3
+  },
+  "stars": [
+   27.62,
+   42.9,
+   73.5
+  ]
+ },
+ "shard:2": {
+  "best": 34.1,
+  "default": 570.0,
+  "solution": {
+   "shards": 8,
+   "split_hot": true,
+   "strategy": "ring",
+   "vnodes": 35
+  },
+  "stars": [
+   44.62,
+   67.38,
+   114.3
+  ]
+ },
+ "slo:0": {
+  "best": 0.0,
+  "default": 52.0,
+  "solution": {
+   "alert": "any",
+   "freeze": true,
+   "slo": "99.9"
+  },
+  "stars": [
+   2.0,
+   6.0,
+   12.0
+  ]
+ },
+ "slo:1": {
+  "best": 0.0,
+  "default": 72.0,
+  "solution": {
+   "alert": "slow",
+   "freeze": false,
+   "slo": "99.9"
+  },
+  "stars": [
+   2.0,
+   6.0,
+   12.0
+  ]
+ },
+ "slo:2": {
+  "best": 0.0,
+  "default": 58.0,
+  "solution": {
+   "alert": "any",
+   "freeze": false,
+   "slo": "99.99"
+  },
+  "stars": [
+   2.0,
+   6.0,
+   12.0
+  ]
+ },
+ "streaming:0": {
+  "best": 0.6,
+  "default": 205.4,
+  "solution": {
+   "consumers": 3,
+   "key": "customer",
+   "partitions": 6,
+   "spare": 2.0
+  },
+  "stars": [
+   2.75,
+   7.08,
+   13.8
+  ]
+ },
+ "streaming:1": {
+  "best": 0.6,
+  "default": 205.4,
+  "solution": {
+   "consumers": 3,
+   "key": "user",
+   "partitions": 3,
+   "spare": 2.0
+  },
+  "stars": [
+   2.75,
+   7.08,
+   13.8
+  ]
+ },
+ "streaming:2": {
+  "best": 7.2,
+  "default": 275.15,
+  "solution": {
+   "consumers": 6,
+   "key": "customer",
+   "partitions": 10,
+   "spare": 2.0
+  },
+  "stars": [
+   11.0,
+   18.96,
+   33.6
+  ]
+ },
+ "tx:0": {
+  "best": 6.0,
+  "default": 181.0,
+  "solution": {
+   "for_update": true,
+   "isolation": "ru",
+   "ordered": false
+  },
+  "stars": [
+   9.5,
+   16.8,
+   30.0
+  ]
+ },
+ "tx:1": {
+  "best": 8.0,
+  "default": 76.4,
+  "solution": {
+   "for_update": false,
+   "isolation": "rr",
+   "ordered": true
+  },
+  "stars": [
+   12.0,
+   20.4,
+   36.0
+  ]
+ },
+ "tx:2": {
+  "best": 8.4,
+  "default": 62.8,
+  "solution": {
+   "for_update": false,
+   "isolation": "rr",
+   "ordered": true
+  },
+  "stars": [
+   12.5,
+   21.12,
+   37.2
+  ]
+ }
+}

@@ -1,0 +1,1179 @@
+{
+ "urlshort": {
+  "how": [
+   {
+    "h": "Think of a coat-check ticket",
+    "p": "A URL shortener works like a coat-check counter. You hand over something bulky (a long web address) and get back a tiny numbered ticket. Later anyone who shows the ticket gets sent to the right place. The whole service is a big lookup table from short code to long URL, plus a fast way to hand out tickets that never repeat."
+   },
+   {
+    "h": "Step 1: make a unique short code",
+    "p": "You need a code that is short, never given out twice, and hard to guess. One popular way is to keep a counter, give every new link the next number, and write that number in base 62 (the digits 0-9 plus a-z and A-Z, 62 symbols in all). Another is to hash the long URL and keep a few characters, but then two different URLs can collide and you must check and retry. A counter is collision-free but guessable in order, so many teams scramble the number or pull blocks of numbers from a central service so that each app server can hand out codes without asking every time."
+   },
+   {
+    "h": "Step 2: store the mapping",
+    "p": "Each row holds the short code, the long URL, the creation time and an optional expiry. The short code is the primary key, so a lookup by code is one indexed read. The data is small (a few hundred bytes per link), so a single replicated relational or key-value database goes a long way before you need to split it up."
+   },
+   {
+    "h": "Step 3: redirect, and choose the status code",
+    "p": "When a visitor opens the short link, the server looks up the code and answers with an HTTP redirect: a 3xx status plus a `Location` header holding the long URL. A 301 says the move is permanent, so browsers and search crawlers may remember it and stop asking your server, which saves load but hides later clicks from your analytics. A 302 says the move is temporary, so every click comes back to you and can be counted. Pick 302 if you sell analytics or need to change a link's target later."
+   },
+   {
+    "h": "Step 4: cache the hot links",
+    "p": "Reads outnumber writes by about a hundred to one, and a small set of links gets most of the clicks. Put an in-memory cache such as Redis in front of the database and check it first. On a hit you skip the database entirely. Give cached entries a time limit so expired or deleted links stop working soon after."
+   },
+   {
+    "h": "Step 5: defend against abuse",
+    "p": "Shorteners hide where a link goes, which makes them attractive to spammers and phishers. Rate limit link creation per user or IP address, check new targets against a list of known bad sites, and offer a way to report and disable a code. Disabling must also clear the cache entry, or the bad link keeps working until the cache expires."
+   }
+  ],
+  "worked": {
+   "title": "Size the service and encode one ID",
+   "steps": [
+    "Assume (illustrative) 100 million new links per month. A month has about 30 x 86,400 = 2.59 million seconds, so writes average 100,000,000 / 2,592,000 = about 39 per second. Call it 40.",
+    "Reads are 100 times writes, so about 4,000 reads per second on average. If the peak is three times the average, plan for about 12,000.",
+    "Over 5 years you store 100 million x 60 months = 6 billion links. At 500 bytes each that is 6,000,000,000 x 500 = 3 trillion bytes, about 3 TB.",
+    "How long must a code be? Seven base-62 characters give 62^7 = 3,521,614,606,208 combinations, about 3.5 trillion. Six billion links use only 0.17 percent of that, so seven characters is plenty. Six characters (62^6, about 56.8 billion) would also fit.",
+    "Encode counter value 1,000,000 in base 62. Divide: 1,000,000 = 4 x 238,328 + 46,688; 46,688 = 12 x 3,844 + 560; 560 = 9 x 62 + 2. The digits are 4, 12, 9, 2. With the alphabet 0-9 then a-z then A-Z, digit 12 is the letter c, so the code is `4c92`. Check: 953,312 + 46,128 + 558 + 2 = 1,000,000.",
+    "Add a cache with a 90 percent hit rate. Of 12,000 peak reads per second only 1,200 reach the database, a load one ordinary database server handles."
+   ],
+   "result": "A service with about 40 writes and 12,000 peak reads per second and 3 TB of data needs a cache, one replicated database and a seven-character base-62 code. It does not need dozens of shards."
+  },
+  "case": {
+   "who": "The HTTP standard behaviour that every shortener relies on",
+   "title": "Why the redirect status code is a product decision",
+   "text": "Shorteners depend on HTTP redirects, which are responses with a 3xx status and a Location header. Browser vendors' documentation explains that permanent redirects (301 and 308) tell crawlers and other clients to replace the old address, while temporary ones (302 and 307) tell them to keep the original. For a shortener this has a direct consequence. A permanent redirect lets browsers skip your server on repeat visits, which cuts cost but also hides those clicks from your click counts and makes it hard to change the destination later. A temporary redirect keeps every click flowing through your service. The lesson is that the status code you return decides what you can measure and change, so choose it deliberately rather than by default.",
+   "source": {
+    "title": "Redirections in HTTP (MDN Web Docs)",
+    "url": "https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/Redirections"
+   }
+  },
+  "choose": [
+   [
+    "Counter plus base 62",
+    "You want zero collisions and the simplest code",
+    "Codes are guessable in order, and one counter is a single point of failure unless you hand out ranges to servers"
+   ],
+   [
+    "Hash of the URL, keep a few characters",
+    "The same long URL should map to the same code",
+    "Collisions need a check and retry, and a shorter slice collides sooner"
+   ],
+   [
+    "Random code with a uniqueness check",
+    "You need codes that cannot be guessed",
+    "Each insert may need a retry as the table fills up"
+   ],
+   [
+    "301 permanent redirect",
+    "Links never change and you want the least server load",
+    "Browsers cache it, so clicks vanish from analytics and you cannot easily change the target"
+   ],
+   [
+    "302 temporary redirect",
+    "You count clicks or may edit targets",
+    "Every click hits your servers, so the cache must be solid"
+   ]
+  ],
+  "mistakes": [
+   "Returning a 301 and then wondering why click analytics are missing. Use 302 (or 307) when you need every click, and 301 only when the link is truly permanent.",
+   "Using a plain auto-increment number as the public code. People can walk through every link by counting up. Scramble it, use random codes, or add a secret mix.",
+   "Hashing the URL and not handling collisions. Two different URLs will eventually share a code, so detect that and retry.",
+   "Forgetting to clear the cache when a link is disabled or expires. The bad link keeps working until the cached copy dies.",
+   "Skipping abuse controls. Add rate limits and bad-site checks before launch, not after the first phishing report.",
+   "Designing for billions of users before estimating. Do the arithmetic first; the data here is a few terabytes, not petabytes."
+  ],
+  "reading": [
+   {
+    "title": "Redirections in HTTP",
+    "by": "MDN Web Docs",
+    "kind": "docs",
+    "url": "https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/Redirections"
+   },
+   {
+    "title": "The System Design Primer (includes a Pastebin/Bit.ly exercise)",
+    "by": "Donne Martin and contributors",
+    "kind": "blog",
+    "url": "https://github.com/donnemartin/system-design-primer"
+   },
+   {
+    "title": "How Discord Stores Trillions of Messages (sortable IDs and partition keys)",
+    "by": "Discord Engineering",
+    "kind": "blog",
+    "url": "https://discord.com/blog/how-discord-stores-trillions-of-messages"
+   },
+   {
+    "title": "Designing Data-Intensive Applications",
+    "by": "Martin Kleppmann",
+    "kind": "book"
+   }
+  ]
+ },
+ "chat": {
+  "how": [
+   {
+    "h": "Think of a phone call versus a letter",
+    "p": "Normal web traffic is like sending letters: you ask, the server replies, and the exchange ends. A chat app needs a phone line that stays open so the server can speak to you the moment a message arrives. That open line is the main difference between chat and most websites."
+   },
+   {
+    "h": "Step 1: keep a connection open with WebSockets",
+    "p": "A WebSocket starts life as a normal HTTP request, then both sides agree to upgrade it into a long-lived two-way channel. After that either side can send a message at any time, with no need to keep asking whether anything is new. The browser API does not give you backpressure, which means that if messages arrive faster than the app can handle them, the app can run out of memory or freeze, so busy clients need to be designed with that in mind."
+   },
+   {
+    "h": "Step 2: gateways hold connections, services hold logic",
+    "p": "Millions of open connections are held by a fleet of gateway servers whose only job is to keep sockets alive. A separate chat service decides what to do with each message. A lookup table (often in Redis) records which gateway each online user is connected to, so the chat service can find the right socket."
+   },
+   {
+    "h": "Step 3: save first, then push",
+    "p": "When user A sends a message, the chat service writes it to the message store before anything else, then tries to push it to user B through B's gateway. If B is offline, the message simply waits in storage, and B's phone asks for everything after the last message it has seen when it reconnects. Storing first is what makes delivery reliable."
+   },
+   {
+    "h": "Step 4: ordering and delivery states",
+    "p": "Each conversation hands out an increasing sequence number or sortable ID to its messages, so every device can sort them the same way and notice a gap. Acknowledgements move a message through the states sent, delivered and read. Clients retry sends, so each message carries a unique client-made ID that lets the server throw away duplicates."
+   },
+   {
+    "h": "Step 5: store history so it does not overload one node",
+    "p": "Chat history is write-heavy and read mostly by recency, so teams choose a store partitioned by conversation and time. Partitioning only by conversation lets one very busy channel overload one node, so a time bucket is often added to the key. Big channels remain a hot spot to watch."
+   }
+  ],
+  "worked": {
+   "title": "Size the gateways and follow one message",
+   "steps": [
+    "Assume (illustrative) 50 million daily users sending 40 messages each. That is 2 billion messages a day, or 2,000,000,000 / 86,400 = about 23,000 messages per second.",
+    "Each message is about 100 bytes, so a day is 200 GB. A year is 200 GB x 365 = 73 TB, and three replicas make it about 219 TB.",
+    "Suppose 10 million users are online at once. If one gateway safely holds 50,000 sockets, you need 10,000,000 / 50,000 = 200 gateways. WhatsApp reported more than 2 million connections on a single tuned server, so a cautious 50,000 per box leaves a lot of headroom.",
+    "Alice (on gateway 12) sends message `m-881` to Bob. The chat service assigns it sequence 42 in their conversation and writes it to the store. Time passes: Bob's phone is on gateway 87.",
+    "The chat service looks up Bob in the presence table, finds gateway 87, and pushes the message. Bob's phone replies with an acknowledgement, and Alice's app shows delivered.",
+    "If Bob was offline, nothing is pushed. When his phone reconnects it says: I have up to sequence 41. The server sends 42 onward. If Alice's phone retries `m-881` after a timeout, the server sees the same ID and stores nothing new."
+   ],
+   "result": "The load is about 23,000 messages per second and 200 GB per day, easy for a partitioned store, and the real challenge is holding 10 million sockets, which about 200 gateway servers can do."
+  },
+  "case": {
+   "who": "Discord",
+   "title": "Hot channels in a message store",
+   "text": "Discord partitioned its messages by channel plus a fixed time bucket, with sortable Snowflake-style IDs keeping messages in order. In 2017 it ran 12 Cassandra nodes; by early 2022 the cluster had grown to 177 nodes and trillions of messages. A channel and time bucket receiving heavy reads could overload one node, and because reads used quorum, the slowdown spread to other queries. Garbage-collection pauses and background compaction made it worse. Discord moved to ScyllaDB and put Rust services in front of it that merge duplicate requests for the same row and route by channel, so hot channels are shielded. The cluster shrank to 72 nodes, and p99 read latency for history fell from 40-125 ms to about 15 ms. The lesson is to design the partition key and a protective layer for your busiest conversations, not for the average one.",
+   "source": {
+    "title": "How Discord Stores Trillions of Messages",
+    "url": "https://discord.com/blog/how-discord-stores-trillions-of-messages"
+   }
+  },
+  "choose": [
+   [
+    "WebSocket",
+    "You need low-latency two-way messages",
+    "Each connection holds server memory, and you must handle reconnects and backpressure yourself"
+   ],
+   [
+    "Long polling",
+    "You cannot use WebSockets (old proxies, strict networks)",
+    "Each reply needs a new request, so more overhead per message"
+   ],
+   [
+    "Server-sent events",
+    "The server pushes updates and the client rarely sends",
+    "One-way only; you still need normal requests to send messages"
+   ],
+   [
+    "Mobile push notification",
+    "The user's app is closed",
+    "Delivery is best effort, so keep the message itself in your store"
+   ]
+  ],
+  "mistakes": [
+   "Pushing a message before saving it. If the push fails you have lost the message. Store first, then push.",
+   "Ordering by the sender's clock. Phone clocks drift. Use a server-assigned sequence per conversation.",
+   "No duplicate protection. Retries are normal, so give every message a client-generated ID and ignore repeats.",
+   "Putting business logic inside the gateway. Gateways should only hold connections, so you can restart or scale them freely.",
+   "Partitioning history only by conversation ID. One huge group becomes a hot spot; add a time bucket or other splitting key.",
+   "Forgetting offline users and multiple devices. Track a last-seen position per device and replay from it."
+  ],
+  "reading": [
+   {
+    "title": "The WebSocket API",
+    "by": "MDN Web Docs",
+    "kind": "docs",
+    "url": "https://developer.mozilla.org/en-US/docs/Web/API/WebSockets_API"
+   },
+   {
+    "title": "How Discord Stores Trillions of Messages",
+    "by": "Discord Engineering",
+    "kind": "blog",
+    "url": "https://discord.com/blog/how-discord-stores-trillions-of-messages"
+   },
+   {
+    "title": "1 million is so 2011",
+    "by": "WhatsApp engineering",
+    "kind": "blog",
+    "url": "https://blog.whatsapp.com/1-million-is-so-2011"
+   },
+   {
+    "title": "Designing Data-Intensive Applications",
+    "by": "Martin Kleppmann",
+    "kind": "book"
+   }
+  ]
+ },
+ "feed": {
+  "how": [
+   {
+    "h": "Think of a newspaper stand versus a personal mailbox",
+    "p": "You can build a feed in two ways. In the newspaper-stand way, nothing is prepared: when you open the app the system runs around collecting recent posts from everyone you follow. In the mailbox way, every time someone posts, a copy of the post is dropped into each follower's personal mailbox, so opening the app just means reading your mailbox."
+   },
+   {
+    "h": "Fan-out on read (pull)",
+    "p": "Fan-out means copying one event out to many places. With fan-out on read, a post is stored once. When you open your feed the server fetches the latest posts of every account you follow and merges them by time. Writes are cheap, but reads get slower the more accounts you follow, and reads are the common action."
+   },
+   {
+    "h": "Fan-out on write (push)",
+    "p": "With fan-out on write, a worker looks up the poster's followers and adds the new post's ID to each follower's stored feed list. Reading is then a single quick lookup. Twitter described keeping these lists in a Redis cluster, capped at 800 entries per user, and storing only IDs, then filling in the tweet text with a second lookup. The price is that one post becomes as many writes as the poster has followers."
+   },
+   {
+    "h": "The celebrity problem and the hybrid",
+    "p": "An account with tens of millions of followers turns one post into tens of millions of writes. The usual fix is a hybrid: push for ordinary accounts, but for celebrities skip the fan-out and merge their recent posts into your feed when you open it. Twitter's engineers described planning exactly this change."
+   },
+   {
+    "h": "Ranking and pagination",
+    "p": "A newest-first feed is just a sorted list. A ranked feed scores candidate posts with a model and then sorts them, which costs more computation per read. For paging, use a cursor (return the ID or timestamp of the last item you saw) instead of page numbers, because page numbers shift as new posts arrive and you would see duplicates or skip posts."
+   },
+   {
+    "h": "Keep memory for active users only",
+    "p": "Precomputed feeds for people who never log in are wasted memory. Twitter kept timelines in RAM only for users who had logged in within the last 30 days, and rebuilt the rest from disk on demand."
+   }
+  ],
+  "worked": {
+   "title": "Count the writes for three kinds of poster",
+   "steps": [
+    "Take an ordinary user with 300 followers. Fan-out on write means 300 list inserts. At the delivery rate Twitter reported (about 300,000 deliveries per second) that finishes in a fraction of a second.",
+    "Take a celebrity with 30 million followers. That is 30,000,000 inserts for one post. At 300,000 deliveries per second the fan-out alone takes 30,000,000 / 300,000 = 100 seconds, and it competes with everyone else's posts.",
+    "Now the hybrid: do not fan out that celebrity. Instead each reader's feed request fetches the reader's stored list plus the latest posts of the few celebrities the reader follows. If a reader follows 2 celebrities, that is 2 extra small lookups per read.",
+    "Storage (illustrative): suppose each feed entry is 20 bytes and each list holds 800 entries, so 16,000 bytes (16 KB) per user. For 100 million active users that is 100,000,000 x 16 KB = 1.6 TB. Keeping 3 copies makes it 4.8 TB, which fits in the memory of a modest cluster.",
+    "Compare fan-out on read: a reader following 500 accounts needs 500 lookups per open. If 10,000 readers open the app in one second, that is 5 million lookups per second."
+   ],
+   "result": "Push costs one write per follower and makes reads cheap; pull makes writes cheap and reads costly. The hybrid pays the push cost for normal accounts and avoids the 100-second celebrity storm."
+  },
+  "case": {
+   "who": "Twitter",
+   "title": "Precomputed timelines with a celebrity exception",
+   "text": "A write-up of Twitter's talk on timelines described a fan-out on write design: when a tweet arrives, its ID is inserted into each follower's timeline in Redis, which holds at most 800 entries per user. Reads were reported at about 300,000 per second, with a median service time of 5 ms. Tweets averaged about 5,000 a second but produced roughly 30 billion deliveries a day. The weak spot was accounts with tens of millions of followers, where one tweet means tens of millions of inserts, and delivery to a million followers could take minutes at the slow end. The planned fix was to stop fanning out those accounts and merge their tweets when a timeline is read, which was expected to save a large share of compute. The takeaway is that the right design depends on the follower distribution, not just the average.",
+   "source": {
+    "title": "The Architecture Twitter Uses to Deal with 150M Active Users",
+    "url": "https://highscalability.com/the-architecture-twitter-uses-to-deal-with-150m-active-users/"
+   }
+  },
+  "choose": [
+   [
+    "Fan-out on write (push)",
+    "Reads vastly outnumber writes and follower counts are modest",
+    "Huge accounts cause write storms, and you waste work on inactive users"
+   ],
+   [
+    "Fan-out on read (pull)",
+    "Users follow few accounts, or you are early and simple matters most",
+    "Reads slow down as follows grow"
+   ],
+   [
+    "Hybrid",
+    "A few accounts are huge and most are small",
+    "Two code paths to build, test and keep in order"
+   ],
+   [
+    "Ranked feed",
+    "You want the most relevant posts, not just the newest",
+    "Scoring cost on every read, plus a model to maintain and explain"
+   ]
+  ],
+  "mistakes": [
+   "Pushing every post to every follower with no exception. One celebrity can flood your queue. Set a follower threshold and switch to pull above it.",
+   "Storing full post bodies in every feed list. Store IDs and fetch the content in one batch.",
+   "Using page numbers for paging. Use cursors so new posts do not shift your place.",
+   "Precomputing feeds for dormant users. Limit it to recently active users and rebuild on return.",
+   "Forgetting deletes and blocks. A deleted post must disappear from stored lists, so filter at read time as a safety net.",
+   "Treating 'within seconds' as exact. Fan-out is asynchronous, and some deliveries will be late. Design the UI so a late post is not a bug."
+  ],
+  "reading": [
+   {
+    "title": "The Architecture Twitter Uses to Deal with 150M Active Users",
+    "by": "High Scalability",
+    "kind": "blog",
+    "url": "https://highscalability.com/the-architecture-twitter-uses-to-deal-with-150m-active-users/"
+   },
+   {
+    "title": "Timelines at Scale (QCon talk)",
+    "by": "Raffi Krikorian, Twitter",
+    "kind": "talk",
+    "url": "https://www.infoq.com/presentations/Twitter-Timeline-Scalability/"
+   },
+   {
+    "title": "Kafka introduction (feeds are often fed by event streams)",
+    "by": "Apache Kafka project",
+    "kind": "docs",
+    "url": "https://kafka.apache.org/intro"
+   },
+   {
+    "title": "The System Design Primer",
+    "by": "Donne Martin and contributors",
+    "kind": "blog",
+    "url": "https://github.com/donnemartin/system-design-primer"
+   },
+   {
+    "title": "Designing Data-Intensive Applications",
+    "by": "Martin Kleppmann",
+    "kind": "book"
+   }
+  ]
+ },
+ "ecommerce": {
+  "how": [
+   {
+    "h": "Think of a shop with a stockroom and a till",
+    "p": "Browsing is like walking the shop floor: many people, mostly looking, and it does not matter if a price tag is a few seconds stale. Checkout is like the till and stockroom: every sale must be counted exactly once. An e-commerce design treats these as two different problems with two different levels of care."
+   },
+   {
+    "h": "Step 1: make browsing fast and cheap",
+    "p": "Product pages, search and images are read thousands of times for each purchase. Serve images from a content delivery network (a set of servers close to users), cache product pages, and index products in a search engine. A little staleness is fine here, so you can cache aggressively."
+   },
+   {
+    "h": "Step 2: the cart",
+    "p": "A cart is temporary, personal data. It is often kept in a fast key-value store or even a cookie, keyed by user or session. Losing a cart is annoying but not catastrophic, which lets you choose speed over strict durability."
+   },
+   {
+    "h": "Step 3: checkout must be exact",
+    "p": "Checkout touches inventory, orders and payment, and these must agree. Updating stock needs an atomic operation, one that checks and changes the number in a single step, so two buyers cannot both take the last item. The order itself is recorded in a database with real transactions."
+   },
+   {
+    "h": "Step 4: payments and idempotency",
+    "p": "Networks fail, so a client that did not get a reply will retry. A payment retry must not charge twice. The standard defence is an idempotency key: the client invents a unique ID per attempt, and the server remembers the result for that ID and returns it on repeats. Retries should wait a little longer each time with random jitter, so a crowd of clients does not hammer a recovering server together."
+   },
+   {
+    "h": "Step 5: sagas when services own their own data",
+    "p": "When orders, inventory and payments live in separate services with separate databases, one big transaction across them is not practical. A saga splits the work into a chain of local transactions, and if a step fails, it runs compensating steps that undo the earlier ones, for example releasing reserved stock after a declined card. You must write that undo logic yourself, and until it finishes the system is briefly inconsistent."
+   }
+  ],
+  "worked": {
+   "title": "Sell the last 100 items without overselling",
+   "steps": [
+    "A flash sale offers 100 units. In the first second 500 buyers click Buy.",
+    "Unsafe version: each request reads stock (100), checks it is above zero, then writes stock minus one. Many requests read 100 at the same moment, so far more than 100 orders can be accepted. That is overselling.",
+    "Safe version: each request runs one atomic statement, in effect: decrease stock by 1 only if stock is above 0. The database processes these one at a time per row. The first 100 succeed, the other 400 get zero rows changed and are told it is sold out.",
+    "A winner pays. The payment call carries idempotency key `order-7731-attempt-1`. The card network is slow and the client times out after 10 seconds, then retries with the same key. The server sees the key and returns the original result, so the card is charged once.",
+    "Suppose the payment is declined. The saga runs its compensating step: add 1 back to stock so the item can be sold to the next buyer, and mark order 7731 as failed.",
+    "Throughput check: the plan says about 50 orders per second in a sale. 100 units at 50 orders per second would sell out in 100 / 50 = 2 seconds, so the real design problem is the queue of waiting buyers, not the stock row."
+   ],
+   "result": "Exactly 100 orders are accepted, one charge per order, and failed payments return stock. The three tools doing the work are an atomic stock update, an idempotency key and a compensating step."
+  },
+  "case": {
+   "who": "Stripe",
+   "title": "Idempotency keys make retries safe",
+   "text": "Stripe lets clients send an Idempotency-Key header on POST requests. For its original API, it saves the status code and body of the first request that used a key and returns the same response on a retry, even when that response was an error. Keys can be up to 255 characters and the company suggests random UUIDs. Saved keys may be removed once they are at least 24 hours old. The system also compares the new request's parameters with the original and errors if they differ, which catches accidental reuse. Stripe's engineers also describe retrying with exponential backoff and jitter to avoid a thundering herd, which is many clients retrying at the same instant. The lesson is that any operation that moves money should be safe to repeat.",
+   "source": {
+    "title": "Designing robust and predictable APIs with idempotency",
+    "url": "https://stripe.com/blog/idempotency"
+   }
+  },
+  "choose": [
+   [
+    "Single database transaction",
+    "Orders, stock and payments live in one database",
+    "Does not span separate services, and long locks hurt during sales"
+   ],
+   [
+    "Saga by choreography",
+    "A few services react to each other's events",
+    "No single place shows the flow, so debugging is harder"
+   ],
+   [
+    "Saga by orchestration",
+    "The flow has many steps and needs one clear owner",
+    "The orchestrator is more code and a component to keep available"
+   ],
+   [
+    "Queue the checkout (waiting room)",
+    "Flash sales produce more demand than stock",
+    "Customers wait, so be honest in the UI about their place in line"
+   ]
+  ],
+  "mistakes": [
+   "Read-check-write on stock. Use one atomic conditional update so two buyers cannot take the last item.",
+   "Retrying payments with no idempotency key. A slow network then means double charges.",
+   "Retrying instantly in a loop. Back off exponentially and add jitter.",
+   "Assuming a payment call that timed out failed. It may have succeeded; ask the provider or retry with the same key.",
+   "No compensating steps in a saga. A declined card must release stock and cancel the order automatically.",
+   "Caching stock counts on product pages as if exact. Show approximate stock when browsing and check the exact count at checkout."
+  ],
+  "reading": [
+   {
+    "title": "Designing robust and predictable APIs with idempotency",
+    "by": "Stripe",
+    "kind": "blog",
+    "url": "https://stripe.com/blog/idempotency"
+   },
+   {
+    "title": "Idempotent requests (API reference)",
+    "by": "Stripe",
+    "kind": "docs",
+    "url": "https://docs.stripe.com/api/idempotent_requests"
+   },
+   {
+    "title": "Pattern: Saga",
+    "by": "Chris Richardson, microservices.io",
+    "kind": "docs",
+    "url": "https://microservices.io/patterns/data/saga.html"
+   },
+   {
+    "title": "Dynamo: Amazon's Highly Available Key-value Store (shopping cart motivation)",
+    "by": "DeCandia et al., Amazon",
+    "kind": "paper",
+    "url": "https://www.allthingsdistributed.com/files/amazon-dynamo-sosp2007.pdf"
+   },
+   {
+    "title": "Release It!",
+    "by": "Michael Nygard",
+    "kind": "book"
+   }
+  ]
+ },
+ "netflix": {
+  "how": [
+   {
+    "h": "Think of a chain of local warehouses",
+    "p": "Imagine shipping every film from one factory to every customer. It would be slow and the roads would jam. Instead you stock local warehouses with the popular films overnight, and customers collect from the nearest one. Video streaming works the same way, with the warehouses being servers placed close to viewers."
+   },
+   {
+    "h": "Step 1: upload and keep the original",
+    "p": "A studio uploads a large master file into durable object storage (a service that stores files cheaply and reliably). This original is never played directly. It is the source for all the versions that come next."
+   },
+   {
+    "h": "Step 2: transcode into many versions",
+    "p": "Transcoding converts the video into several sizes and quality levels, often called a bitrate ladder, from small and low bitrate for weak mobile connections up to large and high bitrate for big screens. Each version is also chopped into short chunks called segments. This work is heavy, so it is split into many small jobs run in parallel on a pool of workers."
+   },
+   {
+    "h": "Step 3: describe the versions in a playlist",
+    "p": "With HTTP Live Streaming (HLS), a text file called a master playlist lists the available versions, each pointing to a media playlist, which in turn lists its segment files in order. The player reads these text files and downloads segments over plain HTTP. Because they are ordinary files, normal web caches and CDNs can store them."
+   },
+   {
+    "h": "Step 4: the player adapts",
+    "p": "The player measures how fast each segment downloads. If the network slows down it switches to a lower rung of the ladder for the next segment, and goes back up when it speeds up. That is why a video gets blurry for a moment instead of freezing."
+   },
+   {
+    "h": "Step 5: serve from the edge",
+    "p": "At millions of viewers, the bandwidth is far too large for any origin. Netflix built its own delivery network called Open Connect, with appliances placed inside internet providers' networks and at exchange points, pre-filled with the content likely to be watched there. Pre-filling happens in advance, for example nightly updates, so peak-hour traffic is served locally and not across expensive long-distance links."
+   }
+  ],
+  "worked": {
+   "title": "Estimate egress and storage for one title",
+   "steps": [
+    "Assume 1 million people are watching at the same time, each at about 5 megabits per second (Mbps). Total is 1,000,000 x 5 Mbps = 5,000,000 Mbps = 5 terabits per second.",
+    "No single data centre can send 5 Tbps. If one cache server can send 100 Gbps (illustrative), you would need 5,000 Gbps / 100 Gbps = 50 servers at minimum, and in practice many more spread across regions.",
+    "Pick an illustrative ladder of five versions: 0.5, 1.5, 3, 5 and 8 Mbps. Together that is 18 Mbps.",
+    "A 2-hour film is 7,200 seconds. Storage for all versions is 18,000,000 bits per second x 7,200 s = 129,600,000,000 bits, which is 16.2 GB (dividing by 8 bits per byte).",
+    "Cut it into 4-second segments (illustrative): 7,200 / 4 = 1,800 segments per version, and 9,000 files across five versions.",
+    "A viewer's connection measures 4 Mbps. The player picks the 3 Mbps version, leaving headroom. When the connection drops to 1 Mbps it steps down to the 0.5 Mbps version at the next segment."
+   ],
+   "result": "One film is about 16 GB for all versions in this example, but serving it to a million viewers needs terabits of delivery capacity, which only edge caches near the viewers can provide."
+  },
+  "case": {
+   "who": "Netflix Open Connect",
+   "title": "Putting the servers inside the internet provider",
+   "text": "Netflix runs its own content delivery network called Open Connect. Its appliances (OCAs) are available in two main ways. Embedded ones sit inside a partner internet provider's own network, and the provider receives them at no charge when it qualifies. Alternatively, a provider can interconnect with Netflix at a data centre or internet exchange without paying for the link. Netflix says it works with over a thousand providers and operates appliances in more than 60 of its own data centres. Before an appliance ships, it is pre-loaded with content suited to the location, with the amount of work depending on catalogue size, and later updates run nightly. The principle is to move the bytes close to the viewer ahead of time, so the busy hours do not depend on long-distance transit.",
+   "source": {
+    "title": "Open Connect overview",
+    "url": "https://openconnect.netflix.com/en/"
+   }
+  },
+  "choose": [
+   [
+    "Commercial CDN",
+    "You are starting out or serve a regional audience",
+    "Cost grows with traffic and you depend on the provider's cache behaviour"
+   ],
+   [
+    "Own edge appliances (Open Connect style)",
+    "Traffic is enormous and steady, and providers will host your boxes",
+    "Needs ISP partnerships, hardware operations and a fill strategy"
+   ],
+   [
+    "HLS (or similar segmented HTTP streaming)",
+    "You need broad device support and cacheability",
+    "Segment length trades startup delay against efficiency"
+   ],
+   [
+    "Fixed bitrate ladder",
+    "A small catalogue and simple pipeline",
+    "Simple scenes get more bits than they need and complex ones too few"
+   ]
+  ],
+  "mistakes": [
+   "Serving video from your origin servers. Estimate peak egress first and put a CDN in front.",
+   "Transcoding in one big job. Split the file into chunks and process in parallel so failures retry cheaply.",
+   "Offering only one or two quality levels. Viewers on slow connections will buffer.",
+   "Making segments very long. The player adapts only between segments, so long ones react slowly to network changes.",
+   "Ignoring cache fill. A new popular title requested before it is on the edge floods your origin. Pre-position expected hits.",
+   "Forgetting the thumbnails, subtitles and audio languages. These are separate renditions in a playlist and need the same pipeline."
+  ],
+  "reading": [
+   {
+    "title": "Open Connect",
+    "by": "Netflix",
+    "kind": "docs",
+    "url": "https://openconnect.netflix.com/en/"
+   },
+   {
+    "title": "RFC 8216: HTTP Live Streaming",
+    "by": "R. Pantos and W. May, IETF",
+    "kind": "docs",
+    "url": "https://www.rfc-editor.org/rfc/rfc8216"
+   },
+   {
+    "title": "The System Design Primer",
+    "by": "Donne Martin and contributors",
+    "kind": "blog",
+    "url": "https://github.com/donnemartin/system-design-primer"
+   },
+   {
+    "title": "Designing Data-Intensive Applications",
+    "by": "Martin Kleppmann",
+    "kind": "book"
+   }
+  ]
+ },
+ "kvstore": {
+  "how": [
+   {
+    "h": "Think of a shared filing system run by a team",
+    "p": "Picture a giant filing cabinet shared across many rooms. Each room keeps some folders, and each folder is kept in three rooms in case one room burns down. A key-value store is that cabinet: you ask for a key, and the system finds the rooms that hold it. The design questions are how to decide which rooms, and what to do when rooms disagree or are closed."
+   },
+   {
+    "h": "Step 1: spread keys with consistent hashing",
+    "p": "Hash each key to a position on a circle, and give each server positions on the same circle. A key belongs to the first server clockwise from its position. When a server joins or leaves, only the keys next to it move, instead of nearly all keys. Giving each machine many virtual nodes (several positions) evens out the load and lets stronger machines take more."
+   },
+   {
+    "h": "Step 2: replicate to N nodes",
+    "p": "To survive failures, each key is stored on N servers, the owner and the next ones around the circle. Dynamo's paper lists the nodes responsible for a key as its preference list. A commonly used setting in that paper is N=3."
+   },
+   {
+    "h": "Step 3: quorums, tunable consistency",
+    "p": "A write waits for W replicas to confirm, and a read asks R replicas. If R + W is greater than N, every read overlaps at least one replica that saw the latest write. Lower values are faster and keep working with more failures but may return stale data. The paper notes R and W are usually set below N for speed, because latency follows the slowest of the replicas you wait for."
+   },
+   {
+    "h": "Step 4: keep accepting writes when a node is down",
+    "p": "With a sloppy quorum, the write goes to the first healthy nodes found, not strictly the intended ones. A stand-in node holds the data with a hint saying who it belongs to, and hands it back when the owner returns, which is called hinted handoff. This keeps the store always writable, which Amazon needed for things like shopping carts."
+   },
+   {
+    "h": "Step 5: detect conflicts, and repair",
+    "p": "If two clients write the same key at the same time on different replicas, vector clocks (lists of node and counter pairs attached to each version) tell whether one version descends from another or the two are concurrent. Concurrent versions are kept and handed to the client to merge. In the background, Merkle trees (trees of hashes) let two replicas compare their data cheaply and find only the differing parts, and gossip spreads which nodes are alive."
+   }
+  ],
+  "worked": {
+   "title": "Quorums and a vector clock, with numbers",
+   "steps": [
+    "Choose N=3, R=2, W=2, the common setting reported in the Dynamo paper. R + W = 4, which is greater than N=3, so a read set and a write set must share at least one node.",
+    "A write for key `cart:42` goes to nodes A, B and C. It succeeds once two of them (say A and B) confirm. C is slow and catches up later.",
+    "A read asks two nodes. If it asks B and C, B has the new version and C the old one. The coordinator returns the newer one and updates C (read repair).",
+    "Now C is completely down during a write. A sloppy quorum stores the third copy on node D with a hint pointing at C. When C returns, D passes the data back.",
+    "Vector clock example from the paper: node Sx handles two writes, giving versions with clocks [(Sx,1)] then [(Sx,2)]. Sy handles an update to the second version, giving [(Sx,2),(Sy,1)]. Concurrently, Sz updates the same second version, giving [(Sx,2),(Sz,1)].",
+    "Neither of the last two descends from the other, so both are kept. A client reads both, merges them (for a cart, take the union of items), and writes back through Sx, giving clock [(Sx,3),(Sy,1),(Sz,1)], which supersedes both."
+   ],
+   "result": "Reads and writes each wait for two of three replicas, the store stays writable during a node failure, and concurrent updates are detected and merged instead of silently lost."
+  },
+  "case": {
+   "who": "Amazon (Dynamo)",
+   "title": "An always-writable store for the shopping cart",
+   "text": "Amazon built Dynamo because some services, such as the shopping cart, needed to keep accepting writes even during failures. Rejecting an add-to-cart was worse than occasionally showing a merged cart. The paper reports a service-level target of answering in 300 ms for 99.9 percent of requests, and says the system avoids routing through several nodes (a zero-hop design) to keep high-percentile latency low. It combines consistent hashing, replication, sloppy quorums, vector clocks and Merkle tree repair. The common configuration was N=3, R=2, W=2, measured on a live system of a couple of hundred nodes. The lesson the authors draw is that consistency, availability and latency are knobs to tune per application, rather than fixed properties.",
+   "source": {
+    "title": "Dynamo: Amazon's Highly Available Key-value Store",
+    "url": "https://www.allthingsdistributed.com/files/amazon-dynamo-sosp2007.pdf"
+   }
+  },
+  "choose": [
+   [
+    "N=3, R=2, W=2",
+    "A balanced default that survives one node failure on both paths",
+    "Latency follows the second-slowest replica"
+   ],
+   [
+    "R=1, W=3 (N=3)",
+    "Reads dominate and must be fast",
+    "Any single failed replica blocks writes"
+   ],
+   [
+    "R=3, W=1 (N=3)",
+    "Writes dominate and must be fast",
+    "A single failed replica blocks reads, and a lone write is fragile until repaired"
+   ],
+   [
+    "Dynamo-style (leaderless, eventual)",
+    "You need always-writable and scale-out",
+    "App must handle conflicts and stale reads"
+   ],
+   [
+    "Single-leader or consensus-based store",
+    "You need strong consistency and transactions",
+    "Writes depend on a leader; lower availability during partitions"
+   ]
+  ],
+  "mistakes": [
+   "Choosing R + W <= N and expecting the latest value. With that setting reads may miss recent writes.",
+   "Assuming quorums give transactions. They do not; two keys can still be out of step.",
+   "Using plain hashing (key mod number of servers). Adding one server moves most keys. Use consistent hashing.",
+   "Skipping virtual nodes. One server can end up owning a big, uneven slice of the circle.",
+   "Resolving conflicts by last write wins without thinking. Clock differences can quietly drop valid updates; merge when the data allows.",
+   "Leaving out background repair. Replicas drift apart without read repair and Merkle tree comparison."
+  ],
+  "reading": [
+   {
+    "title": "Dynamo: Amazon's Highly Available Key-value Store",
+    "by": "DeCandia et al., Amazon (SOSP 2007)",
+    "kind": "paper",
+    "url": "https://www.allthingsdistributed.com/files/amazon-dynamo-sosp2007.pdf"
+   },
+   {
+    "title": "How Discord Stores Trillions of Messages (a Cassandra, Dynamo-family, story)",
+    "by": "Discord Engineering",
+    "kind": "blog",
+    "url": "https://discord.com/blog/how-discord-stores-trillions-of-messages"
+   },
+   {
+    "title": "Apache Kafka introduction (replication factor and partitions)",
+    "by": "Apache Kafka project",
+    "kind": "docs",
+    "url": "https://kafka.apache.org/intro"
+   },
+   {
+    "title": "Designing Data-Intensive Applications (chapters on replication and partitioning)",
+    "by": "Martin Kleppmann",
+    "kind": "book"
+   }
+  ]
+ },
+ "clickstream": {
+  "how": [
+   {
+    "h": "Think of a river and a water meter",
+    "p": "Clicks arrive like a river that never stops. You cannot hold all the water in your hands, so you put meters in the river that count flow minute by minute, and you also fill a reservoir so you can study it later. A clickstream pipeline does both: live counters for now, stored data for later questions."
+   },
+   {
+    "h": "Step 1: collect with a small, fast front door",
+    "p": "Browsers and apps send small event messages (page viewed, button clicked) to a collector service. The collector does almost nothing: check the message looks valid, stamp it, and hand it to a queue. Keeping it simple means it can accept bursts and never makes the website slow."
+   },
+   {
+    "h": "Step 2: a log in the middle",
+    "p": "Kafka is a commonly used log that sits in the middle. Events go into named topics, each split into partitions, which are ordered append-only sequences. Events with the same key land in the same partition, so they stay in order. Events are not deleted when read; they are kept for a retention period, and copies (commonly three) are stored on different servers. Producers and consumers do not need to know about each other, so you can add a new consumer later and replay history."
+   },
+   {
+    "h": "Step 3: process as a stream",
+    "p": "A stream processor such as Flink or Spark reads the topic and keeps running totals. Because a stream never ends, counts are computed over windows: tumbling windows (back-to-back, no overlap), sliding windows (overlapping), or session windows (split by gaps of inactivity)."
+   },
+   {
+    "h": "Step 4: event time and late data",
+    "p": "Phones lose signal and send old events late. If you count by arrival time, a click from 10:01 that arrives at 10:07 lands in the wrong minute. Event time uses the timestamp inside the event. Watermarks are markers saying that events up to time t should have arrived; events later than that are late, and the program can allow some lateness on purpose."
+   },
+   {
+    "h": "Step 5: two destinations",
+    "p": "Results for dashboards go to a fast serving store that can answer quickly. The raw events are also written to cheap storage such as files in object storage, so you can re-run the analysis later with better logic. Keeping the raw log is what lets you fix a bug in your counting code and recompute."
+   }
+  ],
+  "worked": {
+   "title": "Size the pipeline and count one window",
+   "steps": [
+    "Assume 50 million daily users with 40 events each: 2 billion events a day. 2,000,000,000 / 86,400 = about 23,100 events per second on average, and about 70,000 at peak.",
+    "At 200 bytes each, a day is 2,000,000,000 x 200 = 400 GB.",
+    "Keep raw events in Kafka for 7 days (illustrative): 7 x 400 GB = 2.8 TB, and with 3 copies 8.4 TB of disk across the brokers.",
+    "If one partition comfortably takes 10,000 events per second (illustrative), the 70,000 peak needs at least 7 partitions. Choose 12 to leave headroom and room for more consumers.",
+    "Count page views per minute with a tumbling window. Events with event times 10:00:05, 10:00:40 and 10:00:59 fall in window 10:00 to 10:01, giving a count of 3.",
+    "An event stamped 10:00:50 arrives at 10:01:30 after the watermark passed 10:01:00. With allowed lateness of 1 minute the 10:00 window is updated to 4. With none, it is counted as late data."
+   ],
+   "result": "The pipeline handles about 23,000 events per second on average with 12 partitions, keeps 8.4 TB of replicated raw log for a week, and produces per-minute counts that stay correct even when events arrive late."
+  },
+  "case": {
+   "who": "Apache Kafka and Apache Flink projects",
+   "title": "A replayable log plus event-time processing",
+   "text": "The Kafka project describes topics as logs that producers append to and consumers read at their own pace, with events kept until a retention setting expires. Events are not removed on read, and performance stays roughly steady as data grows, so long retention is practical. A replication factor of three is described as common in production. On the processing side, Flink's documentation explains that using event time makes results depend on the data rather than on wall clocks, so reprocessing old data gives the same answer. Watermarks track how far event time has advanced. Combined, a durable log and event-time windows let a team fix a bug and replay history, which is why this pattern is the standard backbone for analytics pipelines.",
+   "source": {
+    "title": "Apache Kafka: Introduction",
+    "url": "https://kafka.apache.org/intro"
+   }
+  },
+  "choose": [
+   [
+    "Batch only (hourly or daily jobs)",
+    "Reports can wait and the team is small",
+    "No live numbers, and a failed job delays everything"
+   ],
+   [
+    "Stream processing (Flink, Spark streaming)",
+    "You need live counters or alerts",
+    "More moving parts; you must understand windows and late data"
+   ],
+   [
+    "Lambda style (batch and stream both)",
+    "You need fast approximate and slow exact numbers",
+    "Two code paths to keep consistent"
+   ],
+   [
+    "Log as the single source (replay from Kafka)",
+    "You want one code path and the ability to recompute",
+    "Needs enough retention storage and careful versioning of events"
+   ]
+  ],
+  "mistakes": [
+   "Doing heavy work in the collector. Validate and enqueue only, or bursts will drop events.",
+   "Counting by arrival time. Use event time and watermarks so late phone data lands in the right window.",
+   "Too few partitions. Parallelism is capped by partition count and it is awkward to change later.",
+   "Not keeping the raw events. Without them you cannot fix a counting bug retroactively.",
+   "Ignoring duplicates. Clients retry, so give events unique IDs and de-duplicate downstream.",
+   "Putting personal data in every event. Collect only what you need and think about privacy from the start."
+  ],
+  "reading": [
+   {
+    "title": "Apache Kafka: Introduction",
+    "by": "Apache Kafka project",
+    "kind": "docs",
+    "url": "https://kafka.apache.org/intro"
+   },
+   {
+    "title": "Timely Stream Processing (event time and watermarks)",
+    "by": "Apache Flink project",
+    "kind": "docs",
+    "url": "https://nightlies.apache.org/flink/flink-docs-stable/docs/concepts/time/"
+   },
+   {
+    "title": "Designing Data-Intensive Applications (stream processing chapter)",
+    "by": "Martin Kleppmann",
+    "kind": "book"
+   },
+   {
+    "title": "The System Design Primer",
+    "by": "Donne Martin and contributors",
+    "kind": "blog",
+    "url": "https://github.com/donnemartin/system-design-primer"
+   }
+  ]
+ },
+ "interview": {
+  "how": [
+   {
+    "h": "Think of it as a guided conversation, not an exam",
+    "p": "A design interview is closer to two engineers at a whiteboard than a test with one right answer. The interviewer wants to see how you think: how you clarify, how you estimate, and how you weigh trade-offs. A calm, repeatable routine keeps you from freezing."
+   },
+   {
+    "h": "Step 1: clarify and scope",
+    "p": "Ask who the users are, which features matter most, and how big the system is. The System Design Primer puts it as outlining use cases, constraints and assumptions: how many users, what goes in and out, how much data, how many requests per second, and the read-to-write ratio. State what you are leaving out so nobody is surprised later."
+   },
+   {
+    "h": "Step 2: estimate with round numbers",
+    "p": "Back-of-envelope maths turns vague scale into concrete figures. A day has about 86,400 seconds, which you can round to about 100,000 for quick division. Convert users to requests per second, requests to storage, and storage to a number of servers. The goal is the right order of magnitude, not exactness."
+   },
+   {
+    "h": "Step 3: draw the high-level design and walk one request",
+    "p": "Sketch the main boxes: clients, a load balancer, services, databases, caches, queues. Then trace a single request end to end, for example creating and then reading a link. Justify each box: say what problem it solves."
+   },
+   {
+    "h": "Step 4: deep dive where it is hardest",
+    "p": "Pick the part with the real difficulty (a hot key, ordering, consistency, a celebrity user) and go deep. Name two or three options, say what each costs, and pick one. This is where most of your points come from."
+   },
+   {
+    "h": "Step 5: finish with failures and trade-offs",
+    "p": "Ask what breaks: a server dies, a region goes offline, traffic triples. Say how you would notice and what you gave up. Naming your own weak spots shows maturity and is far better than pretending the design is perfect."
+   }
+  ],
+  "worked": {
+   "title": "Run the routine on a paste-sharing service",
+   "steps": [
+    "Clarify: users paste text and get a link. Out of scope: accounts and search. Assume 1 million new pastes a day, reads 10 times writes, 10 KB per paste.",
+    "Estimate writes: 1,000,000 / 86,400 = about 11.6 per second. Reads are 10x, so about 116 per second.",
+    "Estimate storage: 1,000,000 x 10 KB = 10 GB a day. Over 5 years that is 10 GB x 365 x 5 = 18,250 GB, about 18 TB.",
+    "Design: API creates a paste, stores the text in object storage and the metadata (ID, expiry) in a database, and returns a short ID. Reads check a cache first.",
+    "Deep dive: the ID. Options are a counter in base 62, random IDs, or hashes; choose random seven-character IDs with a uniqueness check to avoid guessable links.",
+    "Failures: if the cache dies, the database absorbs about 116 reads per second, which is fine; if object storage is slow, show an error and retry. Trade-off: expiry cleanup runs as a background job, so deleted pastes may linger briefly."
+   ],
+   "result": "In a few minutes of talking you have numbers (about 12 writes and 116 reads per second, 18 TB over five years), a design, one deep dive and a failure story. That is the shape of a strong answer."
+  },
+  "case": {
+   "who": "The System Design Primer (open source)",
+   "title": "A shared checklist for practice",
+   "text": "The System Design Primer is a widely used open-source study guide. It gives a four-step approach: outline use cases, constraints and assumptions; create a high-level design; design the core components; and scale the design by finding bottlenecks. It lists worked exercises such as designing a Pastebin or Bit.ly clone, a Twitter timeline, a web crawler and a key-value store for a search engine. It also points readers to reference tables for powers of two and latency numbers. The useful lesson is that interview prompts repeat the same building blocks, so practising the routine on a few problems prepares you for many others.",
+   "source": {
+    "title": "The System Design Primer",
+    "url": "https://github.com/donnemartin/system-design-primer"
+   }
+  },
+  "choose": [
+   [
+    "Start with requirements",
+    "Always, before drawing",
+    "Spending so long here you never reach the design"
+   ],
+   [
+    "Start with a high-level sketch",
+    "The problem is familiar and you are short of time",
+    "You may design for the wrong scale"
+   ],
+   [
+    "Go deep on one component",
+    "The interviewer shows interest in it",
+    "Neglecting the rest of the system"
+   ],
+   [
+    "Mention several technologies",
+    "You can explain why each fits",
+    "Name-dropping without trade-offs scores poorly"
+   ]
+  ],
+  "mistakes": [
+   "Jumping straight to boxes and arrows. Clarify requirements and scale first.",
+   "Skipping estimates. Numbers tell you whether you need a cache or shards at all.",
+   "Naming technologies without reasons. Say what problem each solves and what the alternative would cost.",
+   "Going silent while thinking. Talk through your reasoning so the interviewer can follow and help.",
+   "Over-engineering. Start with the simplest design that meets the numbers and add pieces only when a bottleneck demands them.",
+   "Never discussing failure. Always close with what breaks and what you traded away."
+  ],
+  "reading": [
+   {
+    "title": "The System Design Primer",
+    "by": "Donne Martin and contributors",
+    "kind": "blog",
+    "url": "https://github.com/donnemartin/system-design-primer"
+   },
+   {
+    "title": "Designing Data-Intensive Applications",
+    "by": "Martin Kleppmann",
+    "kind": "book"
+   },
+   {
+    "title": "Dynamo: Amazon's Highly Available Key-value Store",
+    "by": "DeCandia et al., Amazon",
+    "kind": "paper",
+    "url": "https://www.allthingsdistributed.com/files/amazon-dynamo-sosp2007.pdf"
+   },
+   {
+    "title": "Choose Boring Technology",
+    "by": "Dan McKinley",
+    "kind": "talk",
+    "url": "https://boringtechnology.club/"
+   }
+  ]
+ },
+ "mvp": {
+  "how": [
+   {
+    "h": "Think of a prototype bridge for one hiker",
+    "p": "Before building a motorway bridge you might first lay one plank across the stream and see whether anyone actually wants to cross. An MVP (minimum viable product) is the plank: the smallest working thing that lets a real person get real value, so you learn whether the idea deserves more building."
+   },
+   {
+    "h": "Step 1: define the core loop",
+    "p": "Write one sentence: who does what and gets what value. For example, a student posts a used textbook and another student messages to buy it. Everything that does not serve this loop goes on a later list."
+   },
+   {
+    "h": "Step 2: model the data before the screens",
+    "p": "List the nouns (users, books, messages) and how they relate. A small, clear schema is the part that is hardest to change later, while screens are easy to redo. Start with a few tables in PostgreSQL."
+   },
+   {
+    "h": "Step 3: choose boring tools",
+    "p": "Dan McKinley's idea of innovation tokens says a team has only a few (he suggests about three) chances to try something new and risky, so spend them on your actual product. Use one language, one framework, one database and one host that you already know. Every new tool brings ongoing operating costs long after adoption."
+   },
+   {
+    "h": "Step 4: build one vertical slice",
+    "p": "A vertical slice is one feature working end to end: screen, API, database. Finish posting a book fully before starting search. A thin slice that works teaches you more than five half-built layers."
+   },
+   {
+    "h": "Step 5: get real users, even by hand",
+    "p": "Paul Graham argues that startups rarely grow by themselves and that founders should recruit early users manually, even in ways that do not scale. Add basic logging and a simple count of your core action from day one, so you can see what people actually do."
+   }
+  ],
+  "worked": {
+   "title": "Scope a textbook swap MVP",
+   "steps": [
+    "Core loop: a student lists a book, another student messages the seller. Success measure: number of messages sent.",
+    "Data: three tables. `users` (id, email), `listings` (id, user_id, title, price) and `messages` (id, listing_id, sender_id, text).",
+    "Stack: one web framework, PostgreSQL, one host. Later list: payments, photos, ratings, search filters, mobile app.",
+    "Vertical slice 1: sign up, create a listing, see it on a list page. Slice 2: send a message. Stop there.",
+    "Recruit by hand: you personally invite 100 students from two campus groups.",
+    "Growth sanity check from Paul Graham's essay: a product that grows 10 percent a week goes from 100 users to about 100 x 1.1^52 = 14,200 users in a year. Even modest steady weekly growth beats a single big launch."
+   ],
+   "result": "A product with three tables, two slices and one measure, in front of 100 real people. Anything not in the loop waits until their behaviour proves it matters."
+  },
+  "case": {
+   "who": "Stripe and Airbnb, as told by Paul Graham",
+   "title": "Do things that do not scale",
+   "text": "Paul Graham's essay describes founders who won their first users by hand. Stripe's founders would set a willing prospect up on the spot, an approach Y Combinator nicknamed the Collison installation. Airbnb's founders went door to door in New York recruiting hosts and helping them improve their listings. Graham argues many founders resist this because it feels like shy, tedious work, and because they underestimate how compounding growth turns a small start into a large one. His advice is to launch to a fairly broad group, notice who is most enthusiastic, and then find more people like them. The lesson for an MVP is that the first users matter more than the first launch.",
+   "source": {
+    "title": "Do Things that Don't Scale",
+    "url": "https://paulgraham.com/ds.html"
+   }
+  },
+  "choose": [
+   [
+    "Monolith plus PostgreSQL on one host",
+    "You want the fastest route to real users",
+    "You will refactor later; keep code in clear layers"
+   ],
+   [
+    "Managed backend service (hosted database and auth)",
+    "You want less operations work",
+    "Vendor lock-in and costs that grow"
+   ],
+   [
+    "No-code or spreadsheet prototype",
+    "You are testing demand before writing code",
+    "Hard limits on custom behaviour"
+   ],
+   [
+    "Microservices from day one",
+    "Almost never at the MVP stage",
+    "More infrastructure and coordination than a small team needs"
+   ]
+  ],
+  "mistakes": [
+   "Building features before checking anyone wants the core loop. Test the loop with real people first.",
+   "Designing screens before the data. Model the nouns and relations first, since the schema is the hard part to change.",
+   "Choosing exciting tools. Spend your few innovation tokens on the product, not the stack.",
+   "Building every layer halfway. Finish one vertical slice end to end.",
+   "Skipping logging and a basic metric. Without them you will guess what users do.",
+   "Waiting to launch until it is polished. Put it in front of users early and let their behaviour set priorities."
+  ],
+  "reading": [
+   {
+    "title": "Do Things that Don't Scale",
+    "by": "Paul Graham",
+    "kind": "blog",
+    "url": "https://paulgraham.com/ds.html"
+   },
+   {
+    "title": "Choose Boring Technology",
+    "by": "Dan McKinley",
+    "kind": "talk",
+    "url": "https://boringtechnology.club/"
+   },
+   {
+    "title": "The Twelve-Factor App",
+    "by": "Adam Wiggins and contributors",
+    "kind": "docs",
+    "url": "https://12factor.net/"
+   },
+   {
+    "title": "The Lean Startup",
+    "by": "Eric Ries",
+    "kind": "book"
+   }
+  ]
+ },
+ "backend": {
+  "how": [
+   {
+    "h": "Think of a restaurant with stations",
+    "p": "A good restaurant has a front desk that takes orders, a kitchen that cooks, and a pantry that stores food. Nobody cooks at the front desk. A backend works the same way: routes receive requests, services apply the rules, and repositories talk to the database, and keeping these jobs apart makes each easier to test and change."
+   },
+   {
+    "h": "Step 1: split code into layers",
+    "p": "In FastAPI's guide for larger apps, each feature gets its own router file inside a package, and a main file creates the app and includes the routers. Underneath, put business rules in a services layer with no web types in it, and database code in a repositories layer. Calls only go one way: routes call services, services call repositories."
+   },
+   {
+    "h": "Step 2: validate at the edge",
+    "p": "Check every incoming request as soon as it arrives. With a model class that declares each field's type and limits, bad input is rejected with a clear error before it reaches your logic. That means the inner layers can trust their inputs."
+   },
+   {
+    "h": "Step 3: return consistent errors",
+    "p": "Choose the right status code (400 range for client mistakes, 500 range for your faults) and use one error shape everywhere, for example a code, a message and a request ID. Never leak stack traces to clients, and log the full details privately."
+   },
+   {
+    "h": "Step 4: configuration from the environment",
+    "p": "The Twelve-Factor App method says to keep settings that differ between deploys, such as database addresses and secrets, outside the code, in environment variables. Treat the database, cache and queue as attached resources you can swap by changing a setting. Write logs as a stream to standard output and let the platform collect them."
+   },
+   {
+    "h": "Step 5: migrations change the schema safely",
+    "p": "A migration is a versioned script that changes the database structure. In Alembic, each migration is a Python file with an upgrade function and a downgrade function, linked to its parent by a revision ID, and `alembic upgrade head` applies all pending ones in order. Because the schema is tracked in code, every environment can be brought to the same state."
+   }
+  ],
+  "worked": {
+   "title": "Add a column to a big table without downtime",
+   "steps": [
+    "Goal: add `phone` to a `users` table with 2,000,000 rows while the app stays online.",
+    "Migration 1: add `phone` as a nullable column. Existing code ignores it, so nothing breaks. Run `alembic upgrade head`.",
+    "Deploy code that writes `phone` for new and updated users. Old rows are still empty.",
+    "Backfill in batches of 10,000 rows so you never hold a long lock. 2,000,000 / 10,000 = 200 batches.",
+    "Once every row has a value, add migration 2 that makes the column required. The downgrade function drops that rule if you need to roll back.",
+    "Validation check: a request with an empty `name` (rule: 1 to 80 characters) is rejected with HTTP 422 before the service layer runs, and the response uses the shared error shape."
+   ],
+   "result": "The schema changed in two small, reversible migrations and 200 small batches, with the app serving requests throughout."
+  },
+  "case": {
+   "who": "The Twelve-Factor App",
+   "title": "Rules for apps that deploy cleanly",
+   "text": "The Twelve-Factor App is a short methodology for building web services that are easy to deploy and scale. It asks for one codebase with many deploys, explicitly declared dependencies, and configuration in environment variables. Backing services like databases are treated as swappable attached resources. The app runs as stateless processes that start fast and shut down gracefully, so they can be replaced at any time. Development, staging and production should look as alike as possible, logs are an event stream, and one-off admin tasks run in the same environment as the app. The common thread is making the app disposable and predictable, which is exactly what makes scaling out and recovering from failures easy.",
+   "source": {
+    "title": "The Twelve-Factor App",
+    "url": "https://12factor.net/"
+   }
+  },
+  "choose": [
+   [
+    "Layered (routes, services, repos)",
+    "Business rules are growing and need tests",
+    "Overkill for a tiny script; do not add layers you do not need"
+   ],
+   [
+    "Everything in route functions",
+    "A throwaway prototype",
+    "Hard to test and to reuse the logic later"
+   ],
+   [
+    "Migration tool (Alembic and similar)",
+    "Any database that has real data",
+    "Learning curve; review auto-generated migrations by hand"
+   ],
+   [
+    "Manual SQL changes",
+    "Never on a shared database",
+    "Environments drift and changes cannot be reproduced"
+   ]
+  ],
+  "mistakes": [
+   "Putting database queries inside route handlers. Move them into repositories so you can test the rules alone.",
+   "Trusting input that was not validated. Validate shape and limits at the edge.",
+   "Hard-coding secrets or hosts. Read them from environment variables and never commit them.",
+   "Returning stack traces to users. Send a safe message and a request ID; log the details privately.",
+   "Editing the production schema by hand. Always use versioned migrations, and write a downgrade for each.",
+   "Locking a big table with one huge update. Split into batches and add columns as nullable first."
+  ],
+  "reading": [
+   {
+    "title": "Bigger Applications (APIRouter and project layout)",
+    "by": "FastAPI documentation",
+    "kind": "docs",
+    "url": "https://fastapi.tiangolo.com/tutorial/bigger-applications/"
+   },
+   {
+    "title": "Alembic tutorial",
+    "by": "SQLAlchemy project",
+    "kind": "docs",
+    "url": "https://alembic.sqlalchemy.org/en/latest/tutorial.html"
+   },
+   {
+    "title": "The Twelve-Factor App",
+    "by": "Adam Wiggins and contributors",
+    "kind": "docs",
+    "url": "https://12factor.net/"
+   },
+   {
+    "title": "Choose Boring Technology",
+    "by": "Dan McKinley",
+    "kind": "talk",
+    "url": "https://boringtechnology.club/"
+   },
+   {
+    "title": "Release It!",
+    "by": "Michael Nygard",
+    "kind": "book"
+   }
+  ]
+ },
+ "projects": {
+  "how": [
+   {
+    "h": "Think of learning to swim",
+    "p": "You cannot learn to swim by reading about water. You have to get in, and it helps to start in the shallow end. Projects are the shallow end for system design: small enough to finish, real enough to teach you things that reading cannot."
+   },
+   {
+    "h": "Choose a project that has one clear question",
+    "p": "A good project asks a single question you can answer with a number. Does an index speed up this query? Does a cache cut database load? Does traffic keep flowing when a server dies? Pick the smallest build that answers it, and finish it before starting the next."
+   },
+   {
+    "h": "Measure before you change anything",
+    "p": "Record a baseline first: latency (how long a request takes), throughput (requests per second) and error rate. Tools such as k6 let you script a test with a number of virtual users, which are parallel loops sending requests, and a duration. Run it, save the output, then make your change and run the exact same test again."
+   },
+   {
+    "h": "Change one thing at a time",
+    "p": "If you add an index, a cache and a second server together, you cannot tell which helped. Change one variable, rerun, record, then move on. Keep notes in a short log of what you changed and what the numbers did."
+   },
+   {
+    "h": "Break it on purpose, safely",
+    "p": "The principles of chaos engineering give a method: define the steady state with measurable outputs like error rate and latency, form a hypothesis that it will hold, inject a realistic failure such as a crashed server, and look for differences. Keep the blast radius small. On a learning project the safe place is your own laptop or a throwaway environment, so you can kill processes freely."
+   },
+   {
+    "h": "Write down what you proved",
+    "p": "Finish with a short note: the question, the before and after numbers, and one thing that surprised you. The number or the demo is your proof of completion, and the surprise is where the learning lives."
+   }
+  ],
+  "worked": {
+   "title": "Measure an index with k6",
+   "steps": [
+    "Build a small notes API with a `notes` table of 1,000,000 rows and an endpoint that looks up notes by `owner_id`, with no index yet.",
+    "Write a k6 script: 10 virtual users, 30 seconds, each iteration sends one GET and then sleeps 1 second. k6's own getting-started example uses this shape (`vus: 10`, `duration: '30s'`).",
+    "Run it. Because each user finishes about one iteration per second, expect roughly 10 requests per second and about 300 requests in 30 seconds. Record the p95 latency (the time 95 percent of requests beat). Suppose it is 180 ms (illustrative).",
+    "Add one index: `CREATE INDEX ON notes (owner_id);`. Change nothing else.",
+    "Run the identical test. Suppose p95 drops to 12 ms (illustrative). The improvement is 180 / 12 = 15 times faster.",
+    "Break it: stop the database container mid-test. Watch the error rate and how long recovery takes after restart. Write down what the app did."
+   ],
+   "result": "A before and after table (180 ms then 12 ms in this made-up run), plus a note on how the app behaved when the database vanished. Your real numbers will differ, and they are the point."
+  },
+  "case": {
+   "who": "The Principles of Chaos Engineering",
+   "title": "Break things on purpose, with a method",
+   "text": "The Principles of Chaos Engineering describe experimenting on a system to find weaknesses before they find you. You start from a steady state defined by measurable outputs such as throughput, error rate and latency, not by internal details. You predict that it will hold during an experiment and try to disprove it by injecting real-world events like server crashes, malfunctions or traffic spikes. The principles favour running experiments on real production traffic, automating them, and keeping the blast radius small so any harm is limited. For a beginner the same loop works on a laptop: write the expectation first, break one part, and compare what happened with your prediction.",
+   "source": {
+    "title": "Principles of Chaos Engineering",
+    "url": "https://principlesofchaos.org/"
+   }
+  },
+  "choose": [
+   [
+    "CRUD API with a database and a load test",
+    "You are new and want fundamentals",
+    "Easy to skip the baseline measurement"
+   ],
+   [
+    "Load balancer in front of two instances",
+    "You want to see failover and stateless design",
+    "Sessions stored in memory break when an instance dies"
+   ],
+   [
+    "Cache layer on a read-heavy endpoint",
+    "You want to practise hit rate and invalidation",
+    "Stale data; measure correctness as well as speed"
+   ],
+   [
+    "Copy a system you use (shortener, chat)",
+    "You want to practise full designs",
+    "Scope creep; build the smallest working slice first"
+   ]
+  ],
+  "mistakes": [
+   "Skipping the baseline. Without a before number, an after number means nothing.",
+   "Changing several things at once. Change one variable per test run.",
+   "Load testing from the same machine that runs the app. The test tool competes for CPU and distorts results; note this limitation or use a second machine.",
+   "Reading only the average. Look at percentiles like p95, since slow outliers are what users feel.",
+   "Breaking things on a shared or production system. Use your own throwaway environment and keep the blast radius small.",
+   "Starting five projects. Finish one, with a written result, before the next."
+  ],
+  "reading": [
+   {
+    "title": "Running k6",
+    "by": "Grafana k6 documentation",
+    "kind": "docs",
+    "url": "https://grafana.com/docs/k6/latest/get-started/running-k6/"
+   },
+   {
+    "title": "Principles of Chaos Engineering",
+    "by": "The chaos engineering community",
+    "kind": "docs",
+    "url": "https://principlesofchaos.org/"
+   },
+   {
+    "title": "The Twelve-Factor App",
+    "by": "Adam Wiggins and contributors",
+    "kind": "docs",
+    "url": "https://12factor.net/"
+   },
+   {
+    "title": "Choose Boring Technology",
+    "by": "Dan McKinley",
+    "kind": "talk",
+    "url": "https://boringtechnology.club/"
+   },
+   {
+    "title": "Release It!",
+    "by": "Michael Nygard",
+    "kind": "book"
+   }
+  ]
+ }
+}

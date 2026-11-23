@@ -1,0 +1,443 @@
+{
+ "search": {
+  "how": [
+   {
+    "h": "The analogy: the index at the back of a book",
+    "p": "To find every page that mentions a word, you do not read the book again. You open the index at the back, which lists each word with its page numbers. A search engine builds exactly that index for your documents, called an inverted index because it maps words back to the documents that contain them. Looking up two words and finding the pages they share is far faster than reading every page, and it stays fast as the book grows."
+   },
+   {
+    "h": "From text to terms: the analyzer",
+    "p": "Before a document is indexed, an analyzer turns its text into terms. It splits the text into words, lowercases them, can remove very common words such as 'the', and can reduce words to a stem, so that 'running' and 'runs' both become 'run'. The same analyzer must process the query, otherwise a word is stored in one form and searched in another and nothing matches. Synonyms, accents and different languages are handled at this stage too."
+   },
+   {
+    "h": "Ranking with TF-IDF and BM25",
+    "p": "Finding matches is easy, ordering them is the real work. Term frequency says that a document mentioning 'espresso' five times is probably more about espresso than one that mentions it once. Inverse document frequency says that a rare word such as 'portafilter' tells you more than a common one such as 'machine'. BM25 combines both and also discounts long documents, which would otherwise win just by containing more words. It is the default scoring function in Lucene and Elasticsearch."
+   },
+   {
+    "h": "Spreading an index over many machines",
+    "p": "A large index is split into shards, each a complete small index holding part of the documents, and each shard has replicas for safety and extra read capacity. A query is sent to one copy of every shard (scatter), each returns its best hits, and a coordinating node merges them into one list (gather). Adding shards adds capacity, but every query now touches every shard, so the slowest shard decides the response time."
+   },
+   {
+    "h": "Autocomplete is a different problem",
+    "p": "Typing 'iph' should suggest 'iphone 15' within about 50 milliseconds, long before a full search would finish. Systems use a trie, or index the first few characters of each term as edge n-grams, so a prefix leads straight to a short list of candidates. Candidates are ranked by how often people search them, which is gathered from logs and refreshed regularly. Because many people type the same prefixes, the answers for popular prefixes are cached."
+   }
+  ],
+  "worked": {
+   "title": "Sizing a product search",
+   "steps": [
+    "Illustrative numbers: 20 million products, each about 2 KB of searchable text.",
+    "Raw text is about 20,000,000 x 2 KB = 40 GB. An inverted index with extra fields is often one to two times the text, so plan for about 80 GB.",
+    "Split it into 8 shards of about 10 GB each, a size that keeps each shard fast to search and to move.",
+    "With one replica of each shard, the cluster stores about 160 GB across 16 shard copies.",
+    "Suppose 2,000 searches a second arrive at peak. Every search touches 8 shards, so the cluster serves 16,000 shard queries a second, or about 1,000 a second for each of the 16 copies.",
+    "If one shard copy handles about 1,500 queries a second at the target latency, there is headroom of 50%. Autocomplete traffic goes to a separate, smaller index so it cannot slow normal search."
+   ],
+   "result": "Under these assumptions, 8 shards with one replica (16 copies, about 160 GB) carry the peak, and the number that matters is shard queries a second, which is searches times shards."
+  },
+  "case": {
+   "who": "GitHub (code search)",
+   "title": "Indexing billions of lines of code",
+   "text": "GitHub rebuilt its code search to handle hundreds of millions of repositories. Ordinary word search does not fit code, where symbols, punctuation and partial names matter, so the team built a custom index that supports substring and regular expression queries and splits the work across many shards. They described choosing to index each unique piece of content only once, even when it appears in thousands of forks, which cut the amount of data a great deal. The lesson is that the general idea, a precomputed index spread over shards, is the same, while the analyzer and the storage layout are shaped by what you search.",
+   "source": {
+    "title": "The technology behind GitHub's new code search",
+    "url": "https://github.blog/engineering/the-technology-behind-githubs-new-code-search/"
+   }
+  },
+  "choose": [
+   [
+    "Option",
+    "Strength",
+    "Think twice when"
+   ],
+   [
+    "Elasticsearch or OpenSearch",
+    "Rich queries, ranking, filters, facets and a large ecosystem",
+    "You only need simple lookups, or you cannot run and tune a cluster"
+   ],
+   [
+    "Database full-text search (Postgres)",
+    "No second system to keep in sync, good for small and medium data",
+    "You need advanced ranking, typo tolerance or very large scale"
+   ],
+   [
+    "Hosted search (Algolia, Typesense Cloud)",
+    "Fast to adopt with built-in typo tolerance and autocomplete",
+    "Cost grows with volume, or data must stay in your own network"
+   ]
+  ],
+  "mistakes": [
+   "Treating the search index as the source of truth. It is a rebuildable copy, so keep the real data in a database.",
+   "Using different analyzers when indexing and when querying, so words are stored in one form and searched in another.",
+   "Allowing unlimited deep pagination. Every shard must sort and skip thousands of hits, so use cursors and limit the depth.",
+   "Making too many tiny shards. Each shard has fixed overhead, so a few well-sized shards beat hundreds of small ones.",
+   "Sending a request on every keystroke without debouncing or cancelling the previous one."
+  ],
+  "reading": [
+   {
+    "title": "Elasticsearch Guide: text analysis",
+    "by": "Elastic",
+    "kind": "docs",
+    "url": "https://www.elastic.co/guide/en/elasticsearch/reference/current/analysis.html"
+   },
+   {
+    "title": "Elasticsearch from the bottom up",
+    "by": "Elastic",
+    "kind": "blog",
+    "url": "https://www.elastic.co/blog/found-elasticsearch-from-the-bottom-up"
+   },
+   {
+    "title": "Introduction to Information Retrieval",
+    "by": "Manning, Raghavan and Schutze",
+    "kind": "book"
+   },
+   {
+    "title": "The Probabilistic Relevance Framework: BM25 and Beyond",
+    "by": "Robertson and Zaragoza",
+    "kind": "paper",
+    "url": "https://www.staff.city.ac.uk/~sbrp622/papers/foundations_bm25_review.pdf"
+   },
+   {
+    "title": "The technology behind GitHub's new code search",
+    "by": "GitHub Engineering",
+    "kind": "blog",
+    "url": "https://github.blog/engineering/the-technology-behind-githubs-new-code-search/"
+   },
+   {
+    "title": "Apache Lucene core documentation",
+    "by": "Apache Software Foundation",
+    "kind": "docs",
+    "url": "https://lucene.apache.org/core/"
+   }
+  ]
+ },
+ "geo": {
+  "how": [
+   {
+    "h": "The analogy: a city divided into postcodes",
+    "p": "To find a coffee shop near you, you would not measure the distance to every shop in the country. You would look in your own postcode and the ones next to it. Location services do the same thing with the whole planet: they divide the map into cells, give every cell an identifier, and remember which points are in which cell. A nearby search becomes a lookup of a few cells instead of a scan of every point."
+   },
+   {
+    "h": "Geohash: a position as a string",
+    "p": "A geohash repeatedly halves the world between west and east and between south and north, and writes the answers as characters. The longer the string, the smaller the box. Two places with the same first five characters are in the same box of roughly a few kilometres, so a plain index on the string answers 'what is in this box'. The weakness is the border: two points a metre apart on either side of a boundary can have completely different hashes, so you search the eight neighbouring boxes as well."
+   },
+   {
+    "h": "Quadtrees adapt to density",
+    "p": "Fixed-size cells waste effort. A city centre may contain thousands of points in one cell while a desert cell holds none. A quadtree starts with the whole map as one square and splits any square that holds more than a set number of points into four smaller ones, repeating as needed. Dense areas end up with small, precise cells and sparse areas keep large ones. To search, you descend to the leaf that contains the user and then look at its neighbours."
+   },
+   {
+    "h": "Hexagonal cells: H3 and S2",
+    "p": "Uber's H3 divides the earth into hexagons at several resolutions. A hexagon has the useful property that all of its neighbours are the same distance from its centre, which makes 'everything within two rings' a clean idea and avoids the awkward corner neighbours of squares. Google's S2 library does something similar on the surface of a sphere. Both give you a cell id as a number that is cheap to index and compare."
+   },
+   {
+    "h": "Live positions and partitioning",
+    "p": "A driver app sends a position every few seconds, so a million drivers produce hundreds of thousands of writes a second. Disk databases struggle, so live positions are kept in memory, keyed by cell, and entries expire when updates stop. The service is partitioned by cell or city so that each machine handles one region. Crowded cells need extra capacity or smaller cells. History for later analysis is written in batches through a queue, not on the request path."
+   }
+  ],
+  "worked": {
+   "title": "Sizing live driver positions",
+   "steps": [
+    "Illustrative numbers: 1,000,000 drivers online, each sending a position every 5 seconds.",
+    "That is 1,000,000 / 5 = 200,000 position updates a second.",
+    "Each stored position is about 50 bytes (id, latitude, longitude, time). Live data is 1,000,000 x 50 B = 50 MB, which easily fits in memory on one machine.",
+    "The write rate, not the size, is the problem. One in-memory node may take around 50,000 updates a second, so use at least 4 partitions, and more for safety, split by city.",
+    "A rider's request looks up the rider's cell and its 6 neighbours, reads perhaps 100 candidates and ranks them by exact distance, which takes a few milliseconds."
+   ],
+   "result": "The live data is tiny (50 MB) but the 200,000 writes a second need several in-memory partitions split by area, and a nearby search stays fast because it reads only a few cells."
+  },
+  "case": {
+   "who": "Uber (H3)",
+   "title": "A hexagonal grid for the whole planet",
+   "text": "Uber needed to analyse and match supply and demand across every city it operates, with regions of many different sizes. Square grids caused problems because neighbours at the corners are further away than neighbours at the sides, which distorts anything that depends on distance. The team created H3, a hierarchical hexagonal grid where each cell has six equally spaced neighbours, and released it as open source. Pricing, forecasting and matching can then work on cell ids at the resolution that suits the question.",
+   "source": {
+    "title": "H3 documentation",
+    "url": "https://h3geo.org/docs"
+   }
+  },
+  "choose": [
+   [
+    "Approach",
+    "Strength",
+    "Think twice when"
+   ],
+   [
+    "Geohash on a normal index",
+    "Simple, works in any database, prefix lookups are fast",
+    "Borders matter a lot, or density varies widely"
+   ],
+   [
+    "Quadtree",
+    "Adapts to dense and sparse areas",
+    "Many frequent updates, because the tree needs rebalancing"
+   ],
+   [
+    "H3 or S2 cells",
+    "Uniform neighbours, multiple resolutions, good for analysis",
+    "You need a library in every service that touches it"
+   ],
+   [
+    "Spatial database (PostGIS)",
+    "Rich queries such as polygons and distances",
+    "Very high update rates, where in-memory storage fits better"
+   ]
+  ],
+  "mistakes": [
+   "Searching only the user's own cell and missing points just across the border.",
+   "Writing every location update to a disk database instead of holding live positions in memory.",
+   "Using one fixed cell size everywhere, so the busiest cell becomes a hot spot.",
+   "Never expiring old positions, so offline drivers keep appearing on the map.",
+   "Sorting by straight-line distance when the real travel time is what the user cares about."
+  ],
+  "reading": [
+   {
+    "title": "Quad trees: a data structure for retrieval on composite keys",
+    "by": "Finkel and Bentley",
+    "kind": "paper"
+   },
+   {
+    "title": "S2 geometry library",
+    "by": "Google",
+    "kind": "docs",
+    "url": "https://s2geometry.io/"
+   },
+   {
+    "title": "H3 documentation",
+    "by": "Uber",
+    "kind": "docs",
+    "url": "https://h3geo.org/docs"
+   },
+   {
+    "title": "Redis geospatial commands: GEOSEARCH",
+    "by": "Redis",
+    "kind": "docs",
+    "url": "https://redis.io/docs/latest/commands/geosearch/"
+   },
+   {
+    "title": "Geohash",
+    "by": "Wikipedia",
+    "kind": "docs",
+    "url": "https://en.wikipedia.org/wiki/Geohash"
+   },
+   {
+    "title": "PostGIS documentation",
+    "by": "PostGIS project",
+    "kind": "docs",
+    "url": "https://postgis.net/documentation/"
+   },
+   {
+    "title": "Designing Data-Intensive Applications",
+    "by": "Martin Kleppmann",
+    "kind": "book"
+   }
+  ]
+ },
+ "notify": {
+  "how": [
+   {
+    "h": "The analogy: a post office",
+    "p": "A post office does not deliver every letter by itself. It sorts mail by priority, hands each batch to the right carrier, tracks what was delivered, and returns what could not be. A notification system is the same: your services drop messages at the counter, the system sorts them by channel and urgency, hands them to push, SMS or email providers, and keeps a record so you can tell what reached the person."
+   },
+   {
+    "h": "The pipeline",
+    "p": "A service publishes an event, such as 'order shipped'. The notification service looks up the user, reads their preferences, picks the channel, renders a template in the right language, and puts a message on the queue for that channel. A pool of workers takes messages from the queue and calls the provider. Because the queue sits between the steps, a slow provider or a traffic spike never blocks the services that raised the events."
+   },
+   {
+    "h": "Retries without duplicates",
+    "p": "Provider calls fail often enough that retries are essential, and a naive retry can send a message twice, for example when the provider delivered it but the response was lost. Each notification therefore carries a unique idempotency key. Before sending, the worker records the key atomically, and a second attempt with the same key is skipped. Retries wait longer each time, with randomness added, and a message that exhausts its retries moves to a dead-letter queue for investigation."
+   },
+   {
+    "h": "Priorities and rate limits",
+    "p": "A one-time login code has to arrive in seconds, while a campaign can take an hour. Put them in separate queues with separate workers so a large campaign cannot starve urgent messages. Providers also limit how fast you may send, so workers are throttled to that limit and large batches are spread over time. Per-user limits stop a single user receiving a flood, and quiet hours delay non-urgent messages."
+   },
+   {
+    "h": "Feedback and tracking",
+    "p": "A send request being accepted is not the same as delivery. Providers report back through webhooks: delivered, bounced, complained, unsubscribed, or an invalid device token. Process these events, update the message status, and remove dead addresses and tokens so you stop paying to contact them and protect your sender reputation. Unsubscribes must be honoured immediately, because email and SMS are regulated in many countries."
+   }
+  ],
+  "worked": {
+   "title": "Sizing a campaign and the urgent lane",
+   "steps": [
+    "Illustrative numbers: a campaign to 10,000,000 users by push, and 200 one-time codes a second at peak.",
+    "If the email provider accepts 1,000 messages a second per connection and you run 20 workers, you send 20,000 a second, so 10,000,000 / 20,000 = 500 seconds, a little over 8 minutes.",
+    "Spreading the campaign over an hour (about 2,800 messages a second) is gentler on providers and on your own systems.",
+    "One-time codes use their own queue and workers, sized for 200 a second with a margin, so a 500-second campaign cannot delay them.",
+    "Each message is about 1 KB of queued data, so 10,000,000 messages is 10 GB, comfortably held by a managed queue."
+   ],
+   "result": "A 10 million message campaign takes minutes at full speed or an hour when throttled, and a separate small urgent lane sized for 200 messages a second keeps login codes fast regardless."
+  },
+  "case": {
+   "who": "Stripe",
+   "title": "Webhooks that survive failure",
+   "text": "Stripe sends webhook events to its customers' servers when something happens, such as a payment succeeding. Customers' servers go down, so Stripe retries failed deliveries with increasing delays for days, and gives each event a unique identifier so a receiver can detect and ignore duplicates. Stripe's documentation tells receivers to respond quickly and to handle repeated events safely. It is the same pattern a notification system needs: at-least-once delivery, retries with backoff, and idempotency on the receiving side.",
+   "source": {
+    "title": "Stripe webhooks",
+    "url": "https://docs.stripe.com/webhooks"
+   }
+  },
+  "choose": [
+   [
+    "Option",
+    "Strength",
+    "Think twice when"
+   ],
+   [
+    "Managed service (SNS, Firebase, Twilio, SES)",
+    "Scales without effort and handles provider details",
+    "Cost at very high volume, or you need custom routing"
+   ],
+   [
+    "Your own queue and workers",
+    "Full control over priorities, templates and limits",
+    "A small team that must also run the queue and the workers"
+   ],
+   [
+    "Notification platform (Braze, OneSignal)",
+    "Campaign tools and analytics for marketing teams",
+    "You need tight control over security-critical messages"
+   ]
+  ],
+  "mistakes": [
+   "Sending in the request path, so a slow provider makes your own page slow.",
+   "No idempotency key, so a timeout and retry delivers the message twice.",
+   "Putting urgent codes and bulk campaigns in the same queue.",
+   "Ignoring bounces, unsubscribes and invalid tokens, which hurts deliverability and breaks the rules.",
+   "Checking preferences once when queuing instead of when sending."
+  ],
+  "reading": [
+   {
+    "title": "Stripe webhooks",
+    "by": "Stripe",
+    "kind": "docs",
+    "url": "https://docs.stripe.com/webhooks"
+   },
+   {
+    "title": "Implementing Stripe-like idempotency keys in Postgres",
+    "by": "Brandur Leach",
+    "kind": "blog",
+    "url": "https://brandur.org/idempotency-keys"
+   },
+   {
+    "title": "Amazon SNS developer guide",
+    "by": "Amazon Web Services",
+    "kind": "docs",
+    "url": "https://docs.aws.amazon.com/sns/latest/dg/welcome.html"
+   },
+   {
+    "title": "Firebase Cloud Messaging",
+    "by": "Google",
+    "kind": "docs",
+    "url": "https://firebase.google.com/docs/cloud-messaging"
+   },
+   {
+    "title": "Designing Data-Intensive Applications",
+    "by": "Martin Kleppmann",
+    "kind": "book"
+   }
+  ]
+ },
+ "dr": {
+  "how": [
+   {
+    "h": "The analogy: a fire drill and a spare office",
+    "p": "A company that depends on one office plans for the day the building is unavailable. It decides how much work it could stand to lose and how quickly people must be working again, then arranges a spare office and rehearses the move. Disaster recovery for software is the same: you agree what loss and downtime are acceptable, you keep a copy of your system and data somewhere else, and you practise using it, because a plan that has never been rehearsed fails under pressure."
+   },
+   {
+    "h": "RPO and RTO set the price",
+    "p": "The recovery point objective says how much data you can lose, and it is set by how often data reaches the other site. The recovery time objective says how long you can be down, and it is set by how ready the other site is. Zero loss and zero downtime are possible but very expensive, so the right numbers come from the cost of an hour of downtime and a lost transaction. A shop might accept a one-hour RTO and five minutes of lost orders, while a payment system accepts almost none."
+   },
+   {
+    "h": "From backup to active-active",
+    "p": "Backup and restore stores copies in another region and rebuilds everything after a disaster, taking hours, for little cost. Pilot light replicates the data continuously and keeps only the essentials running. Warm standby runs a scaled-down full system that you grow when needed, recovering in minutes. Active-active serves users from two or more regions at the same time, so losing one is barely noticed, but every part of the system must handle multiple regions and conflicting writes. Each step reduces RTO and RPO and increases cost and complexity."
+   },
+   {
+    "h": "Replicating data across regions",
+    "p": "Regions are thousands of kilometres apart, so a round trip takes tens or hundreds of milliseconds. Synchronous replication waits for the other region on every write, which makes writes slow but loses nothing. Asynchronous replication confirms writes locally and copies them afterwards, so writes stay fast, but the copy trails behind, and that trailing time is the data you lose in a disaster. Databases such as Spanner use consensus across regions to avoid the choice, at the price of higher write latency."
+   },
+   {
+    "h": "Failover is a procedure, not a switch",
+    "p": "Failing over means noticing that the primary is truly gone, promoting the standby database, starting or scaling the application, and moving traffic through DNS or a global load balancer. Doing it automatically is fast but can be triggered by a short network problem, and a wrongly triggered failover with unfinished replication can lose data or split the system. Teams write runbooks, keep a human decision for whole-region moves, and run game days where they fail over on purpose. They also fail back afterwards, which is often harder."
+   }
+  ],
+  "worked": {
+   "title": "Choosing a strategy from RPO and RTO",
+   "steps": [
+    "Illustrative numbers: an online shop earns about 20,000 per hour at peak and 5,000 per hour on average.",
+    "The business says it can tolerate losing up to 5 minutes of orders (RPO) and being down for up to 1 hour (RTO).",
+    "Backup and restore cannot meet it: backups taken hourly lose up to an hour of data, and a rebuild takes several hours.",
+    "Pilot light with continuous asynchronous replication can hold lag under a minute, meeting the RPO, and scaling up the standby can plausibly finish inside an hour.",
+    "Warm standby would recover faster, for roughly twice the cost of pilot light, and active-active would cost the most for a recovery time the business did not ask for.",
+    "A one-hour outage at peak costs about 20,000, so spending far more each month than a rare outage would cost is hard to justify."
+   ],
+   "result": "Pilot light with asynchronous replication fits these numbers. The design is driven by RPO and RTO and by what an outage truly costs, not by what is technically possible."
+  },
+  "case": {
+   "who": "Google (Spanner)",
+   "title": "Surviving the loss of a region by replicating with consensus",
+   "text": "Google built Spanner so that a database can keep its data in several regions and still give strongly consistent answers. Each piece of data is copied to several places and a majority must agree on every write, using the Paxos consensus protocol, so losing one location does not lose acknowledged data or stop the service. The price is write latency, because a write must reach a majority of replicas that may be far apart, and the engineers say plainly that this is the trade they chose. It shows the two ends of the choice described above: asynchronous replication is fast and can lose recent writes, while consensus across regions loses nothing and costs time on every write.",
+   "source": {
+    "title": "Spanner: Google's Globally-Distributed Database",
+    "url": "https://research.google/pubs/spanner-googles-globally-distributed-database-2/"
+   }
+  },
+  "choose": [
+   [
+    "Strategy",
+    "Strength",
+    "Think twice when"
+   ],
+   [
+    "Backup and restore",
+    "Cheapest, simple",
+    "Hours of downtime or data loss are not acceptable"
+   ],
+   [
+    "Pilot light",
+    "Low cost with good data protection",
+    "You need recovery in minutes"
+   ],
+   [
+    "Warm standby",
+    "Fast recovery, can serve some traffic",
+    "The extra running cost is hard to justify"
+   ],
+   [
+    "Active-active",
+    "Shortest recovery, lower latency for users everywhere",
+    "Your data model cannot handle writes in several regions"
+   ]
+  ],
+  "mistakes": [
+   "Having backups but never testing a restore, then finding out during the disaster that it fails.",
+   "Letting the standby region run without the capacity or quotas it needs after a failover.",
+   "Ignoring replication lag, so the real data loss is far above the agreed RPO.",
+   "Keeping configuration, secrets and DNS only in the primary region.",
+   "Failing over automatically on a brief glitch with no damping or human check.",
+   "Never practising failing back, which is often harder than failing over."
+  ],
+  "reading": [
+   {
+    "title": "Disaster recovery options in the cloud",
+    "by": "Amazon Web Services",
+    "kind": "docs",
+    "url": "https://docs.aws.amazon.com/whitepapers/latest/disaster-recovery-workloads-on-aws/disaster-recovery-options-in-the-cloud.html"
+   },
+   {
+    "title": "Disaster recovery planning guide",
+    "by": "Google Cloud",
+    "kind": "docs",
+    "url": "https://cloud.google.com/architecture/dr-scenarios-planning-guide"
+   },
+   {
+    "title": "Spanner: Google's Globally-Distributed Database",
+    "by": "Corbett et al.",
+    "kind": "paper",
+    "url": "https://research.google/pubs/spanner-googles-globally-distributed-database-2/"
+   },
+   {
+    "title": "Site Reliability Engineering",
+    "by": "Google",
+    "kind": "book",
+    "url": "https://sre.google/sre-book/table-of-contents/"
+   }
+  ]
+ }
+}

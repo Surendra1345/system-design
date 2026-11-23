@@ -1,0 +1,31 @@
+# One command to run everything: docker compose up --build
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: blueprint
+      POSTGRES_PASSWORD: blueprint
+      POSTGRES_DB: blueprint
+    volumes:
+      - dbdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U blueprint"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  app:
+    build: .
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file:
+      - path: backend/.env      # optional: put GROQ_API_KEY=... in backend/.env to turn the AI features on
+        required: false
+    environment:
+      DATABASE_URL: postgresql://blueprint:blueprint@db:5432/blueprint
+    ports:
+      - "8000:8000"
+
+volumes:
+  dbdata:

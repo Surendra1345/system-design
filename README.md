@@ -1,0 +1,144 @@
+# Blueprint School
+
+Learn system design by building, debugging and explaining real systems. A full-stack app.
+
+| Layer | Technology |
+| --- | --- |
+| Frontend | React 18, TypeScript, Vite, React Flow (the drag-and-drop canvas) |
+| Backend | Python, FastAPI, SQLAlchemy |
+| Database | SQLite by default, PostgreSQL in Docker |
+| LLM | Groq, through the official Python SDK (optional) |
+
+61 lessons in 10 tracks, based on an end-to-end system design roadmap. There is no schedule. Learners set their own target time per lesson, or none.
+
+
+## Making it worth coming back to
+
+The home page leads with doing, not reading: a looping demo, four goal-based **Learning paths** (from zero, interview, build my product, distributed systems) and a showcase of the 13 hands-on labs, each with a one-line hook. Lessons open on the game, with the plain-English primer folded underneath and the full theory one tab away.
+
+## Unknown Problem Challenge and mastery
+
+Three challenges (the celebrity post, the flash sale, the bank statements) put a system in trouble without saying which lesson it belongs to. The learner diagnoses each symptom, buys fixes within a budget, runs a model that shows every fix's side effects, and defends the design in writing (AI-graded if a key is set, keyword-checked otherwise). A seed changes the numbers, budget and sometimes the best answer, so each variation is different, and the bank version shows that a fix that is right for a shop can be wrong for a bank. The **Mastery** page shows five scores (understanding, practice, variations, failure diagnosis, independent design) instead of stars alone. Engine: `backend/app/sim/challenge.py`. Spaced revision is not built yet.
+
+## Free play
+
+The load balancer, queue, autoscaling, rate limiter, consensus, replication and cache labs also have a **Free play** mode: a live simulation you poke while it runs. Click a server to crash it, send a poison message, press Flash sale, burst the bot, crash the leader, split the network, warm the cache, and change settings mid-run to see the system react.
+
+## For newcomers
+
+The **Start here** page explains what system design is with a food-business analogy, the building blocks in plain words and a seven-lesson starting path. The **Glossary** defines 83 terms in plain English, each linked to its lesson.
+
+## Concept labs
+
+Nineteen core concepts have their own hands-on simulation instead of the generic architecture builder: load balancing, caching, CDN, queues, sharding, rate limiting, resilience, autoscaling, replication, transactions, consensus, clocks, CAP, page-load timing, SLOs, deployments, streaming, storage engines and microservice chains. Each lab has 3 levels, its own settings and a picture that shows the process as it happens (requests travelling, queues filling, servers failing), not just a result chart. The server re-runs the player's settings, so stars cannot be faked. Engines are in `backend/app/sim/labs/`; star thresholds come from `python -m tools.calibrate_labs`. New lessons are added with `python -m tools.add_lessons`.
+
+## Run it
+
+You need Python 3.10+ and Node 20+.
+
+```bash
+# 1. Backend
+cd backend
+python3 -m venv .venv
+.venv/bin/pip install -r requirements-dev.txt
+
+# 2. Frontend (build once, the backend serves it)
+cd ../frontend
+npm install
+npm run build
+
+# 3. Start
+cd ../backend
+.venv/bin/uvicorn app.main:app --port 8000
+```
+
+Open http://localhost:8000.
+
+**Development with live reload.** Run the API with `--reload` on port 8000 and the frontend with `npm run dev` (port 5173, it forwards `/api` to the API).
+
+**Docker.** Run `docker compose up --build` from the project folder. It starts the app and PostgreSQL together on http://localhost:8000. To turn the AI features on, put `GROQ_API_KEY=your-key` in `backend/.env` first (that file is git-ignored and is never copied into the image).
+
+**Tests.** `cd backend && .venv/bin/python -m pytest -q` (276 tests, on SQLite). To run the same suite on PostgreSQL, start one and set `TEST_DATABASE_URL`, for example `TEST_DATABASE_URL=postgresql://blueprint:blueprint@localhost:5544/blueprint_test`. `cd frontend && npm run typecheck`.
+
+## The games
+
+Every lesson has a realistic game, and every game has several levels (129 in total). None of them is a quiz.
+
+- **Architecture builder** (17 lessons, 3 levels each). Drag components onto a canvas and draw the arrows. The wiring matters: a load balancer that is not connected does nothing. Then press the load test and **watch the traffic**: animated dots flow from the users through your design, the load balancer splits them across separate servers, a crashed server turns grey, and requests turn red where the system cannot cope. Fix the bottleneck and run it again. Levels get harder (more traffic, more failures, a tighter budget), and a solver proves each one can be won.
+- **Live incident terminal** (29 lessons, 2 levels each). Production is down. Investigate with `logs`, `metrics`, `traces`, `deploys` and `deps`, then type what you would do in your own words. Level 2 breaks two unrelated things at once, so you must find and fix both.
+- **Design interview** (10 lessons, 2 questions each). Write your answer to a real interview question. An AI interviewer grades it against a rubric and tells you what you missed.
+
+Each lesson also has a plain-English card (what it is, why we use it, when to use it and when not to), the full theory with what breaks in practice, and a researched **Go deeper** section: how it works step by step, a worked example with real numbers, a real-world case study, a decision guide, common mistakes and further reading from papers, docs, blogs and books. The AI tutor answers questions using the lesson as its notes. The Design planner turns a plain-language app idea into an architecture, edge cases and a build order. The 18 hands-on projects are a checklist you tick off in any order.
+
+## Why the server decides scores
+
+The simulators are deterministic. The browser sends what you did (your design, your commands, your answer). The server replays it with the same engine and decides the stars and XP. A client that claims "3 stars, 9999 XP" is ignored. XP for reading a lesson or finishing a project is paid once, even if you untick and tick again.
+
+## Turning on the AI features
+
+```bash
+export GROQ_API_KEY=your-key
+```
+
+Set it before starting the backend (or put it in `backend/.env`, see `backend/.env.example`). The model is `openai/gpt-oss-120b` unless you set `GROQ_MODEL`. Get a free key at https://console.groq.com. Run `client.models.list()` to see which models your key can use.
+
+The AI is used in five places: the tutor, the design reviewer, the interview grader, the planner, and for understanding free-text commands in the incident terminal. Everything works without it:
+
+| Feature | Without a key |
+| --- | --- |
+| Tutor, reviewer, planner | Shows a message that AI is off |
+| Interview | Graded with a keyword check |
+| Incident terminal | Understands plain-language commands with a built-in matcher |
+
+AI endpoints need a login and are rate limited per learner (`AI_CALLS_PER_HOUR`, default 40). Learner text is passed to the model as data inside tags, never as instructions. If the model does not support JSON mode, the request is retried without it.
+
+## Project layout
+
+```
+backend/
+  app/
+    main.py            app factory, security headers, serves the built frontend
+    config.py          settings from environment variables
+    db.py, models.py   SQLAlchemy engine and tables
+    security.py        scrypt password hashing, hashed session tokens, rate limiter
+    deps.py            login and rate-limit dependencies
+    routers/           auth, progress, lessons, games, ai
+    sim/               builder.py, incident.py, interview.py  (the game engines)
+    services/          ai.py (Groq), progress.py (XP, streaks)
+    content/           lessons.json, explain.json, builder.json, incidents.json, interviews.json
+      deep/            researched deep dives (deep_A.json ... deep_E.json)
+  tools/make_levels.py generates the harder levels and proves each is winnable
+  tests/               pytest suite
+frontend/
+  src/
+    pages/             Home, Lesson, Planner, Handbook, Leaderboard, Account
+    games/             Builder.tsx, TrafficView.tsx (live animation), Incident.tsx, Interview.tsx
+    components/        Layout, StudyTimer, Tutor, Markdown
+    api.ts, auth.tsx   typed API client and login state
+```
+
+Lessons and games are data. To add or edit one, change the JSON in `backend/app/content/`.
+
+## API
+
+| Method and path | Purpose |
+| --- | --- |
+| `POST /api/auth/register`, `/login`, `/logout` | Accounts (login is rate limited) |
+| `GET /api/catalog`, `/api/lessons/{id}`, `/api/breaks` | Content |
+| `GET /api/progress` | Stars, read state, study time, projects, XP, streak |
+| `PUT /api/lessons/{id}/read`, `/api/time/{id}`, `/api/projects/{id}` | Progress, learner-chosen time |
+| `GET /api/games/{lesson}/builder`, `POST .../simulate`, `.../submit`, `.../review` | Architecture builder |
+| `GET /api/games/{lesson}/incident`, `POST .../step`, `.../submit` | Incident terminal |
+| `GET /api/games/{lesson}/interview`, `POST .../submit` | Design interview |
+| `POST /api/ai/tutor`, `/api/ai/plan`, `GET /api/ai/status` | AI helpers |
+| `GET /api/leaderboard` | Top 20 by XP |
+
+Interactive API docs are at http://localhost:8000/docs.
+
+## Known limits
+
+- The AI features call the Groq API (default model `openai/gpt-oss-120b`). A live call was checked with a real key, and the automated tests use a fake client. Open models can grade a little less consistently than the largest closed models.
+- The deep dives were researched by reading real sources: all 136 links were opened and checked, and each lesson lists only sources that were actually read. A few books and papers are listed without a link, and a few details come from the authors' own knowledge. Please report anything that looks wrong.
+- Database tables are created on start-up. That makes new tables but never changes existing ones, so a production deployment needs Alembic migrations.
+- The whole backend suite passes on SQLite and on PostgreSQL 16. The Docker image builds and `docker compose up` starts the app and PostgreSQL, and serves the site and the API.
+- Guests can play the builder and the terminal, but only logged-in learners save stars and XP.

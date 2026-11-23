@@ -1,0 +1,1138 @@
+{
+ "shard": {
+  "how": [
+   {
+    "h": "The analogy: a catalogue, then more branches",
+    "p": "Think of a huge library. An index is the card catalogue: instead of walking every shelf you look up a title and go straight to it. Sharding is what you do when one building is full: you open several branches and decide which branch holds which books. Indexes make one machine fast; shards let many machines share the data and the writes."
+   },
+   {
+    "h": "How an index works",
+    "p": "Most database indexes are B-trees, which are sorted trees of small pages. To find a key the database starts at the root, follows a few pointers down, and lands on the leaf page holding the key, instead of reading every row. The price is that every insert, update or delete must also update each index, so more indexes means slower writes. In a composite index such as `(user_id, created_at)` the order of columns matters: it helps queries that filter on `user_id` first, but not queries that only filter on `created_at`."
+   },
+   {
+    "h": "Choosing a shard key",
+    "p": "When one database can no longer hold the data or absorb the writes, you split rows across machines by a shard key, which is the column whose value decides where a row lives. A good key appears in most of your queries, so each query touches just one shard, and it has many different values, so data spreads evenly. A bad key, like a country code with a few huge values, puts most rows on one shard."
+   },
+   {
+    "h": "Hash, range and lookup strategies",
+    "p": "With hash sharding you hash the key and use the result to pick a shard. This spreads data and writes evenly, even for keys that always increase, such as timestamps. The cost is that range queries (all orders between two dates) must usually be sent to every shard, because neighbouring values are scattered. With range sharding, neighbouring keys stay together so range queries are cheap, but an always-increasing key sends every new insert to the last range, creating a hot shard. A third option is a lookup table that records where each key lives, which is flexible but is one more thing to keep correct and fast."
+   },
+   {
+    "h": "More logical shards than machines",
+    "p": "If you map keys straight to machines with `hash mod N`, changing N moves most of the data. The usual fix is to create many small logical shards up front and then assign groups of them to machines. Adding a machine means moving a few whole logical shards, not rehashing every row. Consistent hashing, used in Cassandra's token ring, gets the same effect: adding a node moves only a small share of the keys."
+   },
+   {
+    "h": "What you give up",
+    "p": "Queries and transactions that span shards become slower and harder, joins across shards are often not possible in the database, and changing the shard key later is a large migration. This is why the usual advice is to add indexes, caching and read replicas first, and shard only when one machine truly cannot keep up."
+   }
+  ],
+  "worked": {
+   "title": "Spreading 12 million users over shards (illustrative numbers)",
+   "steps": [
+    "You have 12,000,000 users and four database machines. You shard by `user_id` using `hash(user_id) mod 4`. Each machine gets about 12,000,000 / 4 = 3,000,000 users.",
+    "To keep the arithmetic simple, pretend the hash of a user id is the id itself. User 1001 goes to shard 1001 mod 4 = 1. User 1002 goes to shard 2. Reading one user touches exactly one machine.",
+    "Growth arrives and you add a fifth machine, so the rule becomes `mod 5`. Over any 20 consecutive ids, an id keeps its shard only when `id mod 4` equals `id mod 5`. That happens for remainders 0, 1, 2 and 3 only, which is 4 of 20 ids, or 20 percent.",
+    "So 80 percent of the 12,000,000 users, which is 9,600,000 rows, must move to a different machine. That is a huge migration.",
+    "Now redo it with 64 logical shards. Each of the 4 machines holds 16 logical shards. To add a fifth machine you hand it about 64 / 5 = 12.8, so roughly 13, whole logical shards taken from the others. About 20 percent of the data moves, and the rule 'user to logical shard' never changes."
+   ],
+   "result": "Plain `mod N` moves about 80 percent of rows when you go from 4 to 5 machines, while a fixed set of logical shards moves only about 20 percent, which is why real systems create many more logical shards than machines."
+  },
+  "case": {
+   "who": "Notion",
+   "title": "Sharding Postgres by workspace",
+   "text": "Notion's single Postgres database was struggling with fast growth: CPU spikes were waking on-call engineers and the database's cleanup process (`VACUUM`) was stalling, raising the risk of transaction ID wraparound, which would stop writes. They sharded by workspace ID, because most queries stay inside one workspace. They created 480 logical shards spread over 32 physical databases, 15 per database, and picked 480 because it divides evenly in many ways, so the fleet can grow in even steps. Routing lives in application code, which maps a workspace ID straight to a database and schema. Their own lesson was that sharding earlier would have been easier, because backfilling the shard key onto an already overloaded database added more load.",
+   "source": {
+    "title": "Herding elephants: Lessons learned from sharding Postgres at Notion",
+    "url": "https://www.notion.com/blog/sharding-postgres-at-notion"
+   }
+  },
+  "choose": [
+   [
+    "Better indexes and query tuning",
+    "Queries are slow but the data and write rate still fit on one machine",
+    "Every extra index slows writes; always check with `EXPLAIN` that the index is actually used"
+   ],
+   [
+    "Read replicas or caching",
+    "Reads dominate and the primary can still take all the writes",
+    "Replicas lag behind and do nothing for write volume or total size"
+   ],
+   [
+    "Hash sharding",
+    "Lookups by key, even load wanted, keys that increase over time",
+    "Range queries must ask every shard; changing the number of buckets is costly without logical shards"
+   ],
+   [
+    "Range sharding",
+    "Range scans matter, such as time windows or alphabetical ranges",
+    "Always-increasing keys create a hot last shard"
+   ],
+   [
+    "Managed auto-sharding database",
+    "You want the database to split and rebalance data for you",
+    "You must still choose the partition key well, since one hot key can overload a single partition"
+   ]
+  ],
+  "mistakes": [
+   "Sharding too early. It makes every later feature harder, so first try indexes, caching, bigger hardware and replicas.",
+   "Choosing a low-variety shard key such as country or status. A few huge values create hot shards, so pick a key with many distinct values.",
+   "Using an always-increasing key with range sharding, which sends all new writes to one shard. Hash it or add a prefix.",
+   "Mapping keys to machines with `hash mod N`, so adding a machine reshuffles most data. Use many logical shards or consistent hashing.",
+   "Forgetting that queries without the shard key hit every shard. Design the main queries around the key.",
+   "Leaving indexes unchecked. An index that the planner does not use only costs write speed, so verify with `EXPLAIN`."
+  ],
+  "reading": [
+   {
+    "title": "Herding elephants: Lessons learned from sharding Postgres at Notion",
+    "by": "Notion engineering",
+    "kind": "blog",
+    "url": "https://www.notion.com/blog/sharding-postgres-at-notion"
+   },
+   {
+    "title": "Hashed Sharding",
+    "by": "MongoDB documentation",
+    "kind": "docs",
+    "url": "https://www.mongodb.com/docs/manual/core/hashed-sharding/"
+   },
+   {
+    "title": "Dynamo (Cassandra architecture)",
+    "by": "Apache Cassandra documentation",
+    "kind": "docs",
+    "url": "https://cassandra.apache.org/doc/latest/cassandra/architecture/dynamo.html"
+   },
+   {
+    "title": "Best practices for designing partition keys",
+    "by": "Amazon DynamoDB documentation",
+    "kind": "docs",
+    "url": "https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/bp-partition-key-design.html"
+   },
+   {
+    "title": "Amazon's Dynamo",
+    "by": "Werner Vogels (with the SOSP 2007 paper)",
+    "kind": "paper",
+    "url": "https://www.allthingsdistributed.com/2007/10/amazons_dynamo.html"
+   },
+   {
+    "title": "Designing Data-Intensive Applications, chapter 6: Partitioning",
+    "by": "Martin Kleppmann",
+    "kind": "book"
+   }
+  ]
+ },
+ "repl": {
+  "how": [
+   {
+    "h": "The analogy: a master notebook and photocopies",
+    "p": "Imagine one master notebook that only the editor may write in, and photocopies that other people read from. Copies survive if the master is lost and let many people read at once, but a copy can be a few pages behind. Database replication works the same way: it keeps copies of your data on several machines for safety and for extra read capacity."
+   },
+   {
+    "h": "Leader and followers",
+    "p": "In the most common design all writes go to one primary, also called the leader, which ships its changes to one or more followers (also called standbys or replicas). Followers can answer read queries but not writes. PostgreSQL calls a follower that serves reads a hot standby and one that waits to take over a warm standby."
+   },
+   {
+    "h": "Synchronous versus asynchronous",
+    "p": "With synchronous replication a commit is not confirmed until the follower has it too, so a failover loses nothing, but each write is slower and a slow follower slows everyone. PostgreSQL's documentation notes that a fully synchronous setup over a slow network can cut performance by more than half. With asynchronous replication the leader confirms immediately and the follower catches up later, which is fast but means committed writes not yet shipped can be lost if you fail over, and followers can return slightly stale data."
+   },
+   {
+    "h": "Replication lag and its surprises",
+    "p": "The delay between the leader and a follower is called replication lag. It causes confusing behaviour: you save a profile, the page reloads from a lagging follower, and your change seems to vanish. Common fixes are to read your own recent writes from the leader, or to pin a user to the leader for a short time after they write."
+   },
+   {
+    "h": "Leaderless quorums",
+    "p": "Dynamo-style systems have no single leader. Each item is stored on N replicas; a write succeeds when W of them confirm, and a read asks R of them. If R plus W is greater than N, every read set overlaps every write set by at least one replica, so a read sees the latest acknowledged write. Lower R and W give lower latency and better availability but a higher chance of stale reads."
+   },
+   {
+    "h": "Conflicts and failover",
+    "p": "When more than one place accepts writes, two copies can change the same item at once, so the system needs a rule to resolve conflicts: last write wins, merging, or asking the application. In leader-based systems the danger is failover: promoting a lagging follower loses the missing writes, and promoting while the old leader is still alive creates two leaders. Practise failovers before you need them."
+   }
+  ],
+  "worked": {
+   "title": "A quorum with N=3, W=2, R=2",
+   "steps": [
+    "An item is stored on three replicas: A, B and C. N = 3. We choose W = 2 and R = 2.",
+    "All three hold version 1 of the value. A client writes version 2. The write is sent to all three, but C is briefly unreachable.",
+    "A and B confirm. That is 2 acknowledgements, which equals W, so the write succeeds. C still holds version 1.",
+    "Later a client reads with R = 2 and happens to ask B and C. B returns version 2 and C returns version 1.",
+    "The client (or coordinator) picks the newer version, 2, and can repair C by sending it version 2.",
+    "Why it works: R + W = 2 + 2 = 4, which is greater than N = 3. Any 2 replicas you read must include at least one of the 2 that took the write. If you picked R = 1 and W = 1, then 1 + 1 = 2 is not greater than 3, and a read could hit only the stale replica."
+   ],
+   "result": "With N=3, W=2, R=2 you survive one dead replica for both reads and writes and still read the latest acknowledged write, because 2 + 2 is greater than 3."
+  },
+  "case": {
+   "who": "Amazon Dynamo",
+   "title": "An always-writable shopping cart",
+   "text": "Amazon built Dynamo, an internal key-value store, for services where refusing a write is worse than briefly showing old data. Each item is copied to N hosts, commonly N = 3, and readers and writers need only R and W of them, with a typical (3,2,2) setup. Updates spread to the other replicas in the background, so reads can be stale. The shopping cart is the classic example: adding to the cart must never fail, even during failures. When replicas end up with different versions of a cart, the application merges them. The trade-off the authors accepted is that a merge keeps added items but may let a deleted item reappear.",
+   "source": {
+    "title": "Amazon's Dynamo",
+    "url": "https://www.allthingsdistributed.com/2007/10/amazons_dynamo.html"
+   }
+  },
+  "choose": [
+   [
+    "Leader with asynchronous followers",
+    "Read-heavy apps, reporting, backups without loading the primary",
+    "Lag causes stale reads, and failover can lose the last few commits"
+   ],
+   [
+    "Leader with synchronous follower",
+    "Losing an acknowledged write is unacceptable, such as payments",
+    "Every commit waits for the follower; a slow or down follower can stall writes"
+   ],
+   [
+    "Multi-leader",
+    "Several regions must accept local writes",
+    "Conflicting edits must be resolved, which is hard to get right"
+   ],
+   [
+    "Leaderless quorum (R + W > N)",
+    "Always-writable data like carts and feeds, tunable per request",
+    "Stale reads still possible in edge cases, and you need a conflict rule"
+   ]
+  ],
+  "mistakes": [
+   "Reading right after a write from a lagging follower. Send those reads to the leader or track the write position.",
+   "Assuming asynchronous replication is safe for money. A leader crash can lose the most recent commits.",
+   "Setting up replication but never testing failover or restoring a backup, so the first real test happens during an outage.",
+   "Thinking R + W > N makes a system perfectly consistent. It helps reads see recent writes, but concurrent writes and failures still need a conflict strategy.",
+   "Using wall-clock last-write-wins to settle conflicts, which can quietly throw away the newer write. See the clocks lesson.",
+   "Treating replicas as backups. A bad delete or bug is copied to every replica, so keep separate point-in-time backups."
+  ],
+  "reading": [
+   {
+    "title": "High Availability, Load Balancing, and Replication",
+    "by": "PostgreSQL documentation",
+    "kind": "docs",
+    "url": "https://www.postgresql.org/docs/current/high-availability.html"
+   },
+   {
+    "title": "Amazon's Dynamo",
+    "by": "Werner Vogels, with the SOSP 2007 paper by DeCandia and others",
+    "kind": "paper",
+    "url": "https://www.allthingsdistributed.com/2007/10/amazons_dynamo.html"
+   },
+   {
+    "title": "Dynamo (Cassandra architecture)",
+    "by": "Apache Cassandra documentation",
+    "kind": "docs",
+    "url": "https://cassandra.apache.org/doc/latest/cassandra/architecture/dynamo.html"
+   },
+   {
+    "title": "Please stop calling databases CP or AP",
+    "by": "Martin Kleppmann",
+    "kind": "blog",
+    "url": "https://martin.kleppmann.com/2015/05/11/please-stop-calling-databases-cp-or-ap.html"
+   },
+   {
+    "title": "Designing Data-Intensive Applications, chapter 5: Replication",
+    "by": "Martin Kleppmann",
+    "kind": "book"
+   }
+  ]
+ },
+ "engines": {
+  "how": [
+   {
+    "h": "The analogy: a filing cabinet versus a running notebook",
+    "p": "A B-tree is like a filing cabinet: every record has a home page, and to change it you pull the page out, edit it in place and put it back. An LSM-tree is like a notebook where you only ever write new lines at the end, and every so often you sort and merge old notebooks into tidy volumes. Cabinets are quick to read from; notebooks are very quick to write to."
+   },
+   {
+    "h": "Write-ahead log: surviving a crash",
+    "p": "Both designs first write each change to a write-ahead log (WAL), a file that is only appended to. PostgreSQL's rule is that a change must be recorded in the log, and the log flushed to permanent storage, before the data pages are changed. If the machine crashes, the database replays the log to redo what never reached the data files. Because the log is written sequentially, flushing it is cheaper than writing scattered pages, and several small transactions can share one flush."
+   },
+   {
+    "h": "B-tree: update pages in place",
+    "p": "Data lives in fixed-size pages arranged as a tree. A lookup walks from the root to a leaf page in a few steps, so reads are fast and predictable. A write finds the right page and changes it where it sits, which means random writes on disk. PostgreSQL and MySQL use this design."
+   },
+   {
+    "h": "LSM-tree: buffer, flush, merge",
+    "p": "A write goes to the WAL and to an in-memory sorted structure called the memtable. When the memtable is full it is written out as an immutable sorted file, an SSTable (sorted string table), and files are never edited afterwards. Because one key may now exist in several files, background compaction merges files and drops overwritten or deleted values. RocksDB, Cassandra and HBase use this idea."
+   },
+   {
+    "h": "Reads on an LSM-tree and Bloom filters",
+    "p": "To read a key the engine checks the memtable and then the files, newest first. To avoid opening files that cannot contain the key, each file carries a Bloom filter, a small structure that answers 'definitely not here' or 'maybe here'. It can give false 'maybe' answers but never a false 'no'."
+   },
+   {
+    "h": "The three amplifications",
+    "p": "Engines are judged by write amplification (how many bytes hit the disk per byte you wrote), read amplification (how many places a read must look) and space amplification (how much extra disk is used). Compaction in an LSM-tree rewrites data several times, which is write amplification. RocksDB offers compaction styles that trade these off: level compaction uses the least space, universal compaction writes less but needs more space, and FIFO simply drops the oldest files, which suits cache-like data."
+   }
+  ],
+  "worked": {
+   "title": "Following one write and one read through an LSM-tree (illustrative numbers)",
+   "steps": [
+    "The memtable is set to flush at 64 MB and each record is 1 KB. 64 MB is 64 x 1,024 KB = 65,536 KB, so one flush holds 65,536 records.",
+    "Records are added to the WAL (a sequential append) and inserted into the memtable. No random disk writes happen, which is why writes are fast.",
+    "After many flushes there are 4 SSTables on disk. Suppose key `user:42` was updated once in each, giving 4 copies with different values.",
+    "A read for `user:42` checks the memtable, then the newest SSTable first. The newest copy wins, so the stale ones are ignored.",
+    "Now a read for a key that is in none of the files. Each Bloom filter says 'not here' except for an occasional false positive. If each filter has a 1 percent false-positive rate, the expected number of pointless file reads is 4 x 0.01 = 0.04, so almost always zero.",
+    "Compaction merges the 4 files into 1, keeping only the newest `user:42`. Suppose the average record is rewritten 5 times as it moves through merges. Then writing 1 GB of new data causes about 5 GB of disk writes, a write amplification of 5."
+   ],
+   "result": "The LSM-tree turns random writes into sequential ones and reads stay manageable thanks to Bloom filters, but you pay with background compaction work that rewrites data."
+  },
+  "case": {
+   "who": "Apache Cassandra",
+   "title": "An LSM write path built for heavy writes",
+   "text": "Cassandra appends each write to a commit log on disk, which it replays after a crash, and also puts it in an in-memory memtable. When the memtable fills, it is flushed as an immutable SSTable. Reads may have to consult several SSTables, so each one has a Bloom filter to skip files that cannot hold the requested partition. Background compaction merges SSTables and applies updates and deletes, which keeps reads efficient but rewrites data several times over its life. This is the write amplification trade-off Cassandra's own documentation describes, and it is the price of very fast sequential writes.",
+   "source": {
+    "title": "Storage Engine",
+    "url": "https://cassandra.apache.org/doc/latest/cassandra/architecture/storage-engine.html"
+   }
+  },
+  "choose": [
+   [
+    "B-tree (PostgreSQL, MySQL)",
+    "General purpose, mixed reads and writes, predictable read latency, rich queries",
+    "Random in-place writes limit very high write rates; the WAL and pages mean writes are done twice"
+   ],
+   [
+    "LSM with level compaction (RocksDB default)",
+    "Heavy writes with lower space use",
+    "More compaction work per byte written; compaction can compete with foreground traffic"
+   ],
+   [
+    "LSM with universal compaction",
+    "Write-heavy loads where lower write amplification matters",
+    "Needs more disk space, including temporary space during merges"
+   ],
+   [
+    "LSM with FIFO compaction",
+    "Cache-like or expiring data where old files can simply be dropped",
+    "Not suitable when you must keep old data"
+   ]
+  ],
+  "mistakes": [
+   "Choosing an engine by fashion. Match it to your read-versus-write mix and your latency needs.",
+   "Ignoring compaction. A backlog of uncompacted files slows reads and can stall writes, so monitor it and leave disk headroom.",
+   "Believing LSM-trees are always faster. They shine on writes, but reads may touch several files and range scans are costlier.",
+   "Turning off the WAL or its fsync to look fast in a benchmark, then losing recent data on a crash.",
+   "Forgetting that B-tree indexes are themselves write cost: every index on a table must be updated on each write.",
+   "Running at nearly full disk. Compaction needs temporary space and can fail or stall when there is none."
+  ],
+  "reading": [
+   {
+    "title": "Write-Ahead Logging (WAL)",
+    "by": "PostgreSQL documentation",
+    "kind": "docs",
+    "url": "https://www.postgresql.org/docs/current/wal-intro.html"
+   },
+   {
+    "title": "RocksDB Overview",
+    "by": "RocksDB project wiki",
+    "kind": "docs",
+    "url": "https://github.com/facebook/rocksdb/wiki/RocksDB-Overview"
+   },
+   {
+    "title": "Storage Engine",
+    "by": "Apache Cassandra documentation",
+    "kind": "docs",
+    "url": "https://cassandra.apache.org/doc/latest/cassandra/architecture/storage-engine.html"
+   },
+   {
+    "title": "The Log-Structured Merge-Tree (LSM-Tree)",
+    "by": "Patrick O'Neil, Edward Cheng, Dieter Gawlick, Elizabeth O'Neil",
+    "kind": "paper"
+   },
+   {
+    "title": "Designing Data-Intensive Applications, chapter 3: Storage and Retrieval",
+    "by": "Martin Kleppmann",
+    "kind": "book"
+   }
+  ]
+ },
+ "tx": {
+  "how": [
+   {
+    "h": "The analogy: a bank transfer that cannot be half done",
+    "p": "Moving 100 from savings to checking is two steps: subtract from one account, add to the other. If the lights go out between the steps, money vanishes. A transaction wraps the steps into one unit so that either both happen or neither does. The other half of the story is isolation: what other people can see while your transaction is running."
+   },
+   {
+    "h": "ACID in plain words",
+    "p": "Atomicity means all or nothing. Consistency means your own rules (such as 'balance never below zero') hold after a commit; the database helps, but your application defines the rules. Isolation means concurrent transactions do not trample on each other. Durability means that once a commit is confirmed, the data survives a crash, usually because it was written to a log first."
+   },
+   {
+    "h": "MVCC: readers do not block writers",
+    "p": "Multiversion concurrency control (MVCC) keeps more than one version of a row. Each statement or transaction reads from a snapshot, a consistent view of the data at one moment, so a query never sees a half-finished update. PostgreSQL's documentation points out that because of this, reads and writes do not block each other. Old versions are cleaned up later."
+   },
+   {
+    "h": "Isolation levels and the anomalies they allow",
+    "p": "A dirty read sees another transaction's uncommitted data. A non-repeatable read gets a different value when it reads the same row twice. A phantom read gets a different set of rows when it repeats a query. At Read Committed each statement sees only data committed before it began. At Repeatable Read (snapshot isolation) the whole transaction keeps one snapshot. At Serializable the result is as if transactions ran one at a time. Note that in PostgreSQL the default is Read Committed, not the strictest level."
+   },
+   {
+    "h": "Write skew and lost updates",
+    "p": "A lost update happens when two transactions read a value, each computes a new one, and the second overwrites the first. Write skew is subtler: two transactions read the same rows, write to different rows, and both commit, breaking a rule that spans the rows. Snapshot isolation does not stop write skew. Fixes are Serializable isolation, explicit row locks such as `SELECT ... FOR UPDATE`, or a database constraint."
+   },
+   {
+    "h": "Retries are part of the deal",
+    "p": "Repeatable Read and Serializable in PostgreSQL can abort a transaction with a serialization failure (SQLSTATE `40001`). The correct reaction is to roll back and run the whole transaction again from the start, so the retry sees the newly committed data. Keep transactions short and avoid sessions that sit open doing nothing."
+   }
+  ],
+  "worked": {
+   "title": "Two doctors going off call (write skew)",
+   "steps": [
+    "The hospital rule is: at least one doctor must stay on call. Right now Alice and Bob are both on call, so the count is 2.",
+    "Alice's transaction runs `SELECT count(*) FROM doctors WHERE on_call` and sees 2. Bob's transaction, running at the same moment, also sees 2. Each thinks it is safe to leave.",
+    "Alice runs `UPDATE doctors SET on_call = false WHERE name = 'Alice'`. Bob does the same for himself. They touch different rows, so there is no write conflict.",
+    "Under Read Committed or Repeatable Read (snapshot isolation), both commit. The count is now 0, which breaks the rule.",
+    "Under Serializable in PostgreSQL, the database tracks that each transaction read rows the other wrote. It aborts one with `could not serialize access due to read/write dependencies among transactions`.",
+    "The application retries the failed transaction. This time the count it reads is 1, so it refuses to let the second doctor leave."
+   ],
+   "result": "Two correct-looking transactions can break a rule together unless the isolation level, or an explicit lock, rules it out. Serializable plus a retry loop prevents it."
+  },
+  "case": {
+   "who": "PostgreSQL",
+   "title": "Serializable Snapshot Isolation with predicate locks",
+   "text": "PostgreSQL implements Serializable using Serializable Snapshot Isolation on top of its Repeatable Read snapshots. It records what each transaction read using predicate locks, which never block anyone. Instead the database watches the read and write dependencies between concurrent transactions and aborts one when they could produce a result no one-at-a-time order explains. The cost is that applications must be ready to retry on failure. The documentation also gives practical tips: mark read-only work as `READ ONLY`, keep transactions short, limit the number of connections, and prefer index scans because sequential scans take coarser locks.",
+   "source": {
+    "title": "Transaction Isolation",
+    "url": "https://www.postgresql.org/docs/current/transaction-iso.html"
+   }
+  },
+  "choose": [
+   [
+    "Read Committed",
+    "Simple operations on known rows, such as `UPDATE ... SET balance = balance - 100`",
+    "Two reads in one transaction can differ; multi-row rules can be broken"
+   ],
+   [
+    "Repeatable Read / snapshot isolation",
+    "Consistent reports and read-only work, fewer surprises than Read Committed",
+    "Write skew is still possible, and updates can fail with a conflict error to retry"
+   ],
+   [
+    "Serializable",
+    "Rules that span rows, bookings, inventory, anything where correctness beats speed",
+    "Aborts and retries; need short transactions and retry code"
+   ],
+   [
+    "Explicit locks (`SELECT ... FOR UPDATE`)",
+    "You know exactly which rows must be protected",
+    "Blocking and deadlocks if used carelessly"
+   ]
+  ],
+  "mistakes": [
+   "Assuming the default isolation level is the strictest. In PostgreSQL it is Read Committed.",
+   "Doing read, compute in the app, then write, which risks lost updates. Use an atomic `SET x = x + 1` or lock the row.",
+   "Not retrying after a serialization failure. Treat error `40001` as normal and rerun the whole transaction.",
+   "Holding transactions open across user input or slow API calls. Long transactions block cleanup and others.",
+   "Believing snapshot isolation is the same as serializable. Write skew is the classic proof that it is not.",
+   "Retrying only the failed statement instead of the entire transaction, which gives inconsistent results."
+  ],
+  "reading": [
+   {
+    "title": "Transaction Isolation",
+    "by": "PostgreSQL documentation",
+    "kind": "docs",
+    "url": "https://www.postgresql.org/docs/current/transaction-iso.html"
+   },
+   {
+    "title": "Introduction to MVCC",
+    "by": "PostgreSQL documentation",
+    "kind": "docs",
+    "url": "https://www.postgresql.org/docs/current/mvcc-intro.html"
+   },
+   {
+    "title": "Snapshot Isolation",
+    "by": "Jepsen (Kyle Kingsbury)",
+    "kind": "docs",
+    "url": "https://jepsen.io/consistency/models/snapshot-isolation"
+   },
+   {
+    "title": "Consistency Models",
+    "by": "Jepsen (Kyle Kingsbury)",
+    "kind": "docs",
+    "url": "https://jepsen.io/consistency"
+   },
+   {
+    "title": "A Critique of ANSI SQL Isolation Levels",
+    "by": "Hal Berenson, Phil Bernstein, Jim Gray and others",
+    "kind": "paper"
+   },
+   {
+    "title": "Designing Data-Intensive Applications, chapter 7: Transactions",
+    "by": "Martin Kleppmann",
+    "kind": "book"
+   }
+  ]
+ },
+ "model": {
+  "how": [
+   {
+    "h": "The analogy: recipe cards versus a printed menu",
+    "p": "A normalised design is like a box of recipe cards where each fact is written once: the ingredient list lives on one card and other cards point to it. A denormalised design is like a printed menu that repeats the dish names and prices wherever people need them. The menu is quicker to read; the cards are easier to keep correct."
+   },
+   {
+    "h": "Normalise: store each fact once",
+    "p": "In a relational database you split data into tables and link them with ids, so a customer's name lives in one row. When it changes you update one place, and the data cannot disagree with itself. The price is joins: to show an order with its customer and items, the database must look up several tables. For queries that change often, this flexibility is valuable."
+   },
+   {
+    "h": "Denormalise: copy data to where it is read",
+    "p": "You store copies next to the thing that reads them, such as the customer's name inside each order. Reads become a single lookup. Writes get harder: when the name changes, every copy must be updated, and a missed one is a bug. Decide up front how copies stay in sync: update them in one transaction, refresh them from a background job, or accept that they are a snapshot, like the name at the time of purchase."
+   },
+   {
+    "h": "Start from the questions",
+    "p": "In document and wide-column stores you design around the questions you will ask, not around the shape of the data. List your main reads and writes, how often each happens, and how fresh the answer must be. Then shape the stored data so the hottest reads need one lookup."
+   },
+   {
+    "h": "Embed or reference",
+    "p": "For one-to-many data, MongoDB's guidance is to embed when the data is queried together, forms a has-a relationship and is updated together. Reference (store ids and look up separately) when there are many children, they can exist on their own, they grow without bound, or they are written at different times. Embedded arrays that keep growing make documents ever bigger, which eats memory and bandwidth."
+   },
+   {
+    "h": "Atomic scope and duplication cost",
+    "p": "Writes inside one document are atomic, which is a real benefit of embedding. Duplicating data costs less when the data rarely changes, such as immutable or historical values, and costs more when it changes often or must never be stale. Multi-document transactions exist but are costlier, so a good model keeps most updates inside one document."
+   }
+  ],
+  "worked": {
+   "title": "An order page: normalised or denormalised? (illustrative numbers)",
+   "steps": [
+    "A shop has orders, customers and products. An order page shows the order, the customer's name and 5 line items with product names.",
+    "Normalised: the page reads 1 order row, 1 customer row, 5 order-item rows and 5 product rows. That is 1 + 1 + 5 + 5 = 12 row lookups, joined across 4 tables.",
+    "Denormalised: the order document embeds the customer name and, for each of the 5 items, the product name and price at purchase time. The page needs 1 lookup.",
+    "A customer changes their name. Normalised: update 1 customer row. Denormalised: the customer has 1,200 past orders, so a naive propagation updates 1,200 documents.",
+    "A good compromise: keep the name copied in orders as 'name at time of order', which should not change at all (zero updates), and read the current name from the customer record when you need it.",
+    "Unbounded growth check: a blog post with 10,000 embedded comments of about 500 bytes each is 10,000 x 500 = 5,000,000 bytes, roughly 5 MB, in one document and growing. MongoDB limits one document to 16 MB, so comments should be referenced, in their own collection."
+   ],
+   "result": "Embed small, stable, read-together data (the five items, the name at purchase). Reference data that is large, shared, changes on its own or grows without limit (customers, comments)."
+  },
+  "case": {
+   "who": "MongoDB (documentation guidance)",
+   "title": "Embedding versus referencing in documents",
+   "text": "MongoDB's data modelling guide lays out the trade-off in concrete terms. Embedding gives faster reads, because related data comes back in one query, and it allows atomic updates within one document, but it makes documents larger, which uses more memory and can push the working set out of RAM. Referencing keeps documents small and avoids unbounded growth, but reads need extra queries or `$lookup` joins and the application handles multi-document writes. For duplicated data, the guide says to consider how often the copies change: immutable or historical values are good candidates, while data sensitive to staleness needs transactions or triggers, and tolerant data can be refreshed by a background job. Its example for unbounded growth is moving lessons from an embedded array into their own collection.",
+   "source": {
+    "title": "Embedding vs References",
+    "url": "https://www.mongodb.com/docs/manual/data-modeling/concepts/embedding-vs-references/"
+   }
+  },
+  "choose": [
+   [
+    "Normalised relational tables",
+    "Queries are unknown or change often, and correctness of shared facts matters",
+    "Joins cost time on hot paths, and joins across shards are difficult"
+   ],
+   [
+    "Embedded documents",
+    "Children are small, bounded and always read with the parent",
+    "Documents bloat as arrays grow; updating shared data in many places"
+   ],
+   [
+    "Referenced documents",
+    "Children are large, shared, unbounded or change independently",
+    "More queries and application-side joins"
+   ],
+   [
+    "Denormalised copies with a refresh plan",
+    "A hot read path needs one lookup and slight staleness is fine",
+    "Copies drift unless you decide how they are kept in sync"
+   ]
+  ],
+  "mistakes": [
+   "Copying data everywhere with no plan to keep the copies in sync. Decide the update mechanism before you duplicate.",
+   "Embedding arrays that grow without limit, such as comments or events. Reference them instead.",
+   "Designing the tables first and thinking about queries later in a document or wide-column store. List the access patterns first.",
+   "Over-normalising a read-heavy hot path so every page needs a long chain of joins, with no measurement to justify it.",
+   "Forgetting that a denormalised copy is sometimes the correct historical record, for example the price at purchase time, and overwriting it.",
+   "Relying on multi-document transactions to patch a poor model. Prefer shaping data so one update touches one document."
+  ],
+  "reading": [
+   {
+    "title": "Embedding vs References",
+    "by": "MongoDB documentation",
+    "kind": "docs",
+    "url": "https://www.mongodb.com/docs/manual/data-modeling/concepts/embedding-vs-references/"
+   },
+   {
+    "title": "Best practices for designing partition keys",
+    "by": "Amazon DynamoDB documentation",
+    "kind": "docs",
+    "url": "https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/bp-partition-key-design.html"
+   },
+   {
+    "title": "Designing Data-Intensive Applications, chapter 2: Data Models and Query Languages",
+    "by": "Martin Kleppmann",
+    "kind": "book"
+   },
+   {
+    "title": "A Relational Model of Data for Large Shared Data Banks",
+    "by": "E. F. Codd",
+    "kind": "paper"
+   },
+   {
+    "title": "Graph database concepts",
+    "by": "Neo4j documentation",
+    "kind": "docs",
+    "url": "https://neo4j.com/docs/getting-started/get-started-with-neo4j/graph-database/"
+   }
+  ]
+ },
+ "serial": {
+  "how": [
+   {
+    "h": "The analogy: packing a parcel",
+    "p": "To post something you must flatten it into a box and the receiver must know how to unpack it. Serialisation is turning in-memory data into bytes so it can cross a network or sit in a file, and deserialisation is unpacking it. The choices are how compact the parcel is and whether an old receiver can still open a parcel from a newer sender."
+   },
+   {
+    "h": "JSON: readable text",
+    "p": "JSON writes field names and values as text, so humans and every language can read it and it needs no schema. The cost is size and speed: names repeat in every record, and numbers become text. It is the usual choice for public APIs and for debugging."
+   },
+   {
+    "h": "Protobuf: numbered fields",
+    "p": "In Protocol Buffers you describe messages in a `.proto` file and give each field a number. On the wire each field is stored as its number plus a type code, followed by the value, so field names never travel. A reader that meets an unknown number can use the type code to skip over it, which is what makes adding fields safe. Numbers 1 to 15 take one byte for the tag, so give them to frequently used fields."
+   },
+   {
+    "h": "Avro: schema decides the order",
+    "p": "Avro's binary data has no field numbers and no names, only the values in the order the schema lists them. That makes it very compact, but the reader must know the exact schema the writer used. Avro solves this by resolving the writer's schema against the reader's schema, matching fields by name. Added or removed fields need default values. Schemas are shipped once per file, negotiated per connection, or looked up by id in a schema registry."
+   },
+   {
+    "h": "Compatibility in two directions",
+    "p": "Backward compatible means new code can read old data. Forward compatible means old code can read new data. In practice, during a rolling deployment both old and new versions run together, so you need both. The rules are: add new fields as optional with defaults, never reuse a field number, and never change a field's type incompatibly."
+   },
+   {
+    "h": "Removing and renaming safely",
+    "p": "In Protobuf, when you delete a field you should reserve its number (and name) so nobody reuses it, because reusing a number can cause misparsed data. Renaming is safe in Protobuf because names are not on the wire, but in Avro a rename needs an alias, and in JSON it breaks every consumer. The safe pattern for any breaking change is to add the new field, migrate readers, then remove the old one in a later release."
+   }
+  ],
+  "worked": {
+   "title": "The same record in JSON, Protobuf and Avro",
+   "steps": [
+    "Take a person record with a name, an optional favourite number and a list of interests. Martin Kleppmann's comparison encodes this one example in several formats.",
+    "As JSON without whitespace it takes 81 bytes. Protobuf takes 33 bytes, Avro 32 bytes, and Thrift's compact encoding 34 bytes.",
+    "Protobuf saves 81 - 33 = 48 bytes per record, which is 48 / 81, about 60 percent smaller. Avro saves 49 bytes.",
+    "Scale it: for 1,000,000 messages, JSON is 81,000,000 bytes (81 MB) and Protobuf is 33,000,000 bytes (33 MB), a saving of 48 MB.",
+    "Now evolve the schema. A new release adds `email = 4` to the Protobuf message. Old readers see tag 4, do not know it, use the type code to skip it, and carry on. New readers reading old data find no field 4 and use the default.",
+    "Later you delete field 3 (`nickname`). You write `reserved 3;` so that no one reuses 3 for something else, which would make old stored data decode as the wrong thing."
+   ],
+   "result": "A binary format cuts this example to about 40 percent of the JSON size, and numbered, never-reused fields let old and new code coexist."
+  },
+  "case": {
+   "who": "Protocol Buffers (Google)",
+   "title": "Rules for changing a message safely",
+   "text": "Protobuf's own guide is a practical rulebook for keeping old and new code compatible. A field's number can never change, because changing it is equivalent to deleting the field and adding a new one. Numbers must not be reused, and deleted ones should be reserved, since reuse can cause parse errors, corrupted data or even privacy leaks. Adding new fields is safe, and so is removing fields as long as the number is never reused. Some changes, such as widening integer types, are wire-compatible but can lose data, so for schemas published to many consumers the guide advises avoiding them, because you cannot coordinate every rollout. Even adding an enum value, while safe on the wire, can break application code that does not handle unknown values.",
+   "source": {
+    "title": "Protocol Buffers Language Guide (proto3)",
+    "url": "https://protobuf.dev/programming-guides/proto3/"
+   }
+  },
+  "choose": [
+   [
+    "JSON",
+    "Public APIs, browsers, debugging, human-edited config",
+    "Larger and slower; no enforced schema, so typos and type drift slip in"
+   ],
+   [
+    "Protobuf",
+    "Service-to-service calls and gRPC with a shared `.proto` contract",
+    "Not human readable; discipline needed to never reuse field numbers"
+   ],
+   [
+    "Avro",
+    "Data pipelines and event streams where schemas change and a registry exists",
+    "Reader must have the writer's schema; fields need defaults to evolve"
+   ],
+   [
+    "Thrift",
+    "You also want its bundled RPC framework",
+    "Several encodings to choose from; smaller ecosystem than Protobuf"
+   ]
+  ],
+  "mistakes": [
+   "Reusing or renumbering a Protobuf field number. Reserve deleted numbers and names.",
+   "Adding a required field. Old data and old writers do not have it. Make new fields optional with a default.",
+   "Renaming a JSON field in one release. Add the new name, support both, then remove the old one later.",
+   "Deploying the writer before the readers support the new field in an Avro pipeline. Roll out readers first or use defaults.",
+   "Using JSON inside high-volume internal pipelines just because it is easy, then paying for the size in network and storage.",
+   "Not testing compatibility in CI. Run old-reader against new-writer data and the reverse before every schema change."
+  ],
+  "reading": [
+   {
+    "title": "Protocol Buffers Language Guide (proto3)",
+    "by": "Google, protobuf.dev",
+    "kind": "docs",
+    "url": "https://protobuf.dev/programming-guides/proto3/"
+   },
+   {
+    "title": "Schema evolution in Avro, Protocol Buffers and Thrift",
+    "by": "Martin Kleppmann",
+    "kind": "blog",
+    "url": "https://martin.kleppmann.com/2012/12/05/schema-evolution-in-avro-protocol-buffers-thrift.html"
+   },
+   {
+    "title": "Apache Avro Specification",
+    "by": "Apache Avro project",
+    "kind": "docs"
+   },
+   {
+    "title": "Designing Data-Intensive Applications, chapter 4: Encoding and Evolution",
+    "by": "Martin Kleppmann",
+    "kind": "book"
+   }
+  ]
+ },
+ "datatypes": {
+  "how": [
+   {
+    "h": "The analogy: a toolbox",
+    "p": "A hammer can push in a screw, but badly. Different databases are different tools built for one job: counting how a metric changes over time, finding words in text, following friendships, finding things that look alike. Picking the right one saves you from painful workarounds, while picking too many gives you many things to run."
+   },
+   {
+    "h": "Time-series and wide-column stores",
+    "p": "Time-series databases hold values stamped with a time, such as metrics and sensor readings, and are built for fast appends, compressing similar neighbouring points, and queries over time windows. Wide-column stores like Cassandra and HBase spread rows by a partition key and keep them sorted by a clustering key inside each partition. They use LSM-trees, so they absorb huge write volumes, but you must design tables around the queries you will run."
+   },
+   {
+    "h": "Search engines and inverted indexes",
+    "p": "Search engines such as Elasticsearch are built on Lucene. An inverted index maps each term to the list of documents that contain it, the reverse of a list of words in each document. The terms are kept sorted so a term is found quickly, and a multi-word query combines the lists: intersect them for AND, merge them for OR. Data is written in immutable segments that are merged later, and by default new data becomes searchable about a second after it is indexed."
+   },
+   {
+    "h": "Graph stores",
+    "p": "In a graph database data is nodes, relationships and properties. Relationships are stored with the nodes they connect, so following a link needs no join. That makes questions about connections, such as friends of friends or the route between two points, natural to ask. If your questions are mostly lookups and totals, a graph store adds little."
+   },
+   {
+    "h": "Vector search",
+    "p": "An embedding turns text, an image or a song into a list of numbers so that similar things end up close together. Vector search finds the nearest neighbours to a query vector. Exact search compares against every vector. Approximate indexes, such as HNSW (a layered graph) or IVFFlat (grouping vectors into lists), are much faster but may miss some true neighbours, a loss measured as recall."
+   },
+   {
+    "h": "Keeping several stores in sync",
+    "p": "Most real systems use one primary store as the source of truth and feed the others from it. Change-data-capture or an event log carries each change to the search index, cache or analytics store. Treat those copies as rebuildable, and never make a search index your only copy of the data, since it can be rebuilt from the source but not the other way round."
+   }
+  ],
+  "worked": {
+   "title": "A tiny inverted index and the cost of vector search (illustrative)",
+   "steps": [
+    "Three product titles: document 1 is `red running shoes`, document 2 is `blue running socks`, document 3 is `red socks`.",
+    "Build the inverted index: blue -> [2], red -> [1, 3], running -> [1, 2], shoes -> [1], socks -> [2, 3].",
+    "Query `red socks` (both words). Look up red -> [1, 3] and socks -> [2, 3]. Intersect the lists: only 3 appears in both, so the answer is document 3. No document was scanned.",
+    "Query `red OR socks` merges the lists: [1, 2, 3].",
+    "Now vector search. A catalogue has 1,000,000 products with 768-number embeddings stored as 4-byte floats. One vector is 768 x 4 = 3,072 bytes, so the set is 1,000,000 x 3,072 = 3,072,000,000 bytes, about 3.07 GB.",
+    "Exact search compares the query to all 1,000,000 vectors. An HNSW index instead walks a layered graph and checks only a small fraction of them, at the price of sometimes missing a true neighbour and extra memory for the graph."
+   ],
+   "result": "The inverted index answers a word query by combining short lists, and approximate vector indexes avoid scanning millions of vectors in exchange for a small loss in recall."
+  },
+  "case": {
+   "who": "Elasticsearch",
+   "title": "Shards of Lucene indexes with near-real-time search",
+   "text": "Elasticsearch stores JSON documents in an index that is split into primary shards spread across nodes; each document lives in exactly one primary shard. Each shard is a self-contained Apache Lucene index, and replica shards copy the primaries for fault tolerance and extra read capacity. Inside a shard, data is written as immutable segments that are merged in the background; deletes are recorded separately and an update is a delete plus a new insert. By default the index refreshes about once per second, which is why searches see new documents almost, but not quite, immediately. The lesson for builders is that a search store is optimised for finding, not for being your only record of truth.",
+   "source": {
+    "title": "Documents and indices",
+    "url": "https://www.elastic.co/guide/en/elasticsearch/reference/current/documents-indices.html"
+   }
+  },
+  "choose": [
+   [
+    "Wide-column (Cassandra, HBase)",
+    "Enormous write volume, time-ordered data with known queries",
+    "Tables are designed per query; limited ad hoc queries and joins"
+   ],
+   [
+    "Time-series database",
+    "Metrics and sensor data, windowed aggregates, retention rules",
+    "Not a general store; high-cardinality labels can blow up cost"
+   ],
+   [
+    "Search engine (Elasticsearch)",
+    "Full-text search, filters, log analytics",
+    "Near-real-time, not transactional; keep a primary copy elsewhere"
+   ],
+   [
+    "Graph database",
+    "Questions about relationships and paths",
+    "Little benefit for simple lookups; fewer people know how to run one"
+   ],
+   [
+    "Vector index (pgvector or dedicated)",
+    "'Find similar' over embeddings",
+    "Approximate results; memory and build time grow with data"
+   ]
+  ],
+  "mistakes": [
+   "Making the search index your only copy of the data. Keep a source of truth and be able to rebuild the index.",
+   "Adding a new database for every need. Each store needs backups, monitoring and people who understand it; try your relational database first.",
+   "Using a wide-column store without listing the queries first. You will be unable to answer new questions without a rebuild.",
+   "Treating approximate vector search as exact. Measure recall and tune settings such as `ef_search` or `probes`.",
+   "Applying filters after a vector index scan and being surprised by too few results. Test filtered queries explicitly.",
+   "Forgetting to plan how stores stay in sync, including what happens when an update to the second store fails."
+  ],
+  "reading": [
+   {
+    "title": "Documents and indices",
+    "by": "Elastic documentation",
+    "kind": "docs",
+    "url": "https://www.elastic.co/guide/en/elasticsearch/reference/current/documents-indices.html"
+   },
+   {
+    "title": "Elasticsearch from the bottom up",
+    "by": "Elastic (Found) engineering blog",
+    "kind": "blog",
+    "url": "https://www.elastic.co/blog/found-elasticsearch-from-the-bottom-up"
+   },
+   {
+    "title": "pgvector: open-source vector similarity search for Postgres",
+    "by": "pgvector project",
+    "kind": "docs",
+    "url": "https://github.com/pgvector/pgvector"
+   },
+   {
+    "title": "What is a graph database",
+    "by": "Neo4j documentation",
+    "kind": "docs",
+    "url": "https://neo4j.com/docs/getting-started/get-started-with-neo4j/graph-database/"
+   },
+   {
+    "title": "Gorilla: A Fast, Scalable, In-Memory Time Series Database",
+    "by": "Facebook engineers, VLDB 2015",
+    "kind": "paper"
+   },
+   {
+    "title": "Designing Data-Intensive Applications, chapter 3 and chapter 11",
+    "by": "Martin Kleppmann",
+    "kind": "book"
+   }
+  ]
+ },
+ "cap": {
+  "how": [
+   {
+    "h": "The analogy: two bank branches and a cut phone line",
+    "p": "Two branches of a bank share one set of account balances. The phone line between them is cut. A customer asks branch B for their balance. Branch B can refuse to answer until the line is back (correct but unavailable), or answer from what it last knew (available but maybe wrong). That forced choice is what the CAP theorem is about."
+   },
+   {
+    "h": "What the three letters mean",
+    "p": "In CAP, consistency means linearizability: once a write completes, every later read sees it, as if there were one copy. This is not the same as the C in ACID. Availability means every non-failing node answers every request. Partition tolerance means the system keeps working when the network drops or delays messages between nodes. Real networks do this, so you cannot opt out of partitions."
+   },
+   {
+    "h": "The real choice is during a partition",
+    "p": "Because partitions happen, the practical question is what to do while one is going on. A system that stays consistent will refuse requests on the side that cannot reach a majority. A system that stays available answers everywhere and repairs conflicts afterwards. When the network is healthy you can have both."
+   },
+   {
+    "h": "Why CP and AP labels mislead",
+    "p": "Martin Kleppmann argues that the labels are too crude. CAP covers only a single register and only network partitions, and says nothing about latency. Many systems fit neither bucket: single-leader databases and snapshot-isolation systems are not linearizable, yet are rarely described that way. ZooKeeper is called CP, but its default reads are not linearizable. A single system can mix operations with different guarantees. Prefer naming the exact guarantee you need."
+   },
+   {
+    "h": "Latency is the everyday trade-off",
+    "p": "Linearizability requires coordination between nodes, which costs time. Across data centres, that cost is large, so many systems use asynchronous replication mainly to avoid slow writes, not only to survive partitions. In everyday operation 'how fast' often matters more than 'what happens in a partition'."
+   },
+   {
+    "h": "The consistency spectrum and tunable systems",
+    "p": "From strongest to weakest you will meet linearizable, sequential, causal and eventual consistency. Many databases let you choose per request. In Cassandra, ONE asks one replica to respond and QUORUM asks a majority. With replication factor 3, quorum reads and writes overlap, so reads see the latest acknowledged write. Pick the strongest level your feature truly needs for money and bookings, and a weaker one for carts and feeds."
+   }
+  ],
+  "worked": {
+   "title": "A five-node cluster splits 3 and 2",
+   "steps": [
+    "A five-node database stores the value `stock = 10`. A network failure splits nodes into group X (3 nodes) and group Y (2 nodes). The groups cannot talk to each other.",
+    "Majority quorum design (consistency first). A majority of 5 is floor(5 / 2) + 1 = 3. Group X has 3 nodes, so it can still commit writes. Group Y has only 2, so it refuses writes and linearizable reads.",
+    "A customer in group X buys 1 item. X commits `stock = 9`. A customer in group Y gets an error and retries later. Nothing incorrect was ever shown.",
+    "Availability design. Both groups keep accepting orders. X sells 1 item and stores 9. Y sells 1 item and stores 9 too, both starting from 10. Neither knows about the other.",
+    "The partition heals and the two sides compare. Both say 9, but the truth is 8, because two items were sold. The system needs a merge rule (for example counting each sale as its own event) or a human to fix it.",
+    "So the first design traded availability on the minority side for correctness, and the second traded correctness for answering everyone."
+   ],
+   "result": "During a split, a majority-quorum system keeps correct data but refuses the minority, while an always-answer system serves everyone and must repair conflicts later."
+  },
+  "case": {
+   "who": "Google Spanner",
+   "title": "Strong consistency with very high availability",
+   "text": "Spanner is Google's globally distributed database that offers strongly consistent transactions. Eric Brewer, who first posed the CAP conjecture, wrote a paper explaining how Spanner can look like it beats CAP: wide-area systems are usually assumed unable to be both consistent and highly available. His abstract explains how Spanner achieves both in practice and why it still fits within CAP. It also points to TrueTime, Google's globally synchronised clock, which supports consistent reads and snapshots. The takeaway for learners is that careful engineering of networks and clocks can make partitions rare, while the theorem's trade-off still applies when they do happen.",
+   "source": {
+    "title": "Spanner, TrueTime and the CAP Theorem",
+    "url": "https://research.google/pubs/spanner-truetime-and-the-cap-theorem/"
+   }
+  },
+  "choose": [
+   [
+    "Consistency first (majority quorum, such as etcd or ZooKeeper)",
+    "Money, bookings, locks, leader election, configuration",
+    "The minority side of a partition cannot make progress; writes pay coordination latency"
+   ],
+   [
+    "Availability first (such as Dynamo-style stores)",
+    "Carts, feeds, counters, anything where a late fix beats an error",
+    "Stale reads and conflicts that you must resolve"
+   ],
+   [
+    "Tunable consistency per request",
+    "One database serves both strict and relaxed features",
+    "Easy to pick the wrong level; test what each setting really guarantees"
+   ],
+   [
+    "Strongly consistent global database (such as Spanner)",
+    "You need global transactions without conflict handling",
+    "Specialised infrastructure and higher write latency across regions"
+   ]
+  ],
+  "mistakes": [
+   "Saying 'we pick two of three'. Partitions are not optional, so the real choice is behaviour during a partition.",
+   "Confusing the C in CAP (linearizability) with the C in ACID (your rules hold).",
+   "Labelling a whole database CP or AP. Guarantees often differ per operation and configuration, so read what each setting promises.",
+   "Ignoring latency. CAP says nothing about slow answers, but users feel them first.",
+   "Choosing availability without writing a conflict resolution rule, which leaves silent data loss after the partition heals.",
+   "Using strong consistency everywhere 'to be safe', which makes simple features slow and fragile."
+  ],
+  "reading": [
+   {
+    "title": "Please stop calling databases CP or AP",
+    "by": "Martin Kleppmann",
+    "kind": "blog",
+    "url": "https://martin.kleppmann.com/2015/05/11/please-stop-calling-databases-cp-or-ap.html"
+   },
+   {
+    "title": "Spanner, TrueTime and the CAP Theorem",
+    "by": "Eric Brewer (Google)",
+    "kind": "paper",
+    "url": "https://research.google/pubs/spanner-truetime-and-the-cap-theorem/"
+   },
+   {
+    "title": "Linearizability",
+    "by": "Jepsen (Kyle Kingsbury)",
+    "kind": "docs",
+    "url": "https://jepsen.io/consistency/models/linearizable"
+   },
+   {
+    "title": "Consistency Models",
+    "by": "Jepsen (Kyle Kingsbury)",
+    "kind": "docs",
+    "url": "https://jepsen.io/consistency"
+   },
+   {
+    "title": "Brewer's Conjecture and the Feasibility of Consistent, Available, Partition-Tolerant Web Services",
+    "by": "Seth Gilbert and Nancy Lynch",
+    "kind": "paper"
+   },
+   {
+    "title": "Designing Data-Intensive Applications, chapter 9: Consistency and Consensus",
+    "by": "Martin Kleppmann",
+    "kind": "book"
+   }
+  ]
+ },
+ "consensus": {
+  "how": [
+   {
+    "h": "The analogy: a committee with a chair",
+    "p": "Five friends must agree where to meet, but any of them might lose their phone signal. They elect a chair; the chair proposes a place, and once at least three of the five say yes, the decision is final, even if the other two never hear about it right away. Consensus algorithms such as Paxos and Raft do this for computers: they let a group agree on one value despite crashes and delays."
+   },
+   {
+    "h": "Why a majority",
+    "p": "Any two majorities of the same group overlap in at least one member. So a decision backed by a majority cannot be contradicted by another majority, because someone voted in both. With N = 2f + 1 nodes you can lose f of them and still have a majority. Three nodes tolerate one failure, five tolerate two, seven tolerate three. Even-sized clusters add cost without extra tolerance: 4 nodes still tolerate only one failure."
+   },
+   {
+    "h": "Raft step 1: elect a leader",
+    "p": "Time is split into numbered terms. A follower that hears nothing from a leader for a randomised timeout becomes a candidate, adds one to the term and asks for votes. A candidate that gets votes from a majority becomes leader for that term. The randomness makes split votes rare, and a new election simply starts if one happens."
+   },
+   {
+    "h": "Raft step 2: replicate the log",
+    "p": "Clients send commands to the leader. The leader appends each one to its log and sends it to the followers. A log is an ordered list of commands that every node applies in the same order, so all nodes end up with the same state."
+   },
+   {
+    "h": "Raft step 3: commit and apply",
+    "p": "An entry is committed once the leader knows it is stored on a majority of nodes. Only then is it applied to the state and the client told it succeeded. A safety rule on voting makes sure a new leader always holds every committed entry: a node grants its vote only if the candidate's log is at least as up to date as its own."
+   },
+   {
+    "h": "Paxos and the limits of consensus",
+    "p": "Paxos solves the same problem and came first. Leslie Lamport wrote 'Paxos Made Simple' because people found the original paper hard to follow, and Raft was designed explicitly to be easier to understand while matching Paxos in fault tolerance and performance. Consensus has costs: every write waits for a majority, and a single consensus group does not scale writes by adding machines, which is why etcd suits only a few gigabytes of metadata."
+   }
+  ],
+  "worked": {
+   "title": "A write and a leader crash in a five-node cluster",
+   "steps": [
+    "Nodes: L (leader), A, B, C, D. A majority is 3. The cluster tolerates 2 failures.",
+    "A client sends `set x = 1`. L appends it to its log at position 7 and sends it to the four followers.",
+    "A and B store it and reply. Counting L, the entry is on 3 of 5 nodes, which is a majority, so L marks position 7 committed and tells the client success. C and D are slow and have not stored it yet.",
+    "L crashes. The remaining nodes A, B, C and D time out and an election starts. Suppose C becomes a candidate first.",
+    "C asks for votes. A and B see that C's log stops at position 6 while theirs reaches 7, so C's log is less up to date and they refuse. D would vote for C, so C collects C + D = 2 votes, which is less than 3.",
+    "A (or B) can win instead, since its log is complete and it can get votes from A, B, C and D. The new leader has position 7, so `x = 1` is not lost, and it finishes copying it to C and D."
+   ],
+   "result": "A committed entry always survives the loss of the leader because it is on a majority and the voting rule stops an out-of-date node from winning."
+  },
+  "case": {
+   "who": "etcd and Kubernetes",
+   "title": "Cluster state kept in a Raft group",
+   "text": "etcd is a distributed key-value store designed for systems that must never run with split-brain behaviour, even at some cost to availability. All its data sits in a single replication group, so a change only needs to pass through Raft to commit, which keeps latency low and throughput high. The trade-off is that it cannot scale writes by sharding, and it is meant for up to a few gigabytes of data. Its FAQ says a cluster tolerates 1 failure with 3 members, 2 with 5 and 3 with 7, and suggests no more than seven nodes, since larger clusters make writes slower. Kubernetes keeps its configuration and cluster state in etcd, and its API server uses etcd's watch feature to notice changes.",
+   "source": {
+    "title": "Why etcd",
+    "url": "https://etcd.io/docs/latest/learning/why/"
+   }
+  },
+  "choose": [
+   [
+    "Use a ready-made service (etcd, ZooKeeper, Consul)",
+    "Leader election, locks, configuration, service discovery",
+    "Small data only; keep it out of your high-volume data path"
+   ],
+   [
+    "Embed a Raft library in your own system",
+    "You are building a replicated store and must own the log",
+    "Hard to get right; membership changes and snapshots are subtle"
+   ],
+   [
+    "Single database leader with managed failover",
+    "A normal application with one primary database",
+    "Failover can lose writes unless replication is synchronous; two leaders if fencing fails"
+   ],
+   [
+    "Leaderless quorum without consensus",
+    "High availability for data that tolerates conflicts",
+    "No single agreed order; you need conflict resolution"
+   ]
+  ],
+  "mistakes": [
+   "Writing your own consensus algorithm. Use a proven implementation and read its failure-testing results.",
+   "Running an even number of nodes. Four tolerate the same one failure as three, and cost more.",
+   "Spreading a cluster across too few failure zones, so one outage removes the majority.",
+   "Putting high-volume application data in etcd or ZooKeeper. They are built for small, critical metadata.",
+   "Making clusters large for 'extra safety'. More members mean slower writes; five or seven is the usual ceiling.",
+   "Assuming a lock from a consensus service is safe forever. A paused client can wake up after its lease expired, so use fencing tokens."
+  ],
+  "reading": [
+   {
+    "title": "The Raft Consensus Algorithm",
+    "by": "Raft project site, Diego Ongaro and John Ousterhout",
+    "kind": "docs",
+    "url": "https://raft.github.io/"
+   },
+   {
+    "title": "Paxos Made Simple",
+    "by": "Leslie Lamport",
+    "kind": "paper",
+    "url": "https://www.microsoft.com/en-us/research/publication/paxos-made-simple/"
+   },
+   {
+    "title": "Why etcd",
+    "by": "etcd documentation",
+    "kind": "docs",
+    "url": "https://etcd.io/docs/latest/learning/why/"
+   },
+   {
+    "title": "etcd FAQ (cluster size)",
+    "by": "etcd documentation",
+    "kind": "docs",
+    "url": "https://etcd.io/docs/latest/faq/"
+   },
+   {
+    "title": "In Search of an Understandable Consensus Algorithm",
+    "by": "Diego Ongaro and John Ousterhout",
+    "kind": "paper"
+   },
+   {
+    "title": "Designing Data-Intensive Applications, chapter 9: Consistency and Consensus",
+    "by": "Martin Kleppmann",
+    "kind": "book"
+   }
+  ]
+ },
+ "clocks": {
+  "how": [
+   {
+    "h": "The analogy: two watches that never quite agree",
+    "p": "If two friends each wear a watch, one will be a little fast and the other a little slow, and the gap grows over time. Computers are the same: every machine has its own clock, nudged toward the right time by a protocol called NTP, but never perfectly. If you decide which of two events came first by comparing their timestamps, you may be comparing two watches that disagree."
+   },
+   {
+    "h": "Wall clocks versus monotonic clocks",
+    "p": "A wall clock tells the date and time and can be corrected, so it can jump forwards or even backwards. A monotonic clock only moves forward and is meant for measuring how long something took. Use a monotonic clock for durations and timeouts, and a wall clock only when you need a human-readable time."
+   },
+   {
+    "h": "Why last-write-wins can lose data",
+    "p": "In last-write-wins, when two copies of an item disagree, the one with the later timestamp survives. If the machine that did the genuinely newer write has a clock that is behind, its write looks older and is silently thrown away. No error is raised, which makes this bug hard to notice."
+   },
+   {
+    "h": "Lamport timestamps",
+    "p": "A Lamport clock is just a counter. Increase it on every event, attach it to every message you send, and when you receive a message set your counter to the larger of your own and the message's, plus one. If event A could have caused event B, A's number is smaller. The reverse is not true: a smaller number does not prove the first event could have influenced the second, so Lamport clocks cannot tell concurrent events from ordered ones."
+   },
+   {
+    "h": "Vector clocks",
+    "p": "A vector clock keeps one counter per node. By comparing two vectors you can tell whether one event happened before the other or whether they were concurrent, meaning neither knew about the other. Concurrent edits can then be detected and merged instead of one silently winning. The cost is that the vector grows with the number of nodes."
+   },
+   {
+    "h": "Hybrid clocks and bounded uncertainty",
+    "p": "Hybrid logical clocks combine wall time with a counter, so timestamps stay close to real time yet still respect cause and effect. Google's Spanner goes further with TrueTime, an API that exposes how uncertain the clock is, and it waits out that uncertainty before committing. CockroachDB does a software version of this using a configured maximum clock offset, and shuts a node down if its clock drifts beyond it."
+   }
+  ],
+  "worked": {
+   "title": "A lost note edit, then Lamport and vector clocks",
+   "steps": [
+    "Two phones edit the same note. Phone A's clock is 3 seconds behind the real time. Phone B's clock is correct.",
+    "In real time, B saves at 10:00:03 and A saves later at 10:00:05. A stamps its write with its own clock: 10:00:05 minus 3 seconds is 10:00:02. B stamps 10:00:03.",
+    "The server uses last-write-wins and compares 10:00:02 with 10:00:03. B wins, so A's genuinely newer edit is discarded, with no error.",
+    "Lamport clock fix: A's counter is 4 when it sends a message. B's counter is 9. On receiving, B sets its counter to max(9, 4) + 1 = 10. A later message from B carries 11, and when A receives it, A sets max(4, 11) + 1 = 12. The order of related events is preserved.",
+    "Vector clocks: each phone has one slot, written [A, B]. A edits offline and gets [1, 0]. B edits offline and gets [0, 1]. Neither vector is greater than or equal to the other in every slot, so the edits are concurrent.",
+    "The server keeps both versions and asks the app to merge them, for example by combining the text, rather than dropping one. When the merge is saved it gets [1, 1], which is greater than both."
+   ],
+   "result": "A 3-second clock error was enough to make wall-clock last-write-wins drop the newer edit, while vector clocks detect that the edits were concurrent so that they can be merged."
+  },
+  "case": {
+   "who": "Cloudflare",
+   "title": "The 2017 leap second that made time go backwards",
+   "text": "At midnight UTC on New Year's Day 2017 a leap second made clocks step backwards. Cloudflare's DNS software measured how long its upstream resolvers took by subtracting an earlier time from the current time, and assumed the answer could never be negative. After the clock stepped back, some measurements were negative and, through averaging, the smoothed value turned negative too. That value was passed to a random-number function that panics on negative input, so some DNS lookups for sites using CNAME records failed. At peak about 0.2 percent of DNS queries failed, and under 1 percent of HTTP requests hit an error. The root cause, the engineers wrote, was the assumption that time never goes backwards; at the time Go had no monotonic clock, so the fix was to discard negative differences.",
+   "source": {
+    "title": "How and why the leap second affected Cloudflare DNS",
+    "url": "https://blog.cloudflare.com/how-and-why-the-leap-second-affected-cloudflare-dns/"
+   }
+  },
+  "choose": [
+   [
+    "Wall-clock last-write-wins",
+    "Unimportant data where losing an occasional update is fine",
+    "Clock skew can silently discard the newer write"
+   ],
+   [
+    "Lamport timestamps",
+    "You need one consistent order across nodes",
+    "Cannot detect that two events were concurrent"
+   ],
+   [
+    "Vector clocks",
+    "Replicated data where conflicts must be detected and merged",
+    "Metadata grows with the number of nodes; you still need merge logic"
+   ],
+   [
+    "Hybrid logical clocks",
+    "Timestamps that stay close to real time yet respect causality",
+    "Still depend on a bounded clock error between nodes"
+   ],
+   [
+    "Bounded-uncertainty clocks (TrueTime-style)",
+    "Globally consistent transactions",
+    "Needs special hardware or a strict maximum offset; waits add latency"
+   ]
+  ],
+  "mistakes": [
+   "Using wall-clock time to measure durations or timeouts. Use a monotonic clock, since wall time can jump back.",
+   "Ordering important writes by timestamp from different machines. Skew of even a few seconds can reverse the order.",
+   "Assuming NTP makes clocks identical. CockroachDB's article notes NTP typically gives 100 to 250 ms of offset.",
+   "Not handling negative or zero time differences in code, as in the 2017 leap-second incident.",
+   "Using Lamport timestamps and expecting them to reveal concurrent edits. Use vector clocks when you need that.",
+   "Ignoring leap seconds and daylight saving changes in scheduled jobs and time arithmetic. Store UTC and use well-tested libraries."
+  ],
+  "reading": [
+   {
+    "title": "How and why the leap second affected Cloudflare DNS",
+    "by": "Cloudflare engineering blog",
+    "kind": "blog",
+    "url": "https://blog.cloudflare.com/how-and-why-the-leap-second-affected-cloudflare-dns/"
+   },
+   {
+    "title": "Living without atomic clocks",
+    "by": "Cockroach Labs",
+    "kind": "blog",
+    "url": "https://www.cockroachlabs.com/blog/living-without-atomic-clocks/"
+   },
+   {
+    "title": "Spanner: Google's Globally-Distributed Database",
+    "by": "Corbett, Dean and others, Google",
+    "kind": "paper",
+    "url": "https://research.google/pubs/spanner-googles-globally-distributed-database-2/"
+   },
+   {
+    "title": "Time, Clocks, and the Ordering of Events in a Distributed System",
+    "by": "Leslie Lamport",
+    "kind": "paper"
+   },
+   {
+    "title": "Consistency Models",
+    "by": "Jepsen (Kyle Kingsbury)",
+    "kind": "docs",
+    "url": "https://jepsen.io/consistency"
+   },
+   {
+    "title": "Designing Data-Intensive Applications, chapter 8: The Trouble with Distributed Systems",
+    "by": "Martin Kleppmann",
+    "kind": "book"
+   }
+  ]
+ }
+}

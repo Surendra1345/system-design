@@ -1,0 +1,2385 @@
+{
+ "tracks": [
+  {
+   "id": "f",
+   "name": "Fundamentals",
+   "blurb": "Networking, operating systems, numbers and the habits every design starts from."
+  },
+  {
+   "id": "c",
+   "name": "Core building blocks",
+   "blurb": "Load balancers, caches, CDNs, queues and databases."
+  },
+  {
+   "id": "d",
+   "name": "Data and distributed systems",
+   "blurb": "Storage engines, transactions, replication, CAP, consensus and clocks."
+  },
+  {
+   "id": "a",
+   "name": "Architecture and APIs",
+   "blurb": "API styles, gateways, microservices, events and resilience patterns."
+  },
+  {
+   "id": "r",
+   "name": "Reliability and security",
+   "blurb": "Observability, SLOs, chaos engineering, authentication and network security."
+  },
+  {
+   "id": "k",
+   "name": "Cloud and delivery",
+   "blurb": "Containers, Kubernetes, Terraform, serverless, releases and scaling."
+  },
+  {
+   "id": "i",
+   "name": "Data-intensive systems",
+   "blurb": "Streaming with Kafka, batch processing and data warehouses."
+  },
+  {
+   "id": "l",
+   "name": "Low-level design",
+   "blurb": "Classes, SOLID, patterns, concurrency and machine-coding problems."
+  },
+  {
+   "id": "y",
+   "name": "Case studies and interviews",
+   "blurb": "Complete designs from requirements to code, and how to explain them."
+  },
+  {
+   "id": "b",
+   "name": "Build it yourself",
+   "blurb": "From idea to MVP, plus hands-on projects you choose and pace yourself."
+  }
+ ],
+ "lessons": [
+  {
+   "id": "journey",
+   "t": "f",
+   "title": "What happens when you open a URL",
+   "sum": "Follow one request from the browser to the database and back. Every later topic plugs into this path.",
+   "sec": [
+    {
+     "h": "The path",
+     "b": "<p>Every system you will design is a variation of this path. Learn it once and each building block has an obvious place.</p><div class=\"flow\"><span class=\"node\">Browser</span><span class=\"arr\" aria-hidden=\"true\">→</span><span class=\"node\">DNS</span><span class=\"arr\" aria-hidden=\"true\">→</span><span class=\"node\">CDN</span><span class=\"arr\" aria-hidden=\"true\">→</span><span class=\"node\">Load balancer</span><span class=\"arr\" aria-hidden=\"true\">→</span><span class=\"node\">App servers</span><span class=\"arr\" aria-hidden=\"true\">→</span><span class=\"node\">Cache</span><span class=\"arr\" aria-hidden=\"true\">→</span><span class=\"node\">Database</span></div><ol><li><b>DNS</b> turns <code>shop.com</code> into an IP address. Answers are cached by the browser, the OS and your ISP.</li><li><b>TCP and TLS</b> open a connection and encrypt it. This costs 2 to 3 round trips on a first visit.</li><li><b>CDN</b> serves static files (images, JS) from a server near the user.</li><li><b>Load balancer</b> picks one of many identical app servers.</li><li><b>App server</b> runs your code. It should hold no user state, so any server can handle any request.</li><li><b>Cache and database</b> hold the data. The cache is fast and temporary, the database is the source of truth.</li></ol>"
+    },
+    {
+     "h": "Why this matters",
+     "b": "<p>When something is slow or broken, you debug by walking this path. When someone says \"add a cache\" or \"add a queue\", you ask where on this path it goes and what it changes.</p><p class=\"callout\">Habit to build: for any feature, say out loud which of these steps it touches.</p>"
+    }
+   ],
+   "breaks": [
+    "DNS records have a TTL. After a failover, some users keep hitting the old IP until their cached answer expires.",
+    "A TLS certificate expires at a fixed minute and takes the whole site down. Automate renewal and alert 30 days early.",
+    "A slow client retries and the server sees the same request twice. Writes need to be safe to repeat.",
+    "After a deploy the cache is empty, so every request goes to the database at once."
+   ],
+   "quiz": {
+    "q": "A returning visitor opens shop.com again. Which step can the browser skip without asking any server, because the answer is stored locally?",
+    "o": [
+     "Opening a connection, because connections are kept open forever",
+     "The DNS lookup, because the IP address was cached until its TTL ends",
+     "Logging in, because the server remembers every browser",
+     "The HTTP request, because pages are always cached for a year"
+    ],
+    "a": 1,
+    "w": "DNS answers are cached by the browser and the operating system for the length of their TTL. Connections do close, and the server still has to answer the request."
+   },
+   "projects": false
+  },
+  {
+   "id": "net",
+   "t": "f",
+   "title": "Networking: TCP, UDP, HTTP and TLS",
+   "sum": "How data actually moves between machines, and why connection setup is expensive.",
+   "sec": [
+    {
+     "h": "TCP and UDP",
+     "b": "<p>TCP gives you a reliable, ordered stream. UDP just sends packets and leaves reliability to you.</p><div class=\"flow\"><span class=\"node\">SYN</span><span class=\"arr\" aria-hidden=\"true\">→</span><span class=\"node\">SYN-ACK</span><span class=\"arr\" aria-hidden=\"true\">→</span><span class=\"node\">ACK</span><span class=\"arr\" aria-hidden=\"true\">→</span><span class=\"node\">Data flows</span></div><div class=\"tw\"><table><thead><tr><th></th><th>TCP</th><th>UDP</th></tr></thead><tbody><tr><td>Setup</td><td>Three-way handshake</td><td>None</td></tr><tr><td>Delivery</td><td>Reliable, ordered, retransmitted</td><td>Best effort, may drop or reorder</td></tr><tr><td>Speed</td><td>Slower start, congestion control</td><td>Low latency</td></tr><tr><td>Used for</td><td>Web, databases, email, file transfer</td><td>DNS, video calls, games, QUIC</td></tr></tbody></table></div>"
+    },
+    {
+     "h": "HTTP and TLS",
+     "b": "<ul><li><b>HTTP/1.1</b> reuses a connection (keep-alive) but handles one request at a time per connection.</li><li><b>HTTP/2</b> multiplexes many requests on one connection.</li><li><b>HTTP/3</b> runs over QUIC on UDP, which avoids head-of-line blocking at the transport layer.</li><li><b>TLS</b> encrypts traffic and proves the server's identity with a certificate. TLS 1.3 needs one extra round trip on a new connection.</li></ul><p class=\"callout\">A cold connection costs several round trips before the first byte of data. Reusing connections is one of the cheapest speed-ups there is.</p>"
+    }
+   ],
+   "breaks": [
+    "Opening a new connection per request exhausts ports and wastes round trips. Use pooling and keep-alive.",
+    "One slow request blocks others on an HTTP/1.1 connection (head-of-line blocking).",
+    "Expired certificates take sites down at a fixed minute. Automate renewal.",
+    "Long timeouts hide dead connections. Set sensible connect and read timeouts.",
+    "DNS lookups add latency to every cold start. Cache and reuse."
+   ],
+   "quiz": {
+    "q": "A live video call loses a packet. Why is UDP usually a better fit than TCP here?",
+    "o": [
+     "UDP encrypts the stream by default, which TCP is unable to do",
+     "UDP guarantees every packet arrives in the right order",
+     "UDP keeps working when the Wi-Fi connection is down",
+     "A late packet is useless, so dropping it beats stalling everything to resend it"
+    ],
+    "a": 3,
+    "w": "TCP retransmits and delivers in order, so one lost packet delays everything behind it. A call would rather skip a moment than wait."
+   },
+   "projects": false
+  },
+  {
+   "id": "os",
+   "t": "f",
+   "title": "Processes, threads and storage basics",
+   "sum": "How a machine runs your code and keeps your data, which explains most performance surprises.",
+   "sec": [
+    {
+     "h": "Processes and threads",
+     "b": "<ul><li>A <b>process</b> has its own memory. A crash in one does not corrupt another.</li><li><b>Threads</b> inside a process share memory, which is fast but creates race conditions.</li><li><b>Context switching</b> between threads costs time, so thousands of busy threads are slower than a few.</li><li>An <b>event loop</b> (Node.js, async I/O) handles many connections on few threads by never blocking.</li></ul>"
+    },
+    {
+     "h": "Storage fundamentals",
+     "b": "<div class=\"tw\"><table><thead><tr><th>Type</th><th>What it is</th><th>Examples</th></tr></thead><tbody><tr><td>Block</td><td>Raw disk blocks you format yourself</td><td>Local SSD, cloud volumes</td></tr><tr><td>File</td><td>Shared directory tree</td><td>NFS, EFS</td></tr><tr><td>Object</td><td>Whole objects by key over HTTP, cheap and durable</td><td>S3, Cloud Storage</td></tr></tbody></table></div><p><b>RAID</b> combines disks: RAID 0 stripes for speed with no safety, RAID 1 mirrors, RAID 5 and 6 add parity to survive one or two disk failures, RAID 10 mirrors and stripes. The OS keeps hot file data in a <b>page cache</b> in memory, and data is only safe on disk after <code>fsync</code>.</p>"
+    }
+   ],
+   "breaks": [
+    "Thread-per-request designs run out of threads when a dependency is slow.",
+    "Skipping fsync is fast until a power cut loses acknowledged data.",
+    "RAID is not a backup. It does not protect against deletion or corruption.",
+    "Running out of file descriptors or inodes looks like random failures.",
+    "A full disk breaks logging, databases and deploys all at once."
+   ],
+   "quiz": {
+    "q": "Two threads in one process update a shared counter and some updates vanish. Why cannot two separate processes damage each other's memory this way?",
+    "o": [
+     "Each process has its own memory, while threads in one process share it",
+     "Processes run on different CPUs, so they never overlap in time",
+     "The operating system locks a variable whenever it changes",
+     "Processes run more slowly, which hides the timing problem"
+    ],
+    "a": 0,
+    "w": "Threads share one address space, so unsynchronised writes can interleave. Processes are isolated from each other by the operating system."
+   },
+   "projects": false
+  },
+  {
+   "id": "numbers",
+   "t": "f",
+   "title": "Latency, throughput and availability",
+   "sum": "The few numbers worth memorising, and why averages lie.",
+   "sec": [
+    {
+     "h": "Latency numbers to know",
+     "b": "<div class=\"tw\"><table><thead><tr><th>Operation</th><th>Rough time</th></tr></thead><tbody><tr><td>Read from memory (RAM)</td><td>100 ns</td></tr><tr><td>Read from SSD</td><td>100 µs</td></tr><tr><td>Round trip inside one data centre</td><td>0.5 ms</td></tr><tr><td>Round trip across a continent</td><td>100 to 150 ms</td></tr><tr><td>Read 1 MB sequentially from SSD</td><td>1 ms</td></tr></tbody></table></div><p>Memory is about 1,000 times faster than SSD, and a network hop is about 5,000 times slower than memory. That gap is why caches exist and why you avoid chatty services.</p>"
+    },
+    {
+     "h": "Availability in nines",
+     "b": "<div class=\"tw\"><table><thead><tr><th>Target</th><th>Downtime per year</th><th>Per month</th></tr></thead><tbody><tr><td>99.9% (three nines)</td><td>8.8 hours</td><td>43 minutes</td></tr><tr><td>99.99% (four nines)</td><td>52 minutes</td><td>4.3 minutes</td></tr><tr><td>99.999% (five nines)</td><td>5 minutes</td><td>26 seconds</td></tr></tbody></table></div><p>Components in a chain multiply. Three services in series at 99.9% each give 0.999 × 0.999 × 0.999 ≈ 99.7%. Redundancy (components in parallel) raises availability, dependencies in series lower it.</p>"
+    },
+    {
+     "h": "Percentiles, not averages",
+     "b": "<p>p50 is the typical request. p99 is the slowest 1 in 100. Users feel the tail. If one page makes 100 backend calls and each has a 1% chance of being slow, then 1 − 0.99<sup>100</sup> ≈ 63% of page loads hit at least one slow call.</p><p class=\"callout\">Always ask for p95 and p99 targets, never just \"average latency\".</p>"
+    }
+   ],
+   "breaks": [
+    "An average of 80 ms hides a p99 of 4 seconds that is driving users away.",
+    "Adding a dependency quietly lowers your overall availability.",
+    "Fan-out makes tail latency dominate: the more calls per request, the more often you hit the slow one."
+   ],
+   "quiz": {
+    "q": "A request passes through three services in a chain, each 99.9% available. About what is the overall availability?",
+    "o": [
+     "99.9%, since all three services have the same target",
+     "About 99.7%, because the availabilities multiply",
+     "99.99%, because three checks make failure less likely",
+     "About 97%, because each service loses a full percent"
+    ],
+    "a": 1,
+    "w": "0.999 x 0.999 x 0.999 is about 0.997. Every dependency in series lowers the total."
+   },
+   "projects": false
+  },
+  {
+   "id": "estimate",
+   "t": "f",
+   "title": "Back-of-the-envelope estimation",
+   "sum": "Turn \"10 million users\" into requests per second, storage and bandwidth in two minutes.",
+   "sec": [
+    {
+     "h": "The method",
+     "b": "<ol><li>Start from daily active users (DAU) and actions per user per day.</li><li>Divide by 86,400 seconds for average requests per second (rps). Round to 100,000 seconds to do it in your head.</li><li>Multiply by 2 to 3 for peak.</li><li>Multiply writes by item size, days and replication factor for storage.</li></ol><pre class=\"code\"><code>DAU                = 10,000,000\nactions / user/day = 10\nrequests / day     = 100,000,000\naverage rps        = 100M / 86,400  ~= 1,150\npeak rps (x3)      ~= 3,500\n\nnew posts / day    = 1,000,000 at 1 KB each\nstorage / year     = 1M x 1 KB x 365 ~= 365 GB\nwith 3 replicas    ~= 1.1 TB</code></pre>"
+    },
+    {
+     "h": "Why it matters",
+     "b": "<p>The numbers choose the architecture. 1,000 rps fits on one database. 100,000 rps needs caching and sharding. 1 TB fits on one disk. 1 PB does not. You are not after exact figures, only the order of magnitude.</p>"
+    }
+   ],
+   "breaks": [
+    "Designing for the average and falling over at peak, which is often 3 to 10 times higher.",
+    "Forgetting replication, indexes and backups, so real storage is 3 to 5 times what you computed.",
+    "Ignoring the read to write ratio. A 100:1 read-heavy system wants caches, a write-heavy one wants queues and partitioning."
+   ],
+   "quiz": {
+    "q": "A service receives 100 million requests a day. About how many requests per second is that on average?",
+    "o": [
+     "About 1,200",
+     "About 100, dividing by a million",
+     "About 12,000",
+     "About 120,000"
+    ],
+    "a": 0,
+    "w": "A day has 86,400 seconds, and 100,000,000 / 86,400 is about 1,157. Peak is usually two to three times higher."
+   },
+   "projects": false
+  },
+  {
+   "id": "req",
+   "t": "f",
+   "title": "Requirements and trade-offs",
+   "sum": "Clarify what to build before drawing boxes, and learn the choices that no design avoids.",
+   "sec": [
+    {
+     "h": "Ask before you design",
+     "b": "<ul><li><b>Functional:</b> what must the product do? What is explicitly out of scope?</li><li><b>Scale:</b> users, rps, data size, growth.</li><li><b>Latency:</b> how fast must key actions feel?</li><li><b>Availability vs correctness:</b> is a wrong answer worse than no answer?</li><li><b>Consistency:</b> must everyone see the same data instantly?</li></ul>"
+    },
+    {
+     "h": "CAP and PACELC in plain words",
+     "b": "<p>When the network splits, a distributed system must choose: stay <b>consistent</b> (refuse some requests) or stay <b>available</b> (answer, possibly with stale data). PACELC adds that even with no failure you trade <b>latency</b> against <b>consistency</b>.</p><div class=\"tw\"><table><thead><tr><th>Data</th><th>Choose</th><th>Because</th></tr></thead><tbody><tr><td>Bank balance</td><td>Consistency</td><td>A wrong balance is worse than a short error</td></tr><tr><td>Like counter</td><td>Availability</td><td>Off by a few for a second is harmless</td></tr><tr><td>Shopping cart</td><td>Availability</td><td>Never block someone from adding to cart</td></tr></tbody></table></div>"
+    }
+   ],
+   "breaks": [
+    "Designing for a billion users when you have a thousand. Cost and complexity arrive first, scale later.",
+    "Leaving \"consistent\" undefined. Ask which data needs it, since most does not.",
+    "Missing a hidden requirement such as audit logs, data residency or deletion rules."
+   ],
+   "quiz": {
+    "q": "You are designing a post's like counter and a bank balance. Which pairing of consistency needs is sensible?",
+    "o": [
+     "Both need strong consistency, because wrong numbers lose trust",
+     "Both can be eventually consistent, since users refresh anyway",
+     "The counter can be eventually consistent, the balance needs strong consistency",
+     "The counter needs strong consistency, the balance can be eventual"
+    ],
+    "a": 2,
+    "w": "A like count that is briefly off is harmless, so favour availability and speed. A wrong balance is worse than a short error."
+   },
+   "projects": false
+  },
+  {
+   "id": "lb",
+   "t": "c",
+   "title": "Load balancing",
+   "sum": "Spread traffic across servers, detect failures and deploy without downtime.",
+   "sec": [
+    {
+     "h": "What it does",
+     "b": "<div class=\"flow\"><span class=\"node\">Clients</span><span class=\"arr\" aria-hidden=\"true\">→</span><span class=\"node\">Load balancer</span><span class=\"arr\" aria-hidden=\"true\">→</span><span class=\"node\">Server A</span><span class=\"arr\" aria-hidden=\"true\">→</span><span class=\"node\">Server B</span><span class=\"arr\" aria-hidden=\"true\">→</span><span class=\"node\">Server C</span></div><p>A load balancer (LB) is the front door. It forwards each request to a healthy server, which lets you add servers (scale out) and replace them without users noticing.</p><div class=\"tw\"><table><thead><tr><th>Type</th><th>Works on</th><th>Use for</th></tr></thead><tbody><tr><td>L4</td><td>IP and port</td><td>Raw speed, any TCP traffic</td></tr><tr><td>L7</td><td>HTTP: paths, headers, cookies</td><td>Routing /api to one pool and /img to another</td></tr></tbody></table></div>"
+    },
+    {
+     "h": "Choosing a server",
+     "b": "<ul><li><b>Round robin:</b> simple, fine when requests cost about the same.</li><li><b>Least connections:</b> better when requests vary in duration.</li><li><b>Consistent hashing:</b> same key goes to the same server, ideal for caches.</li><li><b>Weighted:</b> bigger servers get more.</li></ul><p>The LB sends periodic <b>health checks</b> and stops routing to servers that fail them.</p>"
+    },
+    {
+     "h": "DNS balancing, auto scaling and failover",
+     "b": "<ul><li><b>DNS load balancing:</b> return several IPs or route by region. Simple, but cached answers react slowly to failures.</li><li><b>Auto scaling:</b> add servers when load rises and remove them when it falls. Requires stateless servers and a good health check.</li><li><b>Multi-zone and multi-region:</b> spread servers across zones so one data centre failing does not take you down.</li></ul>"
+    }
+   ],
+   "breaks": [
+    "The LB is a single point of failure. Run a pair, or use a managed cloud LB.",
+    "Sticky sessions pin a user to one server. Load becomes uneven and the session is lost if that server dies. Keep servers stateless and store sessions in Redis.",
+    "A recovering server gets full traffic at once and falls over again. Use slow start.",
+    "Deploys cut in-flight requests. Use connection draining so servers finish current work first.",
+    "A health check that only returns \"200\" can pass while the database is down. Check real dependencies, but not so deeply that one slow call removes every server."
+   ],
+   "quiz": {
+    "q": "Why should app servers behind a load balancer keep no user state on their own disk or memory?",
+    "o": [
+     "It lets the load balancer skip health checks and send traffic anywhere",
+     "It makes every request run faster on the server",
+     "It removes the need for a database",
+     "Any server can handle any request, so servers can be added or lost freely"
+    ],
+    "a": 3,
+    "w": "Stateless servers are interchangeable. That is what lets the load balancer spread traffic and survive a failure."
+   },
+   "projects": false
+  },
+  {
+   "id": "cache",
+   "t": "c",
+   "title": "Caching",
+   "sum": "The cheapest way to make a system faster, and the source of its trickiest bugs.",
+   "sec": [
+    {
+     "h": "Patterns",
+     "b": "<div class=\"flow\"><span class=\"node\">App</span><span class=\"arr\" aria-hidden=\"true\">→</span><span class=\"node\">Cache (Redis)</span><span class=\"arr\" aria-hidden=\"true\">→</span><span class=\"node\">Database</span></div><div class=\"tw\"><table><thead><tr><th>Pattern</th><th>How</th><th>Trade-off</th></tr></thead><tbody><tr><td>Cache-aside</td><td>App reads cache, on miss reads DB and fills cache</td><td>Simple. First read is slow, stale data possible</td></tr><tr><td>Write-through</td><td>Write cache and DB together</td><td>Always fresh, slower writes</td></tr><tr><td>Write-back</td><td>Write cache, flush to DB later</td><td>Fast writes, data loss if cache dies</td></tr></tbody></table></div><pre class=\"code\"><code>def get_user(user_id):\n    key = \"user:\" + str(user_id)\n    data = cache.get(key)\n    if data is not None:\n        return data                     # hit\n    data = db.query_user(user_id)       # miss\n    if data is not None:\n        cache.set(key, data, ttl=300)   # 5 minutes\n    return data\n\ndef update_user(user_id, fields):\n    db.update_user(user_id, fields)\n    cache.delete(\"user:\" + str(user_id))   # invalidate on write</code></pre>"
+    },
+    {
+     "h": "Eviction and expiry",
+     "b": "<p>Memory is finite. <b>LRU</b> evicts the least recently used item, <b>LFU</b> the least frequently used. A <b>TTL</b> bounds how stale an item can get. Choose the TTL by asking how wrong the data may be and for how long.</p>"
+    },
+    {
+     "h": "Redis or Memcached?",
+     "b": "<div class=\"tw\"><table><thead><tr><th>Feature</th><th>Redis</th><th>Memcached</th></tr></thead><tbody><tr><td>Data types</td><td>Strings, lists, sets, sorted sets, hashes, streams</td><td>Strings only</td></tr><tr><td>Persistence</td><td>Snapshots and append-only log, optional</td><td>None</td></tr><tr><td>Replication</td><td>Primary and replicas built in</td><td>Not built in, shard on the client</td></tr><tr><td>Atomic operations</td><td>MULTI/EXEC, Lua scripts, INCR</td><td>Simple increment</td></tr><tr><td>Pub/sub</td><td>Yes</td><td>No</td></tr><tr><td>Good for</td><td>Sessions, leaderboards, rate limits, timelines</td><td>Plain object caching with high churn</td></tr></tbody></table></div><p>Both answer in under a millisecond from memory. Choose Redis when you need data structures or persistence, Memcached for the simplest possible cache.</p>"
+    }
+   ],
+   "breaks": [
+    "<b>Cache stampede:</b> a popular key expires and thousands of requests hit the database together. Use a lock or single-flight per key, and add random jitter to TTLs.",
+    "<b>Stale data:</b> the DB changed but the cache did not. Invalidate on write and keep TTLs short for important data.",
+    "<b>Cache penetration:</b> requests for keys that do not exist always miss. Cache the \"not found\" result briefly, or use a Bloom filter.",
+    "<b>Hot key:</b> one key gets most of the traffic and overloads one cache node. Replicate it or add a local in-process cache.",
+    "<b>Cold start:</b> an empty cache after a restart crushes the database. Warm it up or ramp traffic gradually."
+   ],
+   "quiz": {
+    "q": "A very popular cache entry expires and thousands of requests reach the database at once. What is this, and what helps?",
+    "o": [
+     "Cache penetration; a Bloom filter for missing keys helps",
+     "A hot key; replicating the entry to more nodes helps",
+     "A write-back failure; flushing the cache more often helps",
+     "A cache stampede; single-flight locking and TTL jitter help"
+    ],
+    "a": 3,
+    "w": "Many concurrent misses on one expired key is a stampede. Penetration is requests for keys that do not exist, and a hot key is steady heavy traffic on one key."
+   },
+   "projects": false
+  },
+  {
+   "id": "cdn",
+   "t": "c",
+   "title": "CDN and object storage",
+   "sum": "Serve static files from the edge and keep big files out of your app servers.",
+   "sec": [
+    {
+     "h": "CDN",
+     "b": "<p>A content delivery network caches copies of files in many cities. Users download from a nearby edge, which cuts latency and takes load off your servers.</p><div class=\"flow\"><span class=\"node\">User</span><span class=\"arr\" aria-hidden=\"true\">→</span><span class=\"node\">Nearest edge</span><span class=\"arr\" aria-hidden=\"true\">→</span><span class=\"node\">Origin (if miss)</span></div>"
+    },
+    {
+     "h": "Object storage",
+     "b": "<p>Services such as S3 store files cheaply and durably. For uploads, the app returns a short-lived <b>pre-signed URL</b> and the client uploads straight to storage, so large files never pass through your servers. Big files use multipart upload with resume.</p><div class=\"flow\"><span class=\"node\">Client</span><span class=\"arr\" aria-hidden=\"true\">→</span><span class=\"node\">App: get upload URL</span><span class=\"arr\" aria-hidden=\"true\">→</span><span class=\"node\">Client uploads to S3</span><span class=\"arr\" aria-hidden=\"true\">→</span><span class=\"node\">S3 event</span><span class=\"arr\" aria-hidden=\"true\">→</span><span class=\"node\">Worker: resize</span></div>"
+    }
+   ],
+   "breaks": [
+    "Users see an old JavaScript file after a deploy. Put a content hash in file names (<code>app.3fa91c.js</code>) so each release has a new URL.",
+    "Purging the CDN everywhere takes time and can be rate limited. Prefer versioned URLs over purges.",
+    "Private content cached at the edge and served to the wrong person. Mark it <code>private</code> or use signed URLs.",
+    "Uploading a 2 GB file through the app server ties up connections. Use pre-signed direct upload.",
+    "Never trust file names or types from the client. Validate and scan uploads."
+   ],
+   "quiz": {
+    "q": "You ship a new JavaScript file but users still get the old one from the CDN. What is the cleanest fix that needs no purge?",
+    "o": [
+     "Set the cache lifetime to a few seconds for every file",
+     "Serve the file from the app server and skip the CDN",
+     "Put a content hash in the file name, so each release has a new URL",
+     "Ask users to clear their browser cache after each release"
+    ],
+    "a": 2,
+    "w": "A new hash is a new URL, so nothing stale is ever requested. Short lifetimes throw away the benefit of the CDN."
+   },
+   "projects": false
+  },
+  {
+   "id": "queue",
+   "t": "c",
+   "title": "Queues and asynchronous work",
+   "sum": "Take slow work off the request path and absorb traffic spikes.",
+   "sec": [
+    {
+     "h": "Why",
+     "b": "<div class=\"flow\"><span class=\"node\">API</span><span class=\"arr\" aria-hidden=\"true\">→</span><span class=\"node\">Queue</span><span class=\"arr\" aria-hidden=\"true\">→</span><span class=\"node\">Workers</span><span class=\"arr\" aria-hidden=\"true\">→</span><span class=\"node\">Email, resize, report</span></div><p>The API stores the job and answers \"accepted\" immediately. Workers process it at their own pace. This decouples producers from consumers, smooths spikes and lets work retry.</p><div class=\"tw\"><table><thead><tr><th>Tool</th><th>Style</th><th>Pick when</th></tr></thead><tbody><tr><td>SQS, RabbitMQ</td><td>Task queue</td><td>Each job handled once by one worker</td></tr><tr><td>Kafka</td><td>Replayable log</td><td>Many consumers, ordering, event history</td></tr></tbody></table></div>"
+    },
+    {
+     "h": "Delivery guarantees",
+     "b": "<p>Real systems give <b>at-least-once</b> delivery: a message may arrive twice. So consumers must be <b>idempotent</b>, meaning processing twice has the same effect as once.</p><pre class=\"code\"><code>def handle(msg):\n    if already_processed(msg.id):      # idempotency check\n        return\n    charge_card(msg.order_id)\n    mark_processed(msg.id)             # same transaction as the charge</code></pre>"
+    },
+    {
+     "h": "Choosing a broker",
+     "b": "<div class=\"tw\"><table><thead><tr><th>System</th><th>Model</th><th>Ordering</th><th>Pick when</th></tr></thead><tbody><tr><td>Kafka</td><td>Replayable log</td><td>Per partition</td><td>High volume, many consumers, event history, stream processing</td></tr><tr><td>RabbitMQ</td><td>Broker with queues and routing</td><td>Per queue</td><td>Task queues, flexible routing, RPC-style messaging</td></tr><tr><td>SQS and SNS</td><td>Managed queue and fan-out</td><td>Optional FIFO</td><td>Serverless apps and simple cloud-native queues</td></tr><tr><td>Redis Streams</td><td>Lightweight log</td><td>Per stream</td><td>Small real-time feeds when you already run Redis</td></tr><tr><td>Google Pub/Sub</td><td>Managed topic and subscription</td><td>Optional ordering keys</td><td>Large-scale ingestion on Google Cloud</td></tr></tbody></table></div>"
+    }
+   ],
+   "breaks": [
+    "Duplicates: the worker crashes after the work but before the acknowledgement. Make handlers idempotent.",
+    "A poison message fails forever and blocks the queue. Cap retries and move it to a dead-letter queue.",
+    "Consumers fall behind and lag grows silently. Alert on queue depth and age.",
+    "Ordering is only guaranteed within a partition. Partition by the key that needs order, such as user_id.",
+    "An unbounded queue hides overload until memory runs out. Apply backpressure."
+   ],
+   "quiz": {
+    "q": "A queue delivers each message at least once. What property must a consumer have?",
+    "o": [
+     "Idempotent: handling a message twice has the same effect as once",
+     "Synchronous: it must finish before the next message arrives",
+     "Stateless: it must remember nothing between messages",
+     "Ordered: it must process messages in the order they were sent"
+    ],
+    "a": 0,
+    "w": "A message can arrive twice, for example when a worker crashes before acknowledging. The handler must tolerate that."
+   },
+   "projects": false
+  },
+  {
+   "id": "db",
+   "t": "c",
+   "title": "Choosing a database",
+   "sum": "SQL or NoSQL is the wrong question. Ask about your data and access patterns.",
+   "sec": [
+    {
+     "h": "Pick by access pattern",
+     "b": "<div class=\"tw\"><table><thead><tr><th>Kind</th><th>Examples</th><th>Good for</th></tr></thead><tbody><tr><td>Relational (SQL)</td><td>PostgreSQL, MySQL</td><td>Related data, transactions, ad hoc queries</td></tr><tr><td>Key-value</td><td>Redis, DynamoDB</td><td>Lookups by key at huge scale and speed</td></tr><tr><td>Document</td><td>MongoDB</td><td>Nested records read as a unit</td></tr><tr><td>Wide-column</td><td>Cassandra</td><td>Massive writes, time series</td></tr><tr><td>Search</td><td>Elasticsearch</td><td>Full-text search, filtering</td></tr><tr><td>Graph</td><td>Neo4j</td><td>Deep relationship queries</td></tr></tbody></table></div><p><b>ACID</b> (atomic, consistent, isolated, durable) gives safe transactions. <b>BASE</b> systems trade some of that for scale and availability.</p><p class=\"callout\">Default to PostgreSQL. Move a specific workload elsewhere only when you can name the limit you hit.</p>"
+    },
+    {
+     "h": "Typical split",
+     "b": "<p>Most real products use one relational database as the source of truth, Redis for cache and sessions, object storage for files and a search engine if search matters. Each store does one job.</p>"
+    }
+   ],
+   "breaks": [
+    "Choosing a document store for clearly relational data, then rebuilding joins in application code.",
+    "A partition key that sends most writes to one node (a hot partition) while the rest sit idle.",
+    "Adding a column to a huge table locks it. Use online migrations.",
+    "The N+1 query bug: one query for a list, then one query per item. Load related rows in one query.",
+    "Using the database as a queue or a cache, then wondering why it is slow."
+   ],
+   "quiz": {
+    "q": "An app needs orders, customers and payments, with transactions across them. What is the sensible default store?",
+    "o": [
+     "A key-value store, because lookups are fast",
+     "A relational database such as PostgreSQL",
+     "A graph database, because the data is related",
+     "A search engine, because users will filter orders"
+    ],
+    "a": 1,
+    "w": "Related data with transactional needs is what relational databases are built for. Move a workload elsewhere only when you can name the limit you hit."
+   },
+   "projects": false
+  },
+  {
+   "id": "shard",
+   "t": "d",
+   "title": "Indexing and sharding",
+   "sum": "Make queries fast on one machine, then spread data across many.",
+   "sec": [
+    {
+     "h": "Indexes",
+     "b": "<p>An index is a sorted lookup structure (usually a B-tree) so the database avoids scanning the whole table. It speeds reads and slows writes, since every write updates each index.</p><ul><li>Index columns you filter, join and sort on.</li><li>In a composite index, column order matters: <code>(user_id, created_at)</code> serves \"this user's recent items\" but not \"all items from today\".</li><li>Check with <code>EXPLAIN</code> that the index is used.</li></ul>"
+    },
+    {
+     "h": "Sharding",
+     "b": "<p>When one database cannot hold the data or take the writes, split rows across shards by a <b>shard key</b>.</p><div class=\"tw\"><table><thead><tr><th>Strategy</th><th>Idea</th><th>Weakness</th></tr></thead><tbody><tr><td>Hash</td><td>hash(key) mod N</td><td>Resharding moves most data</td></tr><tr><td>Range</td><td>Key ranges per shard</td><td>Hot ranges (newest data)</td></tr><tr><td>Directory</td><td>Lookup table says where</td><td>Lookup is a new dependency</td></tr></tbody></table></div><p><b>Consistent hashing</b> places shards and keys on a ring, so adding a shard moves only about 1/N of the keys.</p>"
+    }
+   ],
+   "breaks": [
+    "A hot shard: one celebrity or tenant produces most traffic. Split that key further or give it its own shard.",
+    "Cross-shard joins and transactions are slow or impossible. Choose the key so common queries stay on one shard.",
+    "Resharding live data without downtime needs double-writes and careful backfill. Plan it before you need it.",
+    "Auto-increment IDs collide across shards. Use UUIDs or Snowflake-style IDs.",
+    "A low-cardinality shard key (such as country) cannot spread load evenly."
+   ],
+   "quiz": {
+    "q": "Why is consistent hashing better than hash(key) mod N when you add a shard?",
+    "o": [
+     "Each key's hash is faster to compute",
+     "Only about 1/N of the keys move, instead of nearly all of them",
+     "Every shard ends up with exactly the same number of keys",
+     "It removes the need to replicate shards"
+    ],
+    "a": 1,
+    "w": "With mod N, changing N changes the home of almost every key. On a ring a new node only takes over a slice."
+   },
+   "projects": false
+  },
+  {
+   "id": "search",
+   "t": "d",
+   "title": "Search and autocomplete",
+   "sum": "Find documents by their words, rank the best ones first and suggest completions as the user types.",
+   "sec": [
+    {
+     "h": "The inverted index",
+     "b": "<p>A database that scans every row for the words 'red running shoes' gets slower with every product you add. A search engine does the work ahead of time. It builds an <b>inverted index</b>: for each word, a list of the documents that contain it. A query looks up each word, intersects the lists, and ranks what is left.</p><div class=\"flow\"><span class=\"node\">Documents</span><span class=\"arr\" aria-hidden=\"true\">→</span><span class=\"node\">Analyzer: split, lowercase, stem</span><span class=\"arr\" aria-hidden=\"true\">→</span><span class=\"node\">Inverted index</span><span class=\"arr\" aria-hidden=\"true\">→</span><span class=\"node\">Query</span><span class=\"arr\" aria-hidden=\"true\">→</span><span class=\"node\">Ranked results</span></div>"
+    },
+    {
+     "h": "Ranking and filters",
+     "b": "<p>Matching is not enough, the best match must come first. <b>BM25</b>, the default in Lucene, Elasticsearch and OpenSearch, scores a document higher when it contains rare query words many times, and discounts very long documents. Filters (price, brand, in stock) and facets (counts per brand) run on separate structures, so they stay fast. Business signals such as sales or freshness are added on top.</p>"
+    },
+    {
+     "h": "Autocomplete",
+     "b": "<p>Suggestions must appear in a few dozen milliseconds, so they use their own structure: a <b>trie</b> or an index of <b>edge n-grams</b> that maps a typed prefix straight to the most popular completions. Keep the top few completions precomputed for common prefixes, cache them, and wait a moment after the last keystroke (debounce) before sending the request.</p>"
+    },
+    {
+     "h": "Keeping the index fresh",
+     "b": "<p>The search index is a <b>copy</b> of your data, never the source of truth. Changes reach it through a queue or a change feed, so it lags the database by a moment. Plan for that lag, and for a full rebuild into a new index followed by an atomic switch when the analyzer or the fields change.</p><div class=\"flow\"><span class=\"node\">Database</span><span class=\"arr\" aria-hidden=\"true\">→</span><span class=\"node\">Change feed / queue</span><span class=\"arr\" aria-hidden=\"true\">→</span><span class=\"node\">Indexer</span><span class=\"arr\" aria-hidden=\"true\">→</span><span class=\"node\">Search index</span></div>"
+    }
+   ],
+   "breaks": [
+    "The index is behind the database, so a new product is missing from search for a few seconds. Show it on its own page straight away, and accept that search is eventually consistent.",
+    "Deep pagination (page 5,000) makes every shard sort and discard thousands of hits. Limit the depth, or use a cursor such as search_after.",
+    "The query is analyzed differently from the documents (case, stemming, accents), so obvious matches never hit. Use the same analyzer on both sides.",
+    "A very common word or one popular shard becomes a hot spot. Spread documents by id, not by category, and cache the heaviest queries.",
+    "Autocomplete sends a request on every keystroke. Debounce, cancel the old request, and cache the answers for common prefixes.",
+    "Using the search engine as the only database. It is not built for transactions or strict consistency, so rebuild it from the real store when needed."
+   ],
+   "quiz": {
+    "q": "Why is a word search on an inverted index fast, even across millions of documents?",
+    "o": [
+     "The word-to-documents lists are built ahead of time, so a query combines short lists",
+     "It scans every document in parallel, using many threads on many machines",
+     "It keeps the entire database in memory",
+     "It only searches the newest documents"
+    ],
+    "a": 0,
+    "w": "The expensive work of splitting text and listing which documents hold each word happens at index time, not at query time."
+   },
+   "projects": false
+  },
+  {
+   "id": "repl",
+   "t": "d",
+   "title": "Replication and consistency",
+   "sum": "Copy data for safety and read scale, and understand what you give up.",
+   "sec": [
+    {
+     "h": "Models",
+     "b": "<ul><li><b>Leader and followers:</b> writes go to the leader, reads can go to followers. Most common.</li><li><b>Multi-leader:</b> several regions accept writes. Conflicts must be resolved.</li><li><b>Leaderless (quorum):</b> with N replicas, write to W and read from R. If R + W > N you read the latest write.</li></ul><p><b>Synchronous</b> replication waits for followers and never loses data but is slower. <b>Asynchronous</b> is fast but followers lag.</p><div class=\"flow\"><span class=\"node\">Writes</span><span class=\"arr\" aria-hidden=\"true\">→</span><span class=\"node\">Leader</span><span class=\"arr\" aria-hidden=\"true\">→</span><span class=\"node\">Follower 1</span><span class=\"arr\" aria-hidden=\"true\">→</span><span class=\"node\">Follower 2</span></div>"
+    },
+    {
+     "h": "Consistency levels users notice",
+     "b": "<ul><li><b>Read-your-writes:</b> after posting, you must see your own post.</li><li><b>Monotonic reads:</b> time must not appear to go backwards between two reads.</li><li><b>Eventual:</b> replicas converge if writes stop.</li></ul>"
+    }
+   ],
+   "breaks": [
+    "A user writes, then reads from a lagging replica and sees nothing. Read your own recent writes from the leader.",
+    "Split brain: after a network split two nodes both act as leader and accept writes. Use quorum-based election and fencing.",
+    "Async failover loses the writes the leader had not yet sent.",
+    "Multi-leader conflicts resolved by \"last write wins\" silently drop data. Use merge logic or CRDTs.",
+    "Backups that were never restored are not backups. Test the restore."
+   ],
+   "quiz": {
+    "q": "With 5 replicas, which write and read quorum sizes guarantee that a read overlaps the latest write?",
+    "o": [
+     "W = 2 and R = 3, because reads check a majority",
+     "W = 3 and R = 2, because writes reach a majority",
+     "W = 3 and R = 3, because R + W is greater than N",
+     "W = 2 and R = 2, because that is about half"
+    ],
+    "a": 2,
+    "w": "R + W must exceed N. 3 + 3 = 6 is more than 5, but 2 + 3 = 5 and 3 + 2 = 5 are not."
+   },
+   "projects": false
+  },
+  {
+   "id": "engines",
+   "t": "d",
+   "title": "Storage engines: B-trees and LSM-trees",
+   "sum": "How databases lay data out on disk, and what that means for reads and writes.",
+   "sec": [
+    {
+     "h": "B-tree",
+     "b": "<p>Data lives in fixed-size pages arranged as a tree. A write updates the page in place, with a write-ahead log (WAL) first so a crash can be recovered. Reads are fast and predictable. Used by PostgreSQL and MySQL.</p>"
+    },
+    {
+     "h": "LSM-tree",
+     "b": "<p>Writes go to a WAL and an in-memory table, which is flushed as immutable sorted files (SSTables). Background <b>compaction</b> merges files. <b>Bloom filters</b> let reads skip files that cannot contain a key. Used by RocksDB, Cassandra and HBase.</p><div class=\"tw\"><table><thead><tr><th></th><th>B-tree</th><th>LSM-tree</th></tr></thead><tbody><tr><td>Writes</td><td>Random in-place updates</td><td>Sequential appends, very fast</td></tr><tr><td>Reads</td><td>One tree lookup</td><td>May check several files</td></tr><tr><td>Cost</td><td>Write amplification from page updates</td><td>Write and space amplification from compaction</td></tr><tr><td>Good for</td><td>Read-heavy and mixed workloads</td><td>Write-heavy workloads</td></tr></tbody></table></div>"
+    }
+   ],
+   "breaks": [
+    "Compaction cannot keep up, so writes stall and latency spikes.",
+    "Deletes in an LSM-tree are tombstones that linger and slow reads.",
+    "A random-key B-tree workload causes page splits and fragmentation.",
+    "Bloom filters give false positives, so some wasted reads are normal.",
+    "Skipping the WAL fsync risks losing the last acknowledged writes."
+   ],
+   "quiz": {
+    "q": "Which storage engine usually suits a very high rate of writes, and why?",
+    "o": [
+     "An LSM-tree, because it turns random writes into sequential appends",
+     "A B-tree, because it updates pages in place with no extra work",
+     "A B-tree, because its reads are fastest, so writes finish sooner",
+     "An LSM-tree, because it never needs any background work"
+    ],
+    "a": 0,
+    "w": "LSM-trees buffer writes in memory and flush sorted files, paying later with compaction. B-trees do random in-place page updates."
+   },
+   "projects": false
+  },
+  {
+   "id": "tx",
+   "t": "d",
+   "title": "Transactions, MVCC and isolation levels",
+   "sum": "What ACID really promises and the anomalies that appear when it is weakened.",
+   "sec": [
+    {
+     "h": "Isolation levels and anomalies",
+     "b": "<div class=\"tw\"><table><thead><tr><th>Level</th><th>Prevents</th></tr></thead><tbody><tr><td>Read committed</td><td>Dirty reads</td></tr><tr><td>Repeatable read / snapshot</td><td>Dirty and non-repeatable reads, often phantoms</td></tr><tr><td>Serializable</td><td>All anomalies, including write skew</td></tr></tbody></table></div><p>Classic problems: a <b>lost update</b> (two read-modify-writes overwrite each other) and <b>write skew</b> (two doctors both go off call because each saw the other on call).</p>"
+    },
+    {
+     "h": "How databases do it",
+     "b": "<ul><li><b>MVCC</b> keeps several versions of a row so readers never block writers.</li><li><b>Locks</b> (two-phase locking) block conflicting access and can deadlock.</li><li><b>Optimistic checks</b> read a version and update only if it is unchanged.</li><li>Across services use <b>sagas</b> rather than distributed two-phase commit where you can.</li></ul><pre class=\"code\"><code>-- optimistic update: fails if someone else changed the row\nUPDATE accounts\nSET balance = balance + 10, version = version + 1\nWHERE id = 42 AND version = 7;   -- 0 rows updated means retry</code></pre>"
+    }
+   ],
+   "breaks": [
+    "Read-modify-write in application code loses updates. Update atomically in SQL.",
+    "Write skew slips past snapshot isolation. Use serializable or explicit locks.",
+    "Long transactions hold locks and bloat old row versions.",
+    "Deadlocks happen when locks are taken in different orders. Handle the error and retry.",
+    "Assuming the default isolation level is serializable. It rarely is."
+   ],
+   "quiz": {
+    "q": "Two requests each read a balance of 100, add 10 in application code and write it back. The final balance is 110. What happened?",
+    "o": [
+     "A dirty read: one request saw uncommitted data",
+     "A phantom read: a new row appeared during a query",
+     "Write skew: two requests broke a rule across different rows",
+     "A lost update: one write overwrote the other"
+    ],
+    "a": 3,
+    "w": "Both read 100 and both wrote 110, so one deposit vanished. Do the addition inside the database in one atomic statement."
+   },
+   "projects": false
+  },
+  {
+   "id": "model",
+   "t": "d",
+   "title": "Data modelling: normalise or denormalise",
+   "sum": "Design tables and documents around how the data is read.",
+   "sec": [
+    {
+     "h": "Two directions",
+     "b": "<div class=\"tw\"><table><thead><tr><th></th><th>Normalised</th><th>Denormalised</th></tr></thead><tbody><tr><td>Idea</td><td>Each fact stored once, joined when read</td><td>Copies stored where they are read</td></tr><tr><td>Reads</td><td>Joins cost time</td><td>Fast, one lookup</td></tr><tr><td>Writes</td><td>Simple and consistent</td><td>Update every copy</td></tr><tr><td>Fits</td><td>Relational databases, changing queries</td><td>Document and wide-column stores, known access patterns</td></tr></tbody></table></div><p>For one-to-many relations, <b>embed</b> when the children are always read with the parent and stay small. <b>Reference</b> when they are large, shared or change independently.</p>"
+    },
+    {
+     "h": "Design from access patterns",
+     "b": "<p>List your queries first. In NoSQL stores the queries decide the layout. When you duplicate data, keep copies in sync with events or change data capture, and accept that copies may be briefly stale.</p>"
+    }
+   ],
+   "breaks": [
+    "Duplicated data drifts out of sync. Have one owner and propagate changes.",
+    "Unbounded embedded arrays make documents huge. Reference instead.",
+    "Joins across many tables become slow at scale. Denormalise the hot paths.",
+    "Premature denormalisation makes every change harder. Start normalised.",
+    "Schema changes on denormalised data need backfills."
+   ],
+   "quiz": {
+    "q": "A product page always shows the product plus its five photos, and the photos never change on their own. What suits a document store?",
+    "o": [
+     "Keep the photos in their own collection and join on read",
+     "Embed the photos inside the product document",
+     "Store each photo as a document in a second database",
+     "Keep only photo IDs and fetch each photo with its own call"
+    ],
+    "a": 1,
+    "w": "Small child data that is always read with its parent is a good fit for embedding. It needs one lookup and no joins."
+   },
+   "projects": false
+  },
+  {
+   "id": "serial",
+   "t": "d",
+   "title": "Serialisation: JSON, Protobuf and Avro",
+   "sum": "Choosing how data is encoded, and keeping old and new code compatible.",
+   "sec": [
+    {
+     "h": "Formats",
+     "b": "<div class=\"tw\"><table><thead><tr><th></th><th>JSON</th><th>Protobuf</th><th>Avro</th></tr></thead><tbody><tr><td>Encoding</td><td>Text</td><td>Binary, field numbers</td><td>Binary, schema describes order</td></tr><tr><td>Size and speed</td><td>Larger, slower</td><td>Small and fast</td><td>Small and fast</td></tr><tr><td>Schema</td><td>Optional</td><td>Required, in .proto files</td><td>Required, travels with data or a registry</td></tr><tr><td>Fits</td><td>Public APIs, debugging</td><td>Service-to-service, gRPC</td><td>Kafka and data pipelines</td></tr></tbody></table></div>"
+    },
+    {
+     "h": "Compatibility rules",
+     "b": "<ul><li>Add new fields as optional with defaults.</li><li>Never reuse or renumber a field.</li><li>Do not remove a field until no reader depends on it.</li><li>Use a schema registry to check changes before they ship.</li></ul>"
+    }
+   ],
+   "breaks": [
+    "Removing or renaming a field breaks old readers.",
+    "Reusing a Protobuf field number corrupts old data.",
+    "JavaScript loses precision on 64-bit integers in JSON. Send them as strings.",
+    "Timestamps without a timezone cause off-by-hours bugs.",
+    "Huge JSON payloads waste bandwidth. Compress or use a binary format."
+   ],
+   "quiz": {
+    "q": "Which change keeps old readers of a Protobuf message working?",
+    "o": [
+     "Reusing the number of a removed field for a new field",
+     "Changing a field's type from a number to a string",
+     "Deleting a field and renumbering the ones after it",
+     "Adding a new optional field with a new field number"
+    ],
+    "a": 3,
+    "w": "Old readers ignore fields they do not know. Reusing or renumbering fields makes old data decode as the wrong thing."
+   },
+   "projects": false
+  },
+  {
+   "id": "datatypes",
+   "t": "d",
+   "title": "Choosing a data store: time-series, wide-column, search, graph, vector",
+   "sum": "Match the workload to the store, and keep multiple stores in sync.",
+   "sec": [
+    {
+     "h": "The families",
+     "b": "<div class=\"tw\"><table><thead><tr><th>Store</th><th>Examples</th><th>Use it for</th></tr></thead><tbody><tr><td>Relational</td><td>PostgreSQL, MySQL</td><td>Transactions and joins</td></tr><tr><td>Key-value</td><td>Redis, DynamoDB</td><td>Fast lookups by key</td></tr><tr><td>Document</td><td>MongoDB</td><td>Flexible records read as a unit</td></tr><tr><td>Wide-column</td><td>Cassandra, HBase</td><td>Massive write throughput, time-ordered data</td></tr><tr><td>Time-series</td><td>InfluxDB, TimescaleDB</td><td>Metrics and sensor data with windows</td></tr><tr><td>Search</td><td>Elasticsearch, OpenSearch</td><td>Full-text search and log analytics</td></tr><tr><td>Graph</td><td>Neo4j</td><td>Deep relationship queries</td></tr><tr><td>Vector</td><td>pgvector, Pinecone, Milvus</td><td>Similarity search over embeddings</td></tr></tbody></table></div>"
+    },
+    {
+     "h": "Polyglot persistence",
+     "b": "<p>Real systems use several stores. Keep one source of truth, and feed the others through events or change data capture so they can be rebuilt.</p>"
+    }
+   ],
+   "breaks": [
+    "Using a search engine as the primary database. It is a derived index.",
+    "Expecting exact results from vector search. It returns nearest neighbours.",
+    "High-cardinality tags blow up time-series storage.",
+    "Stores drift apart when sync jobs fail silently. Monitor lag.",
+    "Adding a new store for one query adds a system to run forever."
+   ],
+   "quiz": {
+    "q": "A shop uses PostgreSQL plus a search index. Where should the source of truth live?",
+    "o": [
+     "In PostgreSQL, with the index rebuilt from it when needed",
+     "In the search index, because it already has every field",
+     "In both, written separately by the application",
+     "In the cache, because it is the fastest store"
+    ],
+    "a": 0,
+    "w": "An index is derived data and can be rebuilt. Writing to two places separately invites drift between them."
+   },
+   "projects": false
+  },
+  {
+   "id": "cap",
+   "t": "d",
+   "title": "CAP theorem and consistency models",
+   "sum": "What you give up when the network splits, and the spectrum of consistency in between.",
+   "sec": [
+    {
+     "h": "CAP in practice",
+     "b": "<p>Partitions happen, so the real choice is what to do during one: stay <b>consistent</b> and refuse some requests (CP), or stay <b>available</b> and risk stale or conflicting data (AP).</p><div class=\"tw\"><table><thead><tr><th>System</th><th>Leans</th><th>Note</th></tr></thead><tbody><tr><td>etcd, ZooKeeper, HBase</td><td>CP</td><td>Majority quorum</td></tr><tr><td>MongoDB (primary reads)</td><td>CP</td><td>Single primary per shard</td></tr><tr><td>Cassandra</td><td>AP</td><td>Tunable per query</td></tr><tr><td>DynamoDB</td><td>AP</td><td>Eventual by default, strong reads optional</td></tr></tbody></table></div>"
+    },
+    {
+     "h": "The consistency spectrum",
+     "b": "<p>From strongest to weakest: <b>linearizable</b> (acts like one copy), <b>sequential</b>, <b>causal</b> (cause before effect), <b>read-your-writes</b>, <b>eventual</b> (converges if writes stop). <b>PACELC</b> adds that even with no partition you trade latency for consistency. Quorum reads and writes (R + W > N) let you tune it per query.</p>"
+    }
+   ],
+   "breaks": [
+    "Reading CAP as \"pick any two\". Partition tolerance is not optional.",
+    "Mixing up CAP consistency with ACID consistency.",
+    "Ignoring latency. The everyday trade-off is speed vs freshness.",
+    "Claiming a system is \"CA\". A single node is, a distributed system is not.",
+    "Using one consistency level for everything. Choose per feature."
+   ],
+   "quiz": {
+    "q": "During a network partition, what does a CP system do?",
+    "o": [
+     "It accepts writes on both sides and merges them later",
+     "It switches to eventual consistency and keeps answering",
+     "It shuts down every node until the network is repaired",
+     "It refuses some requests on the minority side, to stay consistent"
+    ],
+    "a": 3,
+    "w": "A CP system gives up availability on the side that cannot reach a majority rather than let copies diverge."
+   },
+   "projects": false
+  },
+  {
+   "id": "consensus",
+   "t": "d",
+   "title": "Consensus: Paxos and Raft",
+   "sum": "How a group of machines agrees on one answer even when some fail.",
+   "sec": [
+    {
+     "h": "The problem",
+     "b": "<p>Nodes must agree on a value, such as who the leader is or the next entry in a log, despite crashes and delays. The answer needs a <b>majority quorum</b>: with N = 2f + 1 nodes you tolerate f failures. Three nodes tolerate one failure, five tolerate two. etcd, ZooKeeper and Consul use consensus for leader election, configuration and locks.</p>"
+    },
+    {
+     "h": "Raft in four ideas",
+     "b": "<div class=\"flow\"><span class=\"node\">Elect leader</span><span class=\"arr\" aria-hidden=\"true\">→</span><span class=\"node\">Replicate log</span><span class=\"arr\" aria-hidden=\"true\">→</span><span class=\"node\">Commit on majority</span><span class=\"arr\" aria-hidden=\"true\">→</span><span class=\"node\">Apply</span></div><ul><li><b>Terms and elections:</b> a follower that hears nothing starts an election after a random timeout and needs a majority of votes.</li><li><b>Log replication:</b> the leader appends entries and sends them to followers.</li><li><b>Commit:</b> an entry is committed once a majority stores it.</li><li><b>Safety:</b> a new leader must hold all committed entries.</li></ul><p>Paxos solves the same problem and is harder to read. Raft was designed to be understandable.</p>"
+    }
+   ],
+   "breaks": [
+    "Even-sized clusters add cost without extra fault tolerance. Use 3 or 5.",
+    "Losing the majority stops writes. That is safe, not a bug.",
+    "Slow disks or long pauses cause repeated elections.",
+    "Spreading a cluster across far regions makes every write slow.",
+    "Forcing a minority node to lead can lose committed data."
+   ],
+   "quiz": {
+    "q": "A 5-node Raft cluster loses two nodes. What happens?",
+    "o": [
+     "It stops accepting writes until a node returns",
+     "It keeps serving reads but refuses every write",
+     "It keeps working, because 3 of 5 is still a majority",
+     "It elects two leaders, one for each group"
+    ],
+    "a": 2,
+    "w": "Raft needs a majority. With N = 2f + 1 nodes it tolerates f failures, so five nodes tolerate two."
+   },
+   "projects": false
+  },
+  {
+   "id": "clocks",
+   "t": "d",
+   "title": "Clocks and ordering",
+   "sum": "Why you cannot trust timestamps across machines, and what to use instead.",
+   "sec": [
+    {
+     "h": "Physical clocks drift",
+     "b": "<p>Each machine has its own clock, kept roughly right by NTP. Clocks differ by milliseconds or more. Ordering writes by wall-clock timestamp (\"last write wins\") can silently discard the newer write when its server's clock is behind.</p>"
+    },
+    {
+     "h": "Logical clocks",
+     "b": "<ul><li><b>Lamport timestamps:</b> a counter. Increment on each event, send it with messages, and on receive set it to max(local, received) + 1. Gives a consistent order, but cannot tell concurrent events apart.</li><li><b>Vector clocks:</b> one counter per node. Show which events are causally related and which are concurrent, so conflicts can be detected and merged.</li><li><b>Hybrid logical clocks:</b> wall time plus a counter, close to real time and still ordered.</li><li><b>TrueTime (Spanner):</b> exposes clock uncertainty and waits it out to give global ordering.</li></ul><pre class=\"code\"><code>class Lamport:\n    def __init__(self): self.t = 0\n    def local_event(self): self.t += 1; return self.t\n    def send(self): self.t += 1; return self.t\n    def receive(self, remote): self.t = max(self.t, remote) + 1; return self.t</code></pre>"
+    }
+   ],
+   "breaks": [
+    "Last-write-wins on timestamps loses data when clocks are skewed.",
+    "Using timestamps as unique IDs causes collisions.",
+    "Leap seconds and clock jumps break duration measurements. Use a monotonic clock.",
+    "Vector clocks grow with the number of writers. Prune or use dotted version vectors.",
+    "Assuming devices have correct clocks. Phones do not."
+   ],
+   "quiz": {
+    "q": "Two writes to one key came from different servers. Which tool can tell whether they were concurrent?",
+    "o": [
+     "Wall-clock timestamps, because the later time is the newer write",
+     "Lamport timestamps, because equal values mean concurrent",
+     "The order in which the writes reached the database",
+     "Vector clocks, because incomparable vectors mean neither came first"
+    ],
+    "a": 3,
+    "w": "Lamport timestamps give a consistent order but cannot show concurrency. Wall clocks can be wrong by the skew between servers."
+   },
+   "projects": false
+  },
+  {
+   "id": "api",
+   "t": "a",
+   "title": "API design and rate limiting",
+   "sum": "Design interfaces that survive retries, growth and abuse.",
+   "sec": [
+    {
+     "h": "Good API habits",
+     "b": "<ul><li>Name resources as nouns: <code>GET /orders/42</code>, <code>POST /orders</code>.</li><li>Use proper status codes: 201 created, 400 bad input, 401 unauthenticated, 403 forbidden, 404 missing, 429 too many requests.</li><li>Paginate every list. Prefer <b>cursor</b> pagination over offset.</li><li>Version the API (<code>/v1/</code>) so you can change it later.</li><li>Accept an <b>Idempotency-Key</b> header on anything that moves money or creates things.</li></ul>"
+    },
+    {
+     "h": "Rate limiting algorithms",
+     "b": "<div class=\"tw\"><table><thead><tr><th>Algorithm</th><th>Idea</th><th>Note</th></tr></thead><tbody><tr><td>Fixed window</td><td>N requests per minute bucket</td><td>Allows a burst at the window edge</td></tr><tr><td>Sliding window</td><td>Count over the last 60 s</td><td>Smoother, more memory</td></tr><tr><td>Token bucket</td><td>Tokens refill at a rate, each request spends one</td><td>Allows controlled bursts, most popular</td></tr></tbody></table></div>"
+    }
+   ],
+   "breaks": [
+    "Offset pagination skips or repeats rows when data changes between pages. Use a cursor based on a sorted key.",
+    "The client retries a payment after a timeout and the customer is charged twice. Idempotency keys fix this.",
+    "Limiting by IP punishes everyone behind one office or mobile network. Limit by user or API key as well.",
+    "In a distributed limiter two servers both read \"9 of 10 used\" and both allow the request. Do the check and increment atomically (Redis Lua or INCR).",
+    "Returning 200 with an error body hides failures from monitoring."
+   ],
+   "quiz": {
+    "q": "A client times out on a payment request and retries. How do you avoid charging twice?",
+    "o": [
+     "Reject every retry with an error, so the client must start over",
+     "Raise the timeout so retries become rare",
+     "Require an idempotency key and return the saved result for repeats",
+     "Charge twice and refund duplicates every night"
+    ],
+    "a": 2,
+    "w": "The server stores the result under the key. A retry with the same key gets the same answer without a second charge."
+   },
+   "projects": false
+  },
+  {
+   "id": "apistyles",
+   "t": "a",
+   "title": "REST, GraphQL and gRPC",
+   "sum": "Three ways to expose an API, and when each one fits.",
+   "sec": [
+    {
+     "h": "Comparison",
+     "b": "<div class=\"tw\"><table><thead><tr><th></th><th>REST</th><th>GraphQL</th><th>gRPC</th></tr></thead><tbody><tr><td>Shape</td><td>Resources and HTTP verbs</td><td>One endpoint, client picks fields</td><td>Typed methods over HTTP/2</td></tr><tr><td>Payload</td><td>JSON</td><td>JSON</td><td>Protobuf, binary</td></tr><tr><td>Strength</td><td>Simple, cacheable, universal</td><td>No over- or under-fetching</td><td>Fast, streaming, generated clients</td></tr><tr><td>Weakness</td><td>Chatty for complex screens</td><td>Query cost, caching is harder</td><td>Needs a proxy for browsers</td></tr><tr><td>Best for</td><td>Public and partner APIs</td><td>Varied clients such as mobile</td><td>Internal service-to-service calls</td></tr></tbody></table></div>"
+    },
+    {
+     "h": "Habits for all of them",
+     "b": "<ul><li>Make unsafe operations idempotent.</li><li>Version the contract and change it compatibly.</li><li>Paginate lists.</li><li>Return consistent errors.</li></ul>"
+    }
+   ],
+   "breaks": [
+    "GraphQL resolvers cause N+1 queries. Batch with a data loader.",
+    "Unbounded GraphQL queries can be expensive. Limit depth and cost.",
+    "Browsers cannot speak gRPC directly. Use gRPC-web or a gateway.",
+    "Breaking a Protobuf contract breaks every caller.",
+    "REST endpoints that mirror database tables leak internals."
+   ],
+   "quiz": {
+    "q": "Which API style best suits fast, typed calls between your own backend services?",
+    "o": [
+     "GraphQL, because clients choose their own fields",
+     "REST, because every browser can call it",
+     "gRPC, with compact Protobuf messages and generated clients",
+     "Server-sent events, because they keep a connection open"
+    ],
+    "a": 2,
+    "w": "gRPC is compact, fast and gives typed clients, which suits internal calls. REST and GraphQL suit public and varied clients."
+   },
+   "projects": false
+  },
+  {
+   "id": "gateway",
+   "t": "a",
+   "title": "API gateway, service discovery and the strangler fig",
+   "sum": "The front door of a microservice system and how to migrate away from a monolith.",
+   "sec": [
+    {
+     "h": "API gateway and discovery",
+     "b": "<div class=\"flow\"><span class=\"node\">Client</span><span class=\"arr\" aria-hidden=\"true\">→</span><span class=\"node\">API gateway</span><span class=\"arr\" aria-hidden=\"true\">→</span><span class=\"node\">Service A</span><span class=\"arr\" aria-hidden=\"true\">→</span><span class=\"node\">Service B</span></div><p>A gateway terminates TLS, authenticates, rate limits, routes and can combine responses. <b>Service discovery</b> lets services find each other as instances come and go: a registry (Consul, Eureka) or the platform itself (Kubernetes DNS).</p>"
+    },
+    {
+     "h": "Strangler fig migration",
+     "b": "<p>Put a router in front of the monolith. Move one feature at a time into a new service and route its paths there. When nothing is left, retire the monolith. You always have a working system.</p><div class=\"flow\"><span class=\"node\">Router</span><span class=\"arr\" aria-hidden=\"true\">→</span><span class=\"node\">New service (moved paths)</span><span class=\"arr\" aria-hidden=\"true\">→</span><span class=\"node\">Monolith (the rest)</span></div>"
+    }
+   ],
+   "breaks": [
+    "A single gateway is a bottleneck and single point of failure. Run several.",
+    "Business logic creeping into the gateway makes it a new monolith.",
+    "Stale registry entries send traffic to dead instances. Use health checks and short TTLs.",
+    "Dual-writing during migration lets data drift. Pick one owner per piece of data.",
+    "Every extra hop adds latency."
+   ],
+   "quiz": {
+    "q": "What is the core idea of the strangler fig pattern?",
+    "o": [
+     "Move features one at a time behind a router until the old system is empty",
+     "Rewrite the whole monolith privately and switch on release day",
+     "Run two monoliths side by side and let users choose",
+     "Replace the database first and the code later"
+    ],
+    "a": 0,
+    "w": "You replace the monolith gradually, and the system keeps working throughout."
+   },
+   "projects": false
+  },
+  {
+   "id": "micro",
+   "t": "a",
+   "title": "Monolith vs microservices",
+   "sum": "When to split a system and what it costs you.",
+   "sec": [
+    {
+     "h": "Start with a monolith",
+     "b": "<p>One deployable app with clean internal modules is the fastest way to build and the easiest to debug. Split a service out only when a clear reason appears: a team needs to deploy independently, a part needs different scaling, or it needs a different technology.</p><div class=\"tw\"><table><thead><tr><th></th><th>Monolith</th><th>Microservices</th></tr></thead><tbody><tr><td>Deploy</td><td>One unit</td><td>Many small units</td></tr><tr><td>Debug</td><td>One stack trace</td><td>Distributed tracing needed</td></tr><tr><td>Transactions</td><td>Database handles them</td><td>Sagas and eventual consistency</td></tr><tr><td>Team scale</td><td>Hard to coordinate once many teams share it</td><td>Fits many teams</td></tr></tbody></table></div>"
+    },
+    {
+     "h": "Sagas",
+     "b": "<p>Without a shared database you cannot wrap an order, payment and stock change in one transaction. A <b>saga</b> runs each step locally and, if a later step fails, runs <b>compensating actions</b> to undo earlier ones (refund the payment, release the stock).</p><div class=\"flow\"><span class=\"node\">Create order</span><span class=\"arr\" aria-hidden=\"true\">→</span><span class=\"node\">Reserve stock</span><span class=\"arr\" aria-hidden=\"true\">→</span><span class=\"node\">Charge card</span><span class=\"arr\" aria-hidden=\"true\">→</span><span class=\"node\">Confirm</span></div>"
+    }
+   ],
+   "breaks": [
+    "A distributed monolith: services that must deploy together and call each other constantly. You get the costs of both styles.",
+    "A compensating step fails too. Make compensations idempotent and retry them from a durable log.",
+    "Service A deploys a changed response and B breaks. Version APIs and add contract tests.",
+    "Chatty services: one page triggers 40 internal calls, so latency and failure odds explode."
+   ],
+   "quiz": {
+    "q": "A new product is starting with a small team. What is the sensible default architecture?",
+    "o": [
+     "Microservices from day one, so scaling is easy later",
+     "One service per database table, for clean ownership",
+     "A well-structured monolith, split later for a concrete reason",
+     "Serverless functions for everything, to avoid servers"
+    ],
+    "a": 2,
+    "w": "A modular monolith is faster to build and easier to run. Split a service out when a team, a scaling need or a technology demands it."
+   },
+   "projects": false
+  },
+  {
+   "id": "eventdriven",
+   "t": "a",
+   "title": "Event-driven design: pub/sub, CQRS and event sourcing",
+   "sum": "Let services react to what happened instead of calling each other directly.",
+   "sec": [
+    {
+     "h": "Request/response vs events",
+     "b": "<p>With <b>request/response</b> the caller waits. With <b>publish/subscribe</b> a service announces a fact (OrderPlaced) and anyone interested reacts. This decouples teams and absorbs spikes, at the cost of eventual consistency.</p>"
+    },
+    {
+     "h": "CQRS and event sourcing",
+     "b": "<ul><li><b>CQRS:</b> separate the model you write to from the models you read from, so each can be shaped and scaled for its job.</li><li><b>Event sourcing:</b> store the sequence of events as the source of truth and rebuild state by replaying them. You get a full history and can build new read models later.</li><li><b>Outbox pattern:</b> write the event to a table in the same transaction as the data change, then publish it, so you never lose or invent an event.</li></ul><div class=\"flow\"><span class=\"node\">Command</span><span class=\"arr\" aria-hidden=\"true\">→</span><span class=\"node\">Write model</span><span class=\"arr\" aria-hidden=\"true\">→</span><span class=\"node\">Events</span><span class=\"arr\" aria-hidden=\"true\">→</span><span class=\"node\">Read model</span><span class=\"arr\" aria-hidden=\"true\">→</span><span class=\"node\">Query</span></div>"
+    }
+   ],
+   "breaks": [
+    "Duplicate and out-of-order events. Make handlers idempotent and carry versions.",
+    "Users see stale read models. Design the UI for eventual consistency.",
+    "Event schemas live forever. Evolve them compatibly.",
+    "Replaying events can re-trigger side effects like emails. Separate projections from actions.",
+    "Writing to the database and publishing separately can lose events. Use an outbox."
+   ],
+   "quiz": {
+    "q": "Why use the outbox pattern when a service changes data and also publishes an event?",
+    "o": [
+     "It makes events smaller and cheaper to send",
+     "It lets the service skip the message broker and write straight to consumers",
+     "The change and the event are saved in one transaction, so neither is lost",
+     "It guarantees events arrive in exactly the order produced"
+    ],
+    "a": 2,
+    "w": "Writing to the database and publishing separately can lose one of the two. The outbox row commits with the data and a relay publishes it afterwards."
+   },
+   "projects": false
+  },
+  {
+   "id": "resil",
+   "t": "a",
+   "title": "Resilience patterns",
+   "sum": "Assume every dependency will be slow or down, and keep the rest alive.",
+   "sec": [
+    {
+     "h": "The toolkit",
+     "b": "<ul><li><b>Timeouts:</b> every network call gets one. No timeout means threads pile up forever.</li><li><b>Retries with exponential backoff and jitter:</b> wait 1 s, 2 s, 4 s plus a random amount.</li><li><b>Circuit breaker:</b> after repeated failures stop calling the dependency for a while and fail fast.</li><li><b>Bulkheads:</b> separate pools so one slow dependency cannot use every thread.</li><li><b>Graceful degradation:</b> if recommendations fail, still show the page without them.</li></ul><pre class=\"code\"><code>def call_with_retry(fn, tries=4):\n    delay = 0.2\n    for attempt in range(tries):\n        try:\n            return fn(timeout=1.0)\n        except TransientError:\n            if attempt == tries - 1:\n                raise\n            time.sleep(delay + random.uniform(0, delay))\n            delay *= 2</code></pre>"
+    }
+   ],
+   "breaks": [
+    "Retry storm: every client retries at once, which keeps the struggling service down. Add jitter and a retry budget.",
+    "Retrying non-idempotent calls creates duplicates.",
+    "Cascading failure: A waits on slow B, A runs out of threads, then everything that calls A fails.",
+    "A circuit that never closes again. Allow a few trial requests (half-open).",
+    "Retries at every layer multiply: 3 retries across 3 layers means 27 calls."
+   ],
+   "quiz": {
+    "q": "Why add random jitter to retry delays?",
+    "o": [
+     "So each retry is faster than the one before",
+     "So failed requests are logged less often",
+     "So the server can tell retries from new requests",
+     "So many clients do not all retry at the same instant"
+    ],
+    "a": 3,
+    "w": "Synchronised retries create a thundering herd that keeps a struggling service down. Jitter spreads them out."
+   },
+   "projects": false
+  },
+  {
+   "id": "ratelimiter",
+   "t": "a",
+   "title": "Case: token bucket rate limiter",
+   "sum": "Implement the limiter used by most real APIs.",
+   "sec": [
+    {
+     "h": "Idea",
+     "b": "<p>Each client has a bucket of up to <i>capacity</i> tokens. Tokens refill at <i>rate</i> per second. A request spends one token or is rejected with 429. Bursts up to capacity are allowed, sustained traffic is capped at the rate.</p><pre class=\"code\"><code>import time, threading\n\nclass TokenBucket:\n    def __init__(self, capacity, rate):\n        self.capacity, self.rate = capacity, rate\n        self.tokens = capacity\n        self.last = time.monotonic()\n        self.lock = threading.Lock()\n\n    def allow(self):\n        with self.lock:\n            now = time.monotonic()\n            self.tokens = min(self.capacity,\n                              self.tokens + (now - self.last) * self.rate)\n            self.last = now\n            if self.tokens &gt;= 1:\n                self.tokens -= 1\n                return True\n            return False\n\nlimiters = {}   # user_id -&gt; TokenBucket\ndef check(user_id):\n    b = limiters.setdefault(user_id, TokenBucket(10, 5))\n    return b.allow()</code></pre>"
+    }
+   ],
+   "breaks": [
+    "Use a monotonic clock. Wall-clock changes can refill or freeze the bucket.",
+    "One bucket per user grows memory forever. Expire idle buckets.",
+    "Across many servers use shared state, and do refill and spend atomically (a Redis Lua script).",
+    "Return <code>429</code> with a <code>Retry-After</code> header so well-behaved clients back off.",
+    "Fail open or closed when the limiter store is down? Decide on purpose."
+   ],
+   "quiz": {
+    "q": "What does a token bucket allow that a strict fixed rate does not?",
+    "o": [
+     "A short burst up to the bucket size, with the long-term rate still capped",
+     "Unlimited traffic for as long as the bucket still holds any tokens",
+     "Different limits for every endpoint with no extra state",
+     "Exact counting across many servers with no shared state"
+    ],
+    "a": 0,
+    "w": "Unused tokens accumulate up to the capacity, so a brief burst passes while sustained traffic is limited to the refill rate."
+   },
+   "projects": false
+  },
+  {
+   "id": "observe",
+   "t": "r",
+   "title": "Observability and testing",
+   "sum": "Know what is happening in production before users tell you.",
+   "sec": [
+    {
+     "h": "The three signals",
+     "b": "<div class=\"tw\"><table><thead><tr><th>Signal</th><th>Question it answers</th><th>Example</th></tr></thead><tbody><tr><td>Logs</td><td>What happened?</td><td>Structured JSON with a request ID</td></tr><tr><td>Metrics</td><td>How much, how fast?</td><td>Requests per second, error rate, p99</td></tr><tr><td>Traces</td><td>Where did the time go?</td><td>One request across five services</td></tr></tbody></table></div><p>Define <b>SLOs</b>, such as \"99.9% of requests succeed and 95% are faster than 300 ms\". Alert when you burn the error budget too quickly, not on every blip.</p>"
+    },
+    {
+     "h": "Testing ladder",
+     "b": "<ul><li><b>Unit tests</b> for business rules, many and fast.</li><li><b>Integration tests</b> against a real database for repos and APIs.</li><li><b>Load tests</b> (k6, Locust) to find the limit before users do.</li><li><b>Failure tests</b>: kill a dependency in staging and confirm it degrades gracefully.</li></ul>"
+    }
+   ],
+   "breaks": [
+    "Alert fatigue: too many noisy alerts, so the real one is ignored. Alert on user-visible symptoms.",
+    "Metrics labelled by user ID or URL create millions of series and a huge bill.",
+    "Personal data in logs becomes a compliance problem.",
+    "Only testing the happy path. Test timeouts, duplicates, empty and huge inputs.",
+    "Dashboards nobody looks at. Review them in an incident drill."
+   ],
+   "quiz": {
+    "q": "One user request crosses five services and is slow. Which signal shows where the time went?",
+    "o": [
+     "A distributed trace of that request",
+     "The CPU metric of each service",
+     "A log line from the first service",
+     "The average latency on the main dashboard"
+    ],
+    "a": 0,
+    "w": "A trace follows one request across services and shows the time spent in each hop. Logs say what happened and metrics say how much."
+   },
+   "projects": false
+  },
+  {
+   "id": "slo",
+   "t": "r",
+   "title": "SLIs, SLOs and error budgets",
+   "sum": "Turn \"reliable\" into a number you can plan around.",
+   "sec": [
+    {
+     "h": "The three terms",
+     "b": "<div class=\"tw\"><table><thead><tr><th>Term</th><th>Meaning</th><th>Example</th></tr></thead><tbody><tr><td>SLI</td><td>A measurement of behaviour</td><td>Share of requests that succeed in under 300 ms</td></tr><tr><td>SLO</td><td>The target for the SLI</td><td>99.9% over 30 days</td></tr><tr><td>SLA</td><td>A contract with consequences</td><td>Refund if below 99.5%</td></tr></tbody></table></div>"
+    },
+    {
+     "h": "Error budgets",
+     "b": "<p>The budget is what the SLO allows to fail. A 99.9% SLO over 30 days allows about 43 minutes of downtime. A 99.99% SLO allows about 4 minutes. While budget remains you ship quickly. When it is spent, reliability work comes first. Alert on how fast the budget is <b>burning</b>, not on single blips.</p>"
+    }
+   ],
+   "breaks": [
+    "An SLO that is too strict is unaffordable. Match it to what users need.",
+    "Measuring on the server misses what users feel. Measure at the edge.",
+    "Alerting on causes (CPU) instead of symptoms (errors) creates noise.",
+    "No policy for what happens when the budget is spent.",
+    "Averages hide the slow tail. Use percentiles."
+   ],
+   "quiz": {
+    "q": "About how much downtime does a 99.9% SLO allow in a 30-day month?",
+    "o": [
+     "About 4 minutes",
+     "About 43 minutes",
+     "About 8 minutes",
+     "About 7 hours"
+    ],
+    "a": 1,
+    "w": "0.1% of 30 days is about 43 minutes. A 99.99% SLO allows about 4 minutes."
+   },
+   "projects": false
+  },
+  {
+   "id": "chaos",
+   "t": "r",
+   "title": "Chaos engineering and incident response",
+   "sum": "Break things on purpose in a controlled way, and run incidents calmly.",
+   "sec": [
+    {
+     "h": "Chaos engineering",
+     "b": "<ol><li>Define the <b>steady state</b> as a metric, such as orders per minute.</li><li>Form a <b>hypothesis</b>: it stays steady if one instance dies.</li><li><b>Inject</b> the failure (kill an instance, add latency) with a small <b>blast radius</b>.</li><li>Compare, learn, fix, and widen the experiment.</li></ol><p>Netflix popularised this with Chaos Monkey. Run <b>game days</b> to practise together.</p>"
+    },
+    {
+     "h": "During an incident",
+     "b": "<ul><li>Have an <b>incident commander</b> and a communicator.</li><li><b>Mitigate first</b> (roll back, fail over), find the root cause after.</li><li>Keep a timeline.</li><li>Hold a <b>blameless postmortem</b> and track the follow-up actions.</li></ul>"
+    }
+   ],
+   "breaks": [
+    "Experiments in production with no abort switch and a huge blast radius.",
+    "No steady-state metric, so you cannot tell if it worked.",
+    "Fixing the symptom and never the cause.",
+    "Blame culture hides the real lessons.",
+    "Postmortem actions that nobody owns."
+   ],
+   "quiz": {
+    "q": "What should you define before injecting a failure into production?",
+    "o": [
+     "The largest failure the system could possibly suffer",
+     "A company-wide freeze on deployments",
+     "The failure list recommended by the tool vendor",
+     "A steady-state metric, a hypothesis and a small blast radius"
+    ],
+    "a": 3,
+    "w": "You need to know what normal looks like, what you expect to happen, and how to limit the damage if you are wrong."
+   },
+   "projects": false
+  },
+  {
+   "id": "dr",
+   "t": "r",
+   "title": "Multi-region and disaster recovery",
+   "sum": "Plan for losing a whole data centre or region: how much data you can lose, how fast you recover, and what it costs.",
+   "sec": [
+    {
+     "h": "RPO and RTO",
+     "b": "<p>Two numbers define a recovery plan. <b>RPO</b> (recovery point objective) is how much recent data you can afford to lose, measured in time: 'at most 5 minutes of orders'. <b>RTO</b> (recovery time objective) is how long you can be down: 'back within 30 minutes'. The smaller the numbers, the more the design costs, so agree them with the business first.</p>"
+    },
+    {
+     "h": "The four strategies",
+     "b": "<p><b>Backup and restore</b> is cheapest and slowest, since you rebuild from backups in another region. <b>Pilot light</b> keeps data replicated and the core switched off, ready to scale up. <b>Warm standby</b> runs a smaller full copy that you scale up on failover. <b>Active-active</b> serves traffic from several regions at once, with the shortest recovery and the highest cost and complexity.</p><div class=\"flow\"><span class=\"node\">Backup and restore</span><span class=\"arr\" aria-hidden=\"true\">→</span><span class=\"node\">Pilot light</span><span class=\"arr\" aria-hidden=\"true\">→</span><span class=\"node\">Warm standby</span><span class=\"arr\" aria-hidden=\"true\">→</span><span class=\"node\">Active-active</span></div>"
+    },
+    {
+     "h": "Data is the hard part",
+     "b": "<p>Servers are easy to recreate, data is not. Replicating across regions is slower than inside one, so <b>asynchronous</b> replication has a lag (your RPO) and synchronous replication adds latency to every write. Active-active needs a plan for conflicting writes, such as routing each user to a home region. Test restores, because an untested backup is only a hope.</p>"
+    },
+    {
+     "h": "Failover and practice",
+     "b": "<p>Failover means detecting the problem, deciding to switch, and moving traffic, usually with health checks and DNS or a global load balancer. Automatic failover is fast but can trigger by mistake, so many teams keep a human decision for whole-region failover. Rehearse regularly in game days: only a failover you have done before will work under pressure.</p>"
+    }
+   ],
+   "breaks": [
+    "The backups exist but nobody has ever restored one, and the restore fails or takes a day. Run restore tests on a schedule.",
+    "The standby region lacks capacity or quota when everyone fails over at once. Pre-provision, or reserve capacity.",
+    "Failover works for the app but the database is hours behind. Monitor replication lag against the RPO.",
+    "Automatic failover flips on a brief network glitch and causes the outage it was meant to prevent. Add damping, or a human decision.",
+    "Configuration, secrets and DNS records exist only in the primary region. Replicate or define them as code."
+   ],
+   "quiz": {
+    "q": "What does an RPO of 5 minutes mean?",
+    "o": [
+     "You can lose at most the last 5 minutes of data",
+     "Recovery must be complete within 5 minutes",
+     "Backups must finish running within 5 minutes",
+     "A failure must be detected within 5 minutes"
+    ],
+    "a": 0,
+    "w": "RPO measures how much data you can lose, in time. RTO measures how long you can be down."
+   },
+   "projects": false
+  },
+  {
+   "id": "auth",
+   "t": "r",
+   "title": "Authentication and security",
+   "sum": "Log users in safely and avoid the common web vulnerabilities.",
+   "sec": [
+    {
+     "h": "Sessions vs tokens",
+     "b": "<div class=\"tw\"><table><thead><tr><th></th><th>Server session</th><th>JWT</th></tr></thead><tbody><tr><td>Stored</td><td>Server (Redis)</td><td>In the token, client side</td></tr><tr><td>Revoke</td><td>Delete the session</td><td>Hard until expiry</td></tr><tr><td>Fits</td><td>Web apps, simple</td><td>Mobile, service-to-service</td></tr></tbody></table></div><p>Hash passwords with <b>argon2</b> or <b>bcrypt</b>, never plain or fast hashes. Prefer a managed login provider (OAuth, passkeys) over building your own where you can.</p>"
+    },
+    {
+     "h": "Vulnerabilities to know",
+     "b": "<div class=\"tw\"><table><thead><tr><th>Attack</th><th>Defence</th></tr></thead><tbody><tr><td>SQL injection</td><td>Parameterised queries</td></tr><tr><td>XSS (script injected into a page)</td><td>Escape output, Content-Security-Policy</td></tr><tr><td>CSRF (another site makes your browser act)</td><td>SameSite cookies, CSRF tokens</td></tr><tr><td>IDOR (changing an ID in the URL)</td><td>Check ownership on every request</td></tr><tr><td>Brute-force login</td><td>Rate limit and lock out gradually</td></tr></tbody></table></div>"
+    }
+   ],
+   "breaks": [
+    "A JWT cannot be revoked, so a stolen one works until it expires. Keep lifetimes short and use refresh tokens you can revoke.",
+    "IDOR: <code>GET /orders/43</code> returns someone else's order because only the login was checked. Authorise every object access.",
+    "Tokens stored in localStorage can be read by an XSS bug. Prefer httpOnly cookies.",
+    "CORS set to <code>*</code> together with credentials exposes user data.",
+    "Password reset links that never expire or can be reused.",
+    "Logging passwords, tokens or personal data."
+   ],
+   "quiz": {
+    "q": "A user changes /orders/42 to /orders/43 in the address bar and sees another customer's order. What is the flaw?",
+    "o": [
+     "SQL injection through the order ID in the URL",
+     "Missing object-level authorisation (an IDOR bug)",
+     "A weak password hashing algorithm",
+     "Cross-site scripting in the order page"
+    ],
+    "a": 1,
+    "w": "Logging in is not enough. Every request must check that the signed-in user owns the object being asked for."
+   },
+   "projects": false
+  },
+  {
+   "id": "netsec",
+   "t": "r",
+   "title": "Network security: TLS, VPCs and zero trust",
+   "sum": "Keep data encrypted, keep networks small, and trust nothing by default.",
+   "sec": [
+    {
+     "h": "Encrypt and isolate",
+     "b": "<ul><li><b>In transit:</b> TLS everywhere, including between internal services.</li><li><b>At rest:</b> encrypted disks and buckets with keys in a key management service, rotated regularly.</li><li><b>Networks:</b> a VPC with public subnets for load balancers and private subnets for apps and databases. Security groups allow only the ports and sources needed.</li></ul>"
+    },
+    {
+     "h": "Least privilege and zero trust",
+     "b": "<p>Give each service only the permissions it needs. <b>Zero trust</b> means every request is authenticated and authorised, even from inside the network, often with mutual TLS. Keep secrets in a secrets manager, not in code or images.</p><div class=\"flow\"><span class=\"node\">Internet</span><span class=\"arr\" aria-hidden=\"true\">→</span><span class=\"node\">Load balancer (public subnet)</span><span class=\"arr\" aria-hidden=\"true\">→</span><span class=\"node\">App (private)</span><span class=\"arr\" aria-hidden=\"true\">→</span><span class=\"node\">Database (private)</span></div>"
+    }
+   ],
+   "breaks": [
+    "A database or bucket open to the internet.",
+    "IAM roles with wildcard permissions.",
+    "Long-lived keys committed to a repository.",
+    "Unencrypted internal traffic that anyone on the network can read.",
+    "No audit log, so you cannot tell what was accessed."
+   ],
+   "quiz": {
+    "q": "Where should a production database live?",
+    "o": [
+     "In a private subnet reachable only from the app tier",
+     "In a public subnet, protected by a strong password",
+     "In the same subnet as the load balancer",
+     "Anywhere, as long as the traffic uses TLS"
+    ],
+    "a": 0,
+    "w": "Only the app tier needs to reach it, so keep it off the internet. TLS protects data in transit but does not shrink the attack surface."
+   },
+   "projects": false
+  },
+  {
+   "id": "containers",
+   "t": "k",
+   "title": "Containers and Kubernetes",
+   "sum": "Package once, run anywhere, and let an orchestrator keep it running.",
+   "sec": [
+    {
+     "h": "Containers",
+     "b": "<p>A container packages your app and its dependencies and shares the host kernel, so it is lighter than a virtual machine and starts in seconds. An image is built in layers, so rebuilds are quick.</p>"
+    },
+    {
+     "h": "Kubernetes objects",
+     "b": "<div class=\"tw\"><table><thead><tr><th>Object</th><th>Purpose</th></tr></thead><tbody><tr><td>Pod</td><td>One or more containers that run together</td></tr><tr><td>Deployment</td><td>Keeps N pods running and does rolling updates</td></tr><tr><td>Service</td><td>Stable address and load balancing for pods</td></tr><tr><td>Ingress</td><td>HTTP routing from outside the cluster</td></tr><tr><td>ConfigMap and Secret</td><td>Configuration and sensitive values</td></tr><tr><td>HPA</td><td>Scales pods by CPU or custom metrics</td></tr></tbody></table></div><pre class=\"code\"><code>apiVersion: apps/v1\nkind: Deployment\nmetadata: { name: api }\nspec:\n  replicas: 3\n  selector: { matchLabels: { app: api } }\n  template:\n    metadata: { labels: { app: api } }\n    spec:\n      containers:\n        - name: api\n          image: myorg/api:1.4.2        # pin a version, never \"latest\"\n          resources:\n            requests: { cpu: 100m, memory: 128Mi }\n            limits:   { memory: 256Mi }\n          readinessProbe: { httpGet: { path: /ready, port: 8000 } }</code></pre>"
+    }
+   ],
+   "breaks": [
+    "No memory limits lets one pod starve others, and wrong limits cause OOMKilled restarts.",
+    "Missing readiness probes send traffic to pods that are not ready.",
+    "Using the \"latest\" image tag makes deployments unrepeatable.",
+    "Secrets baked into images.",
+    "Running stateful databases in a cluster without a plan for storage."
+   ],
+   "quiz": {
+    "q": "What does a Kubernetes readiness probe decide?",
+    "o": [
+     "Whether the container should be restarted",
+     "Whether the node has enough memory for the pod",
+     "Whether the pod should receive traffic from its Service",
+     "Whether the image is the latest version"
+    ],
+    "a": 2,
+    "w": "A pod that is not ready is removed from the Service until it passes. Restarts are the job of the liveness probe."
+   },
+   "projects": false
+  },
+  {
+   "id": "iac",
+   "t": "k",
+   "title": "Infrastructure as code with Terraform",
+   "sum": "Describe your infrastructure in files, review changes, and recreate it on demand.",
+   "sec": [
+    {
+     "h": "The workflow",
+     "b": "<div class=\"flow\"><span class=\"node\">Write config</span><span class=\"arr\" aria-hidden=\"true\">→</span><span class=\"node\">terraform plan</span><span class=\"arr\" aria-hidden=\"true\">→</span><span class=\"node\">Review</span><span class=\"arr\" aria-hidden=\"true\">→</span><span class=\"node\">terraform apply</span></div><p>You declare the desired state. Terraform compares it to its <b>state file</b> and the real world and shows a plan of changes before doing anything. Reuse patterns through <b>modules</b>.</p><pre class=\"code\"><code>resource \"aws_vpc\" \"main\" {\n  cidr_block = \"10.0.0.0/16\"\n}\n\nresource \"aws_subnet\" \"private\" {\n  vpc_id     = aws_vpc.main.id\n  cidr_block = \"10.0.1.0/24\"\n}\n\nresource \"aws_db_instance\" \"db\" {\n  engine            = \"postgres\"\n  instance_class    = \"db.t3.micro\"\n  allocated_storage = 20\n  username = \"app\"\n  manage_master_user_password = true\n  skip_final_snapshot = false\n  final_snapshot_identifier = \"db-final\"\n}</code></pre>"
+    },
+    {
+     "h": "Working in a team",
+     "b": "<ul><li>Keep state in a <b>remote backend with locking</b> so two people cannot apply at once.</li><li>Run <code>plan</code> in code review. Apply from CI.</li><li>Use separate state for each environment.</li><li>Watch for <b>drift</b>: changes made by hand in the console.</li></ul>"
+    }
+   ],
+   "breaks": [
+    "A lost or leaked state file. It can hold secrets, so protect and back it up.",
+    "Console edits create drift between code and reality.",
+    "Applying without reading the plan can destroy a database.",
+    "Renaming a resource can mean destroy and create.",
+    "One giant state for everything makes every change risky."
+   ],
+   "quiz": {
+    "q": "What does terraform plan do?",
+    "o": [
+     "Applies the changes after asking for confirmation",
+     "Refreshes the state file by deleting stale resources",
+     "Checks only the syntax of the configuration files",
+     "Shows the changes it would make, without changing anything"
+    ],
+    "a": 3,
+    "w": "Plan is a preview so you can review before you apply."
+   },
+   "projects": false
+  },
+  {
+   "id": "serverless",
+   "t": "k",
+   "title": "Serverless and functions",
+   "sum": "Run code without managing servers, and know what you trade for it.",
+   "sec": [
+    {
+     "h": "How it works",
+     "b": "<p>You upload a function. The platform runs it on demand, scales it from zero to many copies, and bills per invocation. It suits spiky or event-driven work such as image resizing, webhooks and glue code.</p><div class=\"tw\"><table><thead><tr><th></th><th>Functions (Lambda)</th><th>Servers or containers</th></tr></thead><tbody><tr><td>Scaling</td><td>Automatic, to zero</td><td>You configure it</td></tr><tr><td>Cost</td><td>Per request and duration</td><td>Per hour, even when idle</td></tr><tr><td>Latency</td><td>Cold starts on first call</td><td>Always warm</td></tr><tr><td>Limits</td><td>Execution time and concurrency caps</td><td>Few</td></tr><tr><td>State</td><td>None, use external storage</td><td>Local state possible</td></tr></tbody></table></div>"
+    },
+    {
+     "h": "Watch for",
+     "b": "<p>Many parallel functions can overwhelm a database with connections. Use a connection proxy or a queue in between.</p>"
+    }
+   ],
+   "breaks": [
+    "Cold starts add latency to the first request after idle.",
+    "Concurrency limits throttle you, and unlimited concurrency floods the database.",
+    "A function that triggers itself in a loop produces a huge bill.",
+    "Time limits cut off long jobs. Split them or use batch.",
+    "Vendor lock-in through triggers and permissions."
+   ],
+   "quiz": {
+    "q": "Which workload fits functions best?",
+    "o": [
+     "A database that must stay running all day",
+     "Resizing an image each time one is uploaded",
+     "A job that runs for many hours without a break",
+     "A game server holding long-lived connections"
+    ],
+    "a": 1,
+    "w": "Short, event-driven and spiky work is ideal. Long-running or connection-heavy work fits servers or containers better."
+   },
+   "projects": false
+  },
+  {
+   "id": "deploy",
+   "t": "k",
+   "title": "Deploying and releasing safely",
+   "sum": "Containers, CI/CD, rollouts that can be reversed, and database migrations.",
+   "sec": [
+    {
+     "h": "The pipeline",
+     "b": "<div class=\"flow\"><span class=\"node\">Commit</span><span class=\"arr\" aria-hidden=\"true\">→</span><span class=\"node\">CI: test + build</span><span class=\"arr\" aria-hidden=\"true\">→</span><span class=\"node\">Container image</span><span class=\"arr\" aria-hidden=\"true\">→</span><span class=\"node\">Staging</span><span class=\"arr\" aria-hidden=\"true\">→</span><span class=\"node\">Production</span></div><pre class=\"code\"><code># Dockerfile\nFROM python:3.12-slim\nWORKDIR /app\nCOPY requirements.txt .\nRUN pip install --no-cache-dir -r requirements.txt\nCOPY . .\nCMD [\"uvicorn\", \"app.main:app\", \"--host\", \"0.0.0.0\", \"--port\", \"8000\"]</code></pre>"
+    },
+    {
+     "h": "Release strategies",
+     "b": "<div class=\"tw\"><table><thead><tr><th>Strategy</th><th>How</th><th>Use when</th></tr></thead><tbody><tr><td>Rolling</td><td>Replace servers a few at a time</td><td>Default</td></tr><tr><td>Blue/green</td><td>Switch traffic between two full environments</td><td>Instant rollback needed</td></tr><tr><td>Canary</td><td>Send 1 to 5% of traffic to the new version first</td><td>Risky changes</td></tr></tbody></table></div>"
+    },
+    {
+     "h": "Safe database changes",
+     "b": "<p>During a rollout, old and new code run together against the same database. Use <b>expand and contract</b>: first add the new column (code ignores it), then deploy code that writes both, backfill, switch reads, and only later drop the old column.</p>"
+    }
+   ],
+   "breaks": [
+    "A migration that drops or renames a column breaks the old servers still running during rollout.",
+    "No rollback plan. Keep the previous image and make the rollback one command.",
+    "A long migration locks a big table. Run in small batches or use online tools.",
+    "Config differs between staging and production, so tests pass and prod fails.",
+    "Deploying on Friday evening without alerts in place."
+   ],
+   "quiz": {
+    "q": "Why is it risky to rename a database column in the same deploy that ships new code?",
+    "o": [
+     "Databases cannot rename columns while the app is running",
+     "A rename always takes the table offline for hours",
+     "Old servers still running during the rollout would break",
+     "Renaming is slower than adding a column"
+    ],
+    "a": 2,
+    "w": "Old and new versions overlap during a rollout. Use expand and contract so both versions work at every step."
+   },
+   "projects": false
+  },
+  {
+   "id": "scale",
+   "t": "k",
+   "title": "Scaling from 1 to 1 million users",
+   "sum": "The order in which to add building blocks as real load appears.",
+   "sec": [
+    {
+     "h": "The journey",
+     "b": "<div class=\"tw\"><table><thead><tr><th>Stage</th><th>Symptom</th><th>Add</th></tr></thead><tbody><tr><td>1 to 1k users</td><td>None</td><td>One server, one database</td></tr><tr><td>Database slow or server busy</td><td>CPU or disk contention</td><td>Separate DB from app server, add indexes</td></tr><tr><td>Single point of failure</td><td>Downtime during deploys</td><td>2+ stateless app servers behind a load balancer</td></tr><tr><td>Read-heavy load</td><td>DB reads dominate</td><td>Cache, then read replicas</td></tr><tr><td>Heavy static traffic</td><td>Bandwidth, slow worldwide</td><td>CDN and object storage</td></tr><tr><td>Slow tasks in requests</td><td>Timeouts</td><td>Queue and workers</td></tr><tr><td>Write limit reached</td><td>Single DB cannot keep up</td><td>Partition or shard, split by domain</td></tr></tbody></table></div><p>Change one thing at a time, measure, and stop when the system meets its targets.</p>"
+    },
+    {
+     "h": "Rules to follow on the way",
+     "b": "<ul><li>Fix the slowest query before adding hardware.</li><li>Keep servers stateless from the beginning, since that is the one thing hard to retrofit.</li><li>Put numbers behind every addition: \"p99 was 900 ms, now 120 ms\".</li></ul>"
+    }
+   ],
+   "breaks": [
+    "Sharding too early adds permanent complexity for a problem you do not have yet.",
+    "Adding replicas to fix a slow query. Fix the query or index first.",
+    "Scaling the app tier while the database stays the single bottleneck.",
+    "Stateful servers (files on local disk, in-memory sessions) that block horizontal scaling.",
+    "No load test, so the first real test is launch day."
+   ],
+   "quiz": {
+    "q": "Database reads dominate your load. What do you usually try first?",
+    "o": [
+     "Shard the database across many servers",
+     "Move to a different database engine",
+     "Add indexes and caching, then read replicas",
+     "Add more app servers behind the load balancer"
+    ],
+    "a": 2,
+    "w": "Indexes and caches are cheap and effective. Sharding is a last resort, and more app servers do nothing for a busy database."
+   },
+   "projects": false
+  },
+  {
+   "id": "streaming",
+   "t": "i",
+   "title": "Streaming with Kafka",
+   "sum": "A replayable log of events, and how consumers scale and fail.",
+   "sec": [
+    {
+     "h": "Kafka concepts",
+     "b": "<ul><li>A <b>topic</b> is split into <b>partitions</b>. Order is guaranteed within a partition only.</li><li>Each message has an <b>offset</b>. Consumers track how far they have read.</li><li>A <b>consumer group</b> shares the partitions: each partition goes to one consumer in the group, so parallelism is capped by the partition count.</li><li><b>Retention</b> keeps data for a time or size, so consumers can replay.</li><li><b>Replication factor</b> copies each partition across brokers.</li></ul><div class=\"flow\"><span class=\"node\">Producers</span><span class=\"arr\" aria-hidden=\"true\">→</span><span class=\"node\">Topic partitions</span><span class=\"arr\" aria-hidden=\"true\">→</span><span class=\"node\">Consumer group</span><span class=\"arr\" aria-hidden=\"true\">→</span><span class=\"node\">Sink</span></div>"
+    },
+    {
+     "h": "Processing and guarantees",
+     "b": "<p>Frameworks such as Kafka Streams and Flink do windowed counts and joins. Delivery is at-least-once by default. An idempotent producer and transactions give exactly-once within Kafka, but side effects outside Kafka still need idempotent handlers.</p><pre class=\"code\"><code># producer: key keeps one user's events in order\nproducer.send(\"clicks\", key=user_id, value=event)\n\n# consumer in a group: commit only after the work succeeds\nfor msg in consumer:\n    process(msg)            # must be idempotent\n    consumer.commit()</code></pre>"
+    }
+   ],
+   "breaks": [
+    "Consumer lag grows silently. Alert on lag and its age.",
+    "A bad key sends most traffic to one partition.",
+    "Rebalances pause consumption. Avoid frequent restarts.",
+    "Too many partitions increase overhead and recovery time.",
+    "Retention expires data before a slow consumer reads it."
+   ],
+   "quiz": {
+    "q": "A topic has 6 partitions and one consumer group. What is the most useful number of consumers in the group?",
+    "o": [
+     "Sixty, because more consumers read faster",
+     "Six, because each partition goes to one consumer",
+     "One, because a group needs exactly one consumer",
+     "Twelve, so each partition has two readers"
+    ],
+    "a": 1,
+    "w": "A partition is read by one consumer in a group, so extra consumers sit idle."
+   },
+   "projects": false
+  },
+  {
+   "id": "batch",
+   "t": "i",
+   "title": "Batch processing, MapReduce and data warehouses",
+   "sum": "Process huge datasets in bulk, and store them for analysis.",
+   "sec": [
+    {
+     "h": "MapReduce and Spark",
+     "b": "<div class=\"flow\"><span class=\"node\">Map</span><span class=\"arr\" aria-hidden=\"true\">→</span><span class=\"node\">Shuffle by key</span><span class=\"arr\" aria-hidden=\"true\">→</span><span class=\"node\">Reduce</span></div><p>Map each record to key-value pairs, shuffle so equal keys meet, then reduce each group. Hadoop MapReduce writes to disk between steps. <b>Spark</b> keeps data in memory and plans a graph of steps, which is much faster. <b>Presto/Trino</b> run SQL across data lakes.</p><pre class=\"code\"><code># word count in Spark\ncounts = (sc.textFile(\"logs/*\")\n            .flatMap(lambda line: line.split())\n            .map(lambda w: (w, 1))\n            .reduceByKey(lambda a, b: a + b))</code></pre>"
+    },
+    {
+     "h": "Warehouses",
+     "b": "<p>A warehouse (Redshift, BigQuery, Snowflake) stores data in columns for fast analytics (OLAP), unlike a row-based transactional database (OLTP). <b>ETL</b> transforms before loading, <b>ELT</b> loads then transforms inside the warehouse. A <b>lambda</b> design runs batch and streaming side by side, a <b>kappa</b> design uses streaming alone.</p>"
+    }
+   ],
+   "breaks": [
+    "Data skew leaves one task running for hours.",
+    "Thousands of tiny files slow everything. Compact them.",
+    "Running heavy analytics on the production database.",
+    "Re-running a non-idempotent job duplicates results.",
+    "Upstream schema changes silently break pipelines."
+   ],
+   "quiz": {
+    "q": "Why is a columnar warehouse better than a row-based transactional database for analytics?",
+    "o": [
+     "It has no schema, so any kind of data can be loaded without planning",
+     "A query reads only the columns it needs, and columns compress well",
+     "It stores less data because it drops old rows",
+     "It builds an index on every column automatically"
+    ],
+    "a": 1,
+    "w": "Analytics scans a few columns across many rows. Columnar storage reads just those columns."
+   },
+   "projects": false
+  },
+  {
+   "id": "solid",
+   "t": "l",
+   "title": "SOLID principles",
+   "sum": "Five rules that keep classes easy to change.",
+   "sec": [
+    {
+     "h": "The five rules",
+     "b": "<div class=\"tw\"><table><thead><tr><th>Principle</th><th>Meaning</th><th>Smell it fixes</th></tr></thead><tbody><tr><td>Single responsibility</td><td>A class has one reason to change</td><td>A class that validates, saves and emails</td></tr><tr><td>Open/closed</td><td>Add behaviour by adding code, not editing</td><td>A growing if/elif chain</td></tr><tr><td>Liskov substitution</td><td>A subclass works anywhere its parent does</td><td>A child that throws \"not supported\"</td></tr><tr><td>Interface segregation</td><td>Small focused interfaces</td><td>Classes forced to implement unused methods</td></tr><tr><td>Dependency inversion</td><td>Depend on abstractions, not concrete classes</td><td>Business logic that creates its own database connection</td></tr></tbody></table></div>"
+    },
+    {
+     "h": "Open/closed in practice",
+     "b": "<pre class=\"code\"><code># Before: edit this function for every new discount\ndef price(order, kind):\n    if kind == \"student\": return order.total * 0.9\n    if kind == \"vip\":     return order.total * 0.8\n    return order.total\n\n# After: add a new class, change nothing else\nclass Discount:\n    def apply(self, total): raise NotImplementedError\nclass Student(Discount):\n    def apply(self, total): return total * 0.9\nclass Vip(Discount):\n    def apply(self, total): return total * 0.8\n\ndef price(order, discount: Discount):\n    return discount.apply(order.total)</code></pre>"
+    }
+   ],
+   "breaks": [
+    "Over-engineering: an interface for a class with one implementation and no tests. Apply the rules when change actually hurts.",
+    "God classes that know everything and are touched in every pull request.",
+    "Inheritance used for code reuse, so changing the parent breaks every child. Prefer composition."
+   ],
+   "quiz": {
+    "q": "A function with an if/elif chain that you edit for every new discount type breaks which principle?",
+    "o": [
+     "Liskov substitution: subtypes must replace their parents",
+     "Interface segregation: interfaces should be small",
+     "Dependency inversion: depend on abstractions",
+     "Open/closed: add behaviour by adding code, not by editing it"
+    ],
+    "a": 3,
+    "w": "You should extend behaviour by adding new classes, such as a new discount, instead of modifying existing code."
+   },
+   "projects": false
+  },
+  {
+   "id": "oop",
+   "t": "l",
+   "title": "Modelling with objects",
+   "sum": "A repeatable routine for any low-level design round or real feature.",
+   "sec": [
+    {
+     "h": "The routine",
+     "b": "<ol><li><b>Clarify</b> requirements and what is out of scope.</li><li><b>Find entities:</b> the nouns become classes (Vehicle, Spot, Ticket).</li><li><b>Find behaviour:</b> the verbs become methods (park, unpark, pay).</li><li><b>Relate them:</b> is-a (inheritance), has-a (composition), uses (dependency).</li><li><b>Choose patterns</b> only where variation exists (pricing rules, notification types).</li><li><b>Write the core flow</b> first, then handle edge cases.</li></ol>"
+    },
+    {
+     "h": "Heuristics",
+     "b": "<ul><li>Prefer <b>composition over inheritance</b>.</li><li>Keep data and the behaviour that changes it together.</li><li>Hide internals. Expose the smallest public surface.</li><li>Model states explicitly (<code>PENDING, PAID, CANCELLED</code>) and guard the allowed transitions.</li></ul>"
+    }
+   ],
+   "breaks": [
+    "Deep inheritance trees (Vehicle → Car → ElectricCar → TeslaCar) that make changes painful.",
+    "Anemic models: classes that are only data bags while all logic lives in one giant service.",
+    "Exposing mutable internals, so any caller can put an object into an invalid state.",
+    "Primitive obsession: passing raw strings and ints where a small type (Money, Email) would prevent bugs."
+   ],
+   "quiz": {
+    "q": "In the object-modelling routine, what do the nouns in the requirements usually become?",
+    "o": [
+     "Methods, with the verbs becoming classes",
+     "Classes, with the verbs becoming their methods",
+     "Design patterns, with the verbs becoming interfaces",
+     "Database tables, with the verbs becoming columns"
+    ],
+    "a": 1,
+    "w": "Nouns suggest entities (classes) and verbs suggest behaviour (methods)."
+   },
+   "projects": false
+  },
+  {
+   "id": "patterns",
+   "t": "l",
+   "title": "Design patterns that matter",
+   "sum": "The handful of patterns you will actually use.",
+   "sec": [
+    {
+     "h": "Strategy",
+     "b": "<p>Swap an algorithm at runtime. Use it for pricing, routing, payment methods.</p><pre class=\"code\"><code>class CardPay:\n    def pay(self, amount): print(\"card\", amount)\nclass UpiPay:\n    def pay(self, amount): print(\"upi\", amount)\n\nclass Checkout:\n    def __init__(self, method): self.method = method\n    def complete(self, amount): self.method.pay(amount)\n\nCheckout(UpiPay()).complete(499)</code></pre>"
+    },
+    {
+     "h": "Observer",
+     "b": "<p>Objects subscribe to events without the publisher knowing who they are. Use it for notifications and UI updates.</p><pre class=\"code\"><code>class OrderEvents:\n    def __init__(self): self.subs = []\n    def subscribe(self, fn): self.subs.append(fn)\n    def publish(self, order):\n        for fn in self.subs:\n            fn(order)\n\nevents = OrderEvents()\nevents.subscribe(lambda o: print(\"email\", o))\nevents.subscribe(lambda o: print(\"update stock\", o))\nevents.publish(\"order-42\")</code></pre>"
+    },
+    {
+     "h": "Others to recognise",
+     "b": "<div class=\"tw\"><table><thead><tr><th>Pattern</th><th>Use it when</th></tr></thead><tbody><tr><td>Factory</td><td>Creating the right object depends on input (a notifier for email, SMS or push)</td></tr><tr><td>State</td><td>Behaviour changes with state (order, elevator, vending machine)</td></tr><tr><td>Decorator</td><td>Add features by wrapping (logging, caching, retries)</td></tr><tr><td>Singleton</td><td>Rarely. It is global state, so prefer passing dependencies in</td></tr></tbody></table></div>"
+    }
+   ],
+   "breaks": [
+    "Using a pattern because it sounds good. Start with plain code and add a pattern when you feel duplication or rigidity.",
+    "Observers that throw an error and stop later subscribers from running. Isolate each callback.",
+    "Singletons that make tests share state and fail in random order.",
+    "A Factory with a growing switch statement is just the old problem moved. Register creators in a map."
+   ],
+   "quiz": {
+    "q": "A vending machine behaves differently when idle, holding money or dispensing. Which pattern fits?",
+    "o": [
+     "Singleton: there is only one machine",
+     "Decorator: wrap the machine with extra features",
+     "State: each state is an object with its own behaviour",
+     "Observer: the machine subscribes to coin events"
+    ],
+    "a": 2,
+    "w": "When behaviour depends on the current state, model each state as an object."
+   },
+   "projects": false
+  },
+  {
+   "id": "conc",
+   "t": "l",
+   "title": "Concurrency basics",
+   "sum": "Why shared state breaks, and the small set of tools that fix it.",
+   "sec": [
+    {
+     "h": "The classic bug",
+     "b": "<p>Two threads each do <code>balance = balance + 10</code>. Both read 100, both write 110, and one deposit is lost. Check-then-act on shared data is never safe without protection.</p><pre class=\"code\"><code>import threading\nbalance = 0\nlock = threading.Lock()\n\ndef deposit():\n    global balance\n    for _ in range(100000):\n        with lock:                 # remove this lock to see lost updates\n            balance += 1\n\nts = [threading.Thread(target=deposit) for _ in range(4)]\n[t.start() for t in ts]; [t.join() for t in ts]\nprint(balance)                     # 400000</code></pre>"
+    },
+    {
+     "h": "Tools",
+     "b": "<ul><li><b>Lock / mutex:</b> one thread at a time in a critical section.</li><li><b>Atomic operations:</b> single indivisible updates (<code>INCR</code> in Redis).</li><li><b>Optimistic locking:</b> read a version number, update only if it is unchanged, retry otherwise. Good when conflicts are rare.</li><li><b>Pessimistic locking:</b> lock the row first. Good when conflicts are common.</li><li><b>Thread or worker pools:</b> bound how much runs at once.</li></ul>"
+    }
+   ],
+   "breaks": [
+    "Deadlock: thread 1 holds A and wants B while thread 2 holds B and wants A. Always take locks in the same order.",
+    "Holding a lock while doing network or disk I/O stalls everyone behind it.",
+    "Check-then-act races, such as \"if seat is free then book it\". Make it one atomic update.",
+    "Lost wake-ups and busy waiting. Use condition variables or queues.",
+    "Locks work inside one process only. Across servers, use database locks, versions or a distributed lock with expiry."
+   ],
+   "quiz": {
+    "q": "Two servers try to book the same seat at the same moment. Which fix works across servers?",
+    "o": [
+     "A mutex inside the booking function on each server",
+     "A bigger server so requests finish sooner",
+     "A conditional update: set booked only where the seat is still free",
+     "A thread-safe in-memory set of booked seats"
+    ],
+    "a": 2,
+    "w": "In-process locks do not span machines. Let the database make the check-and-set one atomic step."
+   },
+   "projects": false
+  },
+  {
+   "id": "parking",
+   "t": "l",
+   "title": "Case: parking lot",
+   "sum": "The classic machine-coding problem, with the edge cases that decide the round.",
+   "sec": [
+    {
+     "h": "Requirements",
+     "b": "<ul><li>Multiple levels, spots of sizes small, medium and large.</li><li>Vehicles: bike, car, truck. A vehicle needs a spot of at least its size.</li><li>Entry issues a ticket. Exit calculates the fee by time and vehicle type.</li></ul>"
+    },
+    {
+     "h": "Classes",
+     "b": "<div class=\"flow\"><span class=\"node\">ParkingLot</span><span class=\"arr\" aria-hidden=\"true\">→</span><span class=\"node\">Level</span><span class=\"arr\" aria-hidden=\"true\">→</span><span class=\"node\">Spot</span><span class=\"arr\" aria-hidden=\"true\">→</span><span class=\"node\">Ticket</span><span class=\"arr\" aria-hidden=\"true\">→</span><span class=\"node\">FeePolicy</span></div><pre class=\"code\"><code>from enum import IntEnum\nimport threading, time\n\nclass Size(IntEnum):\n    SMALL = 1; MEDIUM = 2; LARGE = 3\n\nclass Spot:\n    def __init__(self, sid, size):\n        self.id, self.size, self.free = sid, size, True\n\nclass Ticket:\n    def __init__(self, tid, spot, plate):\n        self.id, self.spot, self.plate = tid, spot, plate\n        self.entered = time.time()\n\nclass ParkingLot:\n    def __init__(self, spots, fee_policy):\n        self.spots, self.fee = spots, fee_policy\n        self.lock = threading.Lock()\n        self.active = {}               # plate -&gt; Ticket\n        self.next_id = 1\n\n    def park(self, plate, need: Size):\n        with self.lock:                # one thread allocates at a time\n            if plate in self.active:\n                raise ValueError(\"already parked\")\n            for s in self.spots:\n                if s.free and s.size &gt;= need:\n                    s.free = False\n                    t = Ticket(self.next_id, s, plate)\n                    self.next_id += 1\n                    self.active[plate] = t\n                    return t\n            raise RuntimeError(\"lot full\")\n\n    def leave(self, plate):\n        with self.lock:\n            t = self.active.pop(plate)\n            t.spot.free = True\n            return self.fee.charge(time.time() - t.entered, t.spot.size)</code></pre>"
+    }
+   ],
+   "breaks": [
+    "Two cars are assigned the same spot at the same instant. Allocation must be atomic (the lock above, or a database row lock).",
+    "The same plate enters twice without leaving. Reject it or flag a fraud case.",
+    "Lost ticket: charge the maximum daily fee and look the car up by plate.",
+    "The lot is full. Return a clear error, ideally with the next free time, and never hang.",
+    "A truck takes a large spot while small spots sit empty, and then smaller vehicles cannot fit. Choose the smallest spot that fits.",
+    "Fee over midnight, daylight saving changes or a server clock change. Store UTC and use a monotonic clock for durations.",
+    "Payment fails at exit. Keep the ticket open and the gate closed until paid, or record a debt."
+   ],
+   "quiz": {
+    "q": "Two entry gates call park() at the same moment. What prevents double allocation?",
+    "o": [
+     "Faster hardware, so requests rarely overlap",
+     "Checking for a free spot twice before assigning",
+     "Letting the exit gate fix duplicates afterwards",
+     "Making check-and-assign atomic with a lock or a row lock"
+    ],
+    "a": 3,
+    "w": "Check-then-assign is a race. It must happen as one indivisible step."
+   },
+   "projects": false
+  },
+  {
+   "id": "lru",
+   "t": "l",
+   "title": "Case: LRU cache",
+   "sum": "O(1) get and put with a hash map and a linked list, plus the follow-ups interviewers ask.",
+   "sec": [
+    {
+     "h": "Idea",
+     "b": "<p>A hash map gives O(1) lookup. A doubly linked list keeps items ordered by recency: the most recent at the head, the least recent at the tail. On access, move the node to the head. When full, drop the tail.</p><pre class=\"code\"><code>class Node:\n    def __init__(self, k, v):\n        self.k, self.v = k, v\n        self.prev = self.next = None\n\nclass LRU:\n    def __init__(self, cap):\n        if cap &lt;= 0: raise ValueError(\"capacity must be positive\")\n        self.cap, self.map = cap, {}\n        self.head, self.tail = Node(0, 0), Node(0, 0)   # sentinels\n        self.head.next, self.tail.prev = self.tail, self.head\n\n    def _remove(self, n):\n        n.prev.next, n.next.prev = n.next, n.prev\n    def _add_front(self, n):\n        n.next, n.prev = self.head.next, self.head\n        self.head.next.prev = n\n        self.head.next = n\n\n    def get(self, k):\n        n = self.map.get(k)\n        if not n: return None\n        self._remove(n); self._add_front(n)\n        return n.v\n\n    def put(self, k, v):\n        if k in self.map:                 # update, do not duplicate\n            n = self.map[k]; n.v = v\n            self._remove(n); self._add_front(n)\n            return\n        if len(self.map) == self.cap:\n            lru = self.tail.prev\n            self._remove(lru); del self.map[lru.k]\n        n = Node(k, v); self.map[k] = n; self._add_front(n)</code></pre>"
+    }
+   ],
+   "breaks": [
+    "Updating an existing key must not grow the size or leave a stale node behind.",
+    "Capacity 0 or negative. Reject it up front.",
+    "Concurrent access corrupts the list. Add a lock, or shard the cache so each shard has its own lock.",
+    "Expiry: add a TTL timestamp per node and check it on get.",
+    "A single huge item evicts many small ones. Consider size-based weights."
+   ],
+   "quiz": {
+    "q": "Why does an LRU cache use a doubly linked list instead of a singly linked one?",
+    "o": [
+     "A node can be unlinked in O(1) when you hold a pointer to it",
+     "It uses less memory per entry because it stores fewer pointers",
+     "It keeps the entries sorted by key",
+     "It lets two threads read at once"
+    ],
+    "a": 0,
+    "w": "Removing a node from the middle needs its previous node. A doubly linked list stores that pointer."
+   },
+   "projects": false
+  },
+  {
+   "id": "urlshort",
+   "t": "y",
+   "title": "Design a URL shortener",
+   "sum": "From requirements to a working service: estimates, key generation, redirects and abuse.",
+   "sec": [
+    {
+     "h": "Requirements",
+     "b": "<ul><li>Create a short link for a long URL. Optional custom alias and expiry.</li><li>Redirect fast and reliably. Reads far outnumber writes.</li><li>Links should not be guessable in order, and abuse must be handled.</li></ul>"
+    },
+    {
+     "h": "Estimates",
+     "b": "<pre class=\"code\"><code>new URLs        = 100M / month  ~= 40 writes/s\nread:write      = 100:1        -&gt;  ~4,000 reads/s average, ~12,000 peak\n5 years         = 100M x 60    =  6 billion URLs\nstorage         = 6B x 500 B   ~= 3 TB\nkey space       = 62^7         ~= 3.5 trillion  (7 chars of a-z A-Z 0-9)</code></pre><p>Read-heavy with small data: cache the hot links and one replicated database is enough at first.</p>"
+    },
+    {
+     "h": "API and data",
+     "b": "<pre class=\"code\"><code>POST /v1/links   { \"url\": \"...\", \"alias\": \"optional\", \"expires_at\": \"optional\" }\n  -&gt; 201 { \"short\": \"https://sho.rt/aZ3k9Qp\" }\nGET  /aZ3k9Qp    -&gt; 302 Location: &lt;long url&gt;\n\ntable links(code PK, long_url, user_id, created_at, expires_at)</code></pre>"
+    },
+    {
+     "h": "Architecture",
+     "b": "<div class=\"flow\"><span class=\"node\">Client</span><span class=\"arr\" aria-hidden=\"true\">→</span><span class=\"node\">CDN / LB</span><span class=\"arr\" aria-hidden=\"true\">→</span><span class=\"node\">Redirect service</span><span class=\"arr\" aria-hidden=\"true\">→</span><span class=\"node\">Cache</span><span class=\"arr\" aria-hidden=\"true\">→</span><span class=\"node\">Database</span></div><div class=\"flow\"><span class=\"node\">Create API</span><span class=\"arr\" aria-hidden=\"true\">→</span><span class=\"node\">Key generator</span><span class=\"arr\" aria-hidden=\"true\">→</span><span class=\"node\">Database</span></div><p><b>Key generation options:</b></p><div class=\"tw\"><table><thead><tr><th>Option</th><th>Pros</th><th>Cons</th></tr></thead><tbody><tr><td>Random 7 chars</td><td>Unguessable</td><td>Collisions, so retry on conflict</td></tr><tr><td>Base62 of a counter</td><td>No collisions</td><td>Guessable, counter is a bottleneck</td></tr><tr><td>Pre-generated key pool</td><td>Fast, no collisions</td><td>Extra service to run</td></tr></tbody></table></div><p><b>301 vs 302:</b> 301 is cached by browsers, so it is cheaper but you lose click analytics and cannot change the target. 302 sends every click through you.</p>"
+    },
+    {
+     "h": "Build it",
+     "b": "<pre class=\"code\"><code># pip install fastapi uvicorn  |  run: uvicorn app:app --reload\nimport secrets, string, sqlite3\nfrom fastapi import FastAPI, HTTPException\nfrom fastapi.responses import RedirectResponse\nfrom pydantic import BaseModel, HttpUrl\n\napp = FastAPI()\ndb = sqlite3.connect(\"links.db\", check_same_thread=False)\ndb.execute(\"create table if not exists links(code text primary key, url text)\")\nALPHABET = string.ascii_letters + string.digits\n\nclass In(BaseModel):\n    url: HttpUrl\n\n@app.post(\"/v1/links\", status_code=201)\ndef create(body: In):\n    for _ in range(5):                       # retry on collision\n        code = \"\".join(secrets.choice(ALPHABET) for _ in range(7))\n        try:\n            db.execute(\"insert into links values(?,?)\", (code, str(body.url)))\n            db.commit()\n            return {\"short\": \"/\" + code}\n        except sqlite3.IntegrityError:\n            continue\n    raise HTTPException(503, \"try again\")\n\n@app.get(\"/{code}\")\ndef go(code: str):\n    row = db.execute(\"select url from links where code=?\", (code,)).fetchone()\n    if not row:\n        raise HTTPException(404, \"unknown link\")\n    return RedirectResponse(row[0], status_code=302)</code></pre><p class=\"callout\">Next steps for you: add a Redis cache in front of the lookup, expiry, a per-user rate limit, and click counting through a queue.</p>"
+    }
+   ],
+   "breaks": [
+    "Two random codes collide. The primary key rejects the second, so retry with a new code.",
+    "A custom alias is already taken, or is a reserved word like <code>admin</code>. Return 409 and keep a reserved list.",
+    "Expired or deleted links should return 410 or 404 and must also leave the cache.",
+    "Malicious targets (phishing, malware). Check against a blocklist and rate limit creation.",
+    "One viral link hammers one cache key. Replicate hot keys or serve through a CDN.",
+    "Click analytics on every redirect adds write load. Send events to a queue and count in batches.",
+    "Open redirect abuse and links pointing to your own domain in a loop. Validate the scheme and host."
+   ],
+   "quiz": {
+    "q": "Why choose a 302 redirect over a 301 for a link shortener?",
+    "o": [
+     "302 is faster for users because browsers cache it and skip your server",
+     "302 is cached forever, which saves bandwidth",
+     "Every click passes through you, so you keep analytics and can change the target",
+     "301 is not allowed for links to other sites"
+    ],
+    "a": 2,
+    "w": "Browsers cache 301 redirects, so later clicks bypass you and you cannot change where the link goes."
+   },
+   "projects": false
+  },
+  {
+   "id": "chat",
+   "t": "y",
+   "title": "Design a chat app",
+   "sum": "Real-time messaging with delivery guarantees, ordering and offline users.",
+   "sec": [
+    {
+     "h": "Requirements",
+     "b": "<ul><li>1:1 and group chat, real-time delivery, message history.</li><li>Delivery states: sent, delivered, read.</li><li>Works across multiple devices and when users are offline.</li></ul>"
+    },
+    {
+     "h": "Estimates",
+     "b": "<pre class=\"code\"><code>50M DAU x 40 messages    = 2B messages/day  ~= 23,000 msg/s average\nmessage ~100 B           = 200 GB/day  ~= 73 TB/year, or about 220 TB with 3 replicas\nconnections              = ~10M concurrent WebSockets\n                           at ~50k per server -&gt; ~200 gateway servers</code></pre>"
+    },
+    {
+     "h": "Architecture",
+     "b": "<div class=\"flow\"><span class=\"node\">Phone</span><span class=\"arr\" aria-hidden=\"true\">→</span><span class=\"node\">WebSocket gateway</span><span class=\"arr\" aria-hidden=\"true\">→</span><span class=\"node\">Chat service</span><span class=\"arr\" aria-hidden=\"true\">→</span><span class=\"node\">Message store</span></div><div class=\"flow\"><span class=\"node\">Chat service</span><span class=\"arr\" aria-hidden=\"true\">→</span><span class=\"node\">Queue</span><span class=\"arr\" aria-hidden=\"true\">→</span><span class=\"node\">Push notifications (offline)</span></div><ul><li><b>Gateway:</b> holds the persistent WebSocket per device and is stateless except for the live connection. A registry (Redis) maps user_id to the gateway holding it.</li><li><b>Chat service:</b> assigns an ID, stores the message, then delivers to online recipients or pushes a notification.</li><li><b>Store:</b> partition by conversation_id so one conversation's messages sit together and are ordered by a sequence number. A wide-column or key-value store fits.</li></ul>"
+    },
+    {
+     "h": "Build it",
+     "b": "<pre class=\"code\"><code>// npm i ws\nconst { WebSocketServer } = require(\"ws\");\nconst wss = new WebSocketServer({ port: 8080 });\nconst online = new Map();            // userId -&gt; socket\nconst seen = new Set();              // client message ids (dedupe)\n\nwss.on(\"connection\", (ws, req) =&gt; {\n  const user = new URL(req.url, \"http://x\").searchParams.get(\"user\");\n  online.set(user, ws);\n  ws.on(\"message\", (raw) =&gt; {\n    const m = JSON.parse(raw);       // { id, to, text }\n    if (seen.has(m.id)) return;      // duplicate from a retry\n    seen.add(m.id);\n    const dest = online.get(m.to);\n    if (dest) dest.send(JSON.stringify({ from: user, text: m.text }));\n    else queueForPush(m);            // offline: store and notify\n    ws.send(JSON.stringify({ ack: m.id }));\n  });\n  ws.on(\"close\", () =&gt; online.delete(user));\n});\nfunction queueForPush(m) { /* save to DB, send push */ }</code></pre>"
+    }
+   ],
+   "breaks": [
+    "The phone loses signal after sending and retries, so the receiver gets the message twice. The client creates a unique message ID and the server dedupes.",
+    "Messages arrive out of order. Use a per-conversation sequence number and sort by it.",
+    "A user has three devices. Deliver to all and keep read state in sync through the server.",
+    "A group of 100,000 members makes one message into 100,000 deliveries. Fan out through a queue and put very large groups on a pull model.",
+    "A gateway crashes and 200,000 clients reconnect together. Use jittered reconnect backoff and connection limits.",
+    "Presence (\"online\") flickers on bad networks. Use heartbeats with a grace period.",
+    "Users delete messages or accounts. Plan retention, deletion and (if promised) end-to-end encryption early."
+   ],
+   "quiz": {
+    "q": "A phone resends a message after a timeout. How do you avoid showing it twice?",
+    "o": [
+     "The server ignores any message that arrives after a delay",
+     "The client creates a unique message ID and the server dedupes on it",
+     "The server sorts by timestamp and drops equal ones",
+     "The receiving phone compares the message texts"
+    ],
+    "a": 1,
+    "w": "A stable ID makes the retry recognisable as the same message, whatever its text or timing."
+   },
+   "projects": false
+  },
+  {
+   "id": "geo",
+   "t": "y",
+   "title": "Design a location service (nearby search)",
+   "sum": "Find the closest drivers, shops or friends among millions of moving points, quickly.",
+   "sec": [
+    {
+     "h": "The problem",
+     "b": "<p>'Show restaurants within 2 km' or 'find the nearest free driver' cannot be answered by comparing your position with every row. A normal index on latitude alone does not help, because nearby places also differ in longitude. The trick is to turn two-dimensional space into something an index handles well: <b>cells</b>.</p>"
+    },
+    {
+     "h": "Cells: geohash, quadtree and H3",
+     "b": "<p>A <b>geohash</b> encodes a position as a short string, and places that share a long prefix are close together, so a normal prefix lookup finds a neighbourhood. A <b>quadtree</b> keeps splitting a square into four until each holds only a few points, so crowded cities get small cells and empty oceans stay large. <b>H3</b> and <b>S2</b> divide the earth into regular cells with a clean notion of neighbours. In every case the search is: find the user's cell, add the neighbouring cells, then compute exact distances for the few candidates.</p><div class=\"flow\"><span class=\"node\">Position</span><span class=\"arr\" aria-hidden=\"true\">→</span><span class=\"node\">Cell id</span><span class=\"arr\" aria-hidden=\"true\">→</span><span class=\"node\">Candidates in this and nearby cells</span><span class=\"arr\" aria-hidden=\"true\">→</span><span class=\"node\">Exact distance and sort</span></div>"
+    },
+    {
+     "h": "Moving points",
+     "b": "<p>Drivers update their position every few seconds, so locations are write-heavy and constantly outdated. Keep the current position in memory (for example Redis geo commands) keyed by cell, expire entries that have not updated, and write only occasional history to disk. Static places such as shops change rarely and can live in an ordinary database with a spatial index.</p>"
+    },
+    {
+     "h": "Scaling it",
+     "b": "<p>Partition by cell or by city so that one machine owns each area, and a request touches only one or a few partitions. A dense downtown cell is a hot spot, so split it into smaller cells or give it more machines. Matching a rider to a driver is a separate service that reads this one.</p>"
+    }
+   ],
+   "breaks": [
+    "A search at the edge of a cell misses points just across the border. Always search the neighbouring cells too.",
+    "One huge downtown cell takes all the traffic. Use smaller, adaptive cells there.",
+    "Writing every location update to a disk database overloads it. Keep live positions in memory and sample the history.",
+    "Stale positions from drivers who went offline appear on the map. Give each entry a time to live.",
+    "Ranking by straight-line distance ignores rivers and one-way streets. Re-rank the closest candidates by travel time."
+   ],
+   "quiz": {
+    "q": "Why search the neighbouring cells as well as the user's own cell?",
+    "o": [
+     "Cells are only accurate to a few kilometres",
+     "Empty cells are slower to read than full ones",
+     "Neighbouring cells keep copies of the same points",
+     "A closer point can sit just across the cell border"
+    ],
+    "a": 3,
+    "w": "Cells cut space into pieces with hard borders, so the nearest point can be in the next cell."
+   },
+   "projects": false
+  },
+  {
+   "id": "feed",
+   "t": "y",
+   "title": "Design a news feed",
+   "sum": "Fan-out on write vs read, celebrities, ranking and pagination.",
+   "sec": [
+    {
+     "h": "Requirements",
+     "b": "<ul><li>Users follow others and see a feed of their posts, newest or ranked first.</li><li>Feed loads in under 200 ms. Posting should show up for followers within seconds.</li></ul>"
+    },
+    {
+     "h": "Two ways to build a feed",
+     "b": "<div class=\"tw\"><table><thead><tr><th>Approach</th><th>How</th><th>Good</th><th>Bad</th></tr></thead><tbody><tr><td>Fan-out on write (push)</td><td>On post, add its ID to every follower's feed list</td><td>Reads are instant</td><td>A user with 10M followers means 10M writes</td></tr><tr><td>Fan-out on read (pull)</td><td>On open, fetch recent posts of everyone you follow and merge</td><td>No wasted work</td><td>Slow reads for users following many accounts</td></tr><tr><td>Hybrid</td><td>Push for normal users, pull for celebrities and merge</td><td>Balanced</td><td>More code</td></tr></tbody></table></div><div class=\"flow\"><span class=\"node\">Post service</span><span class=\"arr\" aria-hidden=\"true\">→</span><span class=\"node\">Fan-out workers</span><span class=\"arr\" aria-hidden=\"true\">→</span><span class=\"node\">Feed cache (Redis lists)</span><span class=\"arr\" aria-hidden=\"true\">→</span><span class=\"node\">Feed API</span></div>"
+    },
+    {
+     "h": "Build it",
+     "b": "<pre class=\"code\"><code>CELEBRITY_THRESHOLD = 100_000\n\ndef publish(post):\n    db.save(post)\n    followers = graph.followers(post.author_id)\n    if len(followers) &lt; CELEBRITY_THRESHOLD:\n        for batch in chunks(followers, 1000):\n            queue.send({\"post\": post.id, \"to\": batch})   # workers push into feeds\n    # celebrities are merged at read time\n\ndef push_worker(job):\n    for uid in job[\"to\"]:\n        redis.lpush(\"feed:\" + str(uid), job[\"post\"])\n        redis.ltrim(\"feed:\" + str(uid), 0, 799)          # keep latest 800\n\ndef get_feed(uid, cursor=None, limit=20):\n    ids = redis.lrange(\"feed:\" + str(uid), 0, 799)\n    for celeb in graph.followed_celebrities(uid):\n        ids += recent_posts(celeb, limit=20)\n    posts = hydrate(sorted_by_time_desc(ids))            # fetch post bodies\n    return paginate(posts, cursor, limit)</code></pre>"
+    }
+   ],
+   "breaks": [
+    "A celebrity posts and the fan-out queue takes hours. Use the hybrid model.",
+    "A post is deleted or its author blocked. The feed holds only IDs, so filter at read time when hydrating.",
+    "A new follow shows nothing from that account. Backfill their recent posts into the feed.",
+    "Pushing into feeds of inactive users wastes work. Skip users inactive for 30 days and rebuild on login.",
+    "Offset pagination shows duplicates as new posts arrive. Use a cursor (last seen post ID or time).",
+    "A cache node dies and feeds vanish. Rebuild from the database on a miss.",
+    "Ranking surprises: the same post appears on every refresh. Track seen items."
+   ],
+   "quiz": {
+    "q": "Why do large feeds use a hybrid push and pull model?",
+    "o": [
+     "Pushing a celebrity's post to millions of feeds is too costly, so it is pulled at read time",
+     "Pulling is always faster than pushing, so pushing is kept only as a backup",
+     "Pushing removes the need for a feed cache",
+     "It keeps every feed in sync with the follower graph"
+    ],
+    "a": 0,
+    "w": "Push works for normal accounts. For huge accounts it is cheaper to merge their posts when a follower reads."
+   },
+   "projects": false
+  },
+  {
+   "id": "ecommerce",
+   "t": "y",
+   "title": "Design an e-commerce platform",
+   "sum": "Catalogue, cart, orders and payments, with spikes and failures.",
+   "sec": [
+    {
+     "h": "Requirements and estimates",
+     "b": "<ul><li>Browse and search products, cart, checkout, payment, order tracking, notifications.</li><li>Very read-heavy browsing, write-critical checkout.</li><li>Flash sales produce big spikes.</li></ul><pre class=\"code\"><code>10M daily users, 20 page views each  -&gt; 200M reads/day  ~ 2,300 reads/s (peak ~7,000)\n2% buy, 200k orders/day              ~ 2.3 orders/s average, 50/s during a sale\nproduct images in object storage behind a CDN</code></pre>"
+    },
+    {
+     "h": "Architecture",
+     "b": "<div class=\"flow\"><span class=\"node\">Client</span><span class=\"arr\" aria-hidden=\"true\">→</span><span class=\"node\">CDN + API gateway</span><span class=\"arr\" aria-hidden=\"true\">→</span><span class=\"node\">Catalogue, Cart, Order, Payment services</span></div><div class=\"flow\"><span class=\"node\">Order service</span><span class=\"arr\" aria-hidden=\"true\">→</span><span class=\"node\">Queue</span><span class=\"arr\" aria-hidden=\"true\">→</span><span class=\"node\">Payment worker</span><span class=\"arr\" aria-hidden=\"true\">→</span><span class=\"node\">Stock + email</span></div><ul><li><b>Catalogue:</b> read-heavy, cached, with a search index.</li><li><b>Cart:</b> fast key-value store keyed by user.</li><li><b>Order:</b> a relational database with transactions. Place the order, return an order ID at once, and process payment and stock asynchronously.</li><li><b>Payment:</b> an external provider behind a circuit breaker with idempotency keys.</li><li><b>Checkout as a saga:</b> reserve stock, charge, confirm, with compensation (release stock, refund) on failure.</li></ul>"
+    },
+    {
+     "h": "Build it",
+     "b": "<pre class=\"code\"><code>@app.post(\"/v1/orders\", status_code=202)\ndef place_order(body: NewOrder, idempotency_key: str = Header(...)):\n    existing = db.find_order_by_key(idempotency_key)\n    if existing:\n        return {\"order_id\": existing.id}            # safe retry\n    order_id = db.insert_order(body, status=\"PENDING\", key=idempotency_key)\n    queue.send({\"type\": \"ORDER_PLACED\", \"order_id\": order_id})\n    return {\"order_id\": order_id}                    # fast response\n\ndef payment_worker(event):\n    order = db.get_order(event[\"order_id\"])\n    if order.status != \"PENDING\":\n        return                                       # idempotent\n    if reserve_stock(order) and charge(order):\n        db.set_status(order.id, \"PAID\")\n    else:\n        release_stock(order); db.set_status(order.id, \"FAILED\")</code></pre>"
+    }
+   ],
+   "breaks": [
+    "Two buyers take the last item. Reserve stock with one atomic conditional update and an expiry.",
+    "The payment provider is slow or down. Use a circuit breaker and queue orders.",
+    "A customer double-clicks pay. Use idempotency keys.",
+    "Payment succeeds but the order write fails. Reconcile with the provider daily.",
+    "Held stock is never released when carts are abandoned. Expire holds.",
+    "Flash-sale spikes. Rate limit, queue and scale the read path with caching."
+   ],
+   "quiz": {
+    "q": "Why return an order ID before the payment has finished?",
+    "o": [
+     "It lets the shop skip payment checks for customers it already trusts",
+     "Checkout stays fast while slow payment and stock steps run in the background",
+     "It avoids storing the order in a database",
+     "It guarantees that the payment will succeed"
+    ],
+    "a": 1,
+    "w": "Decoupling keeps checkout fast and absorbs spikes. The order stays PENDING until the workers finish."
+   },
+   "projects": false
+  },
+  {
+   "id": "notify",
+   "t": "y",
+   "title": "Design a notification system",
+   "sum": "Send push, SMS and email reliably, once, at the right time, without overwhelming users or providers.",
+   "sec": [
+    {
+     "h": "Channels and providers",
+     "b": "<p>You rarely send messages yourself. Push goes through Apple (APNs) and Google (FCM), SMS and email go through providers such as Twilio or Amazon SES. Your system decides <b>who</b> gets <b>what</b> and <b>when</b>, and hands the delivery to the provider. Each provider has its own limits, formats and failure modes, so put each channel behind its own queue and worker.</p><div class=\"flow\"><span class=\"node\">Event</span><span class=\"arr\" aria-hidden=\"true\">→</span><span class=\"node\">Notification service</span><span class=\"arr\" aria-hidden=\"true\">→</span><span class=\"node\">Queue per channel</span><span class=\"arr\" aria-hidden=\"true\">→</span><span class=\"node\">Worker</span><span class=\"arr\" aria-hidden=\"true\">→</span><span class=\"node\">Provider</span><span class=\"arr\" aria-hidden=\"true\">→</span><span class=\"node\">Device</span></div>"
+    },
+    {
+     "h": "Preferences, templates and priority",
+     "b": "<p>Before sending, check the user's preferences (opt-outs, quiet hours, channel choice) and fill a template with their language and data. Give messages a priority: a password reset or payment code must not wait behind a marketing campaign of ten million emails, so use separate queues or priority lanes.</p>"
+    },
+    {
+     "h": "Reliability: retries and no duplicates",
+     "b": "<p>Providers fail and time out, so workers retry with <b>exponential backoff</b>. Retrying can send the same message twice, so give every notification an <b>idempotency key</b> and have the worker check it before sending. Messages that keep failing go to a dead-letter queue. Record each state (queued, sent, delivered, opened) so you can answer 'did it go out?'.</p>"
+    },
+    {
+     "h": "Fan-out and protecting people",
+     "b": "<p>A broadcast to ten million users is a fan-out job: split it into batches, spread them over time, and respect provider rate limits. Add per-user limits too, so that one busy day does not send someone fifty pushes. Webhooks from providers report bounces and unsubscribes, which you must honour.</p>"
+    }
+   ],
+   "breaks": [
+    "A retry sends the same message twice. Use an idempotency key checked before every send.",
+    "A marketing blast delays urgent one-time codes. Separate queues by priority.",
+    "The provider rate-limits you and the queue explodes. Throttle workers to the provider's limit and spread large batches over time.",
+    "Messages go to users who opted out or in the middle of the night. Check preferences and quiet hours at send time, not at queue time.",
+    "Bounces and invalid device tokens are ignored, so you keep paying to send to dead addresses. Process provider feedback and remove them."
+   ],
+   "quiz": {
+    "q": "Why give each notification an idempotency key?",
+    "o": [
+     "A retry after a timeout cannot send the same message twice",
+     "It encrypts the message on its way to the provider",
+     "It lets urgent messages jump the queue",
+     "It makes the provider send the message faster"
+    ],
+    "a": 0,
+    "w": "Retries are needed because providers fail, but a retry may repeat a message that did go through. The key lets the worker skip it."
+   },
+   "projects": false
+  },
+  {
+   "id": "netflix",
+   "t": "y",
+   "title": "Design a video streaming service",
+   "sum": "Upload, encode, store and deliver video to millions, from the edge.",
+   "sec": [
+    {
+     "h": "Requirements and estimates",
+     "b": "<ul><li>Upload and play video, with smooth playback on any network.</li><li>Huge read traffic, heavy bandwidth, global audience.</li></ul><pre class=\"code\"><code>1M hours watched/hour at ~5 Mbps  -&gt; ~5 Tbps peak egress\n =&gt; it must be served from CDN caches near users, not from your origin</code></pre>"
+    },
+    {
+     "h": "Architecture",
+     "b": "<div class=\"flow\"><span class=\"node\">Upload</span><span class=\"arr\" aria-hidden=\"true\">→</span><span class=\"node\">Object storage</span><span class=\"arr\" aria-hidden=\"true\">→</span><span class=\"node\">Transcoding workers</span><span class=\"arr\" aria-hidden=\"true\">→</span><span class=\"node\">Many bitrates</span><span class=\"arr\" aria-hidden=\"true\">→</span><span class=\"node\">CDN edge</span><span class=\"arr\" aria-hidden=\"true\">→</span><span class=\"node\">Player</span></div><ul><li><b>Transcoding:</b> a fleet of workers splits the video into chunks and encodes each into several resolutions and bitrates.</li><li><b>Adaptive streaming (HLS or DASH):</b> the video is cut into a few seconds per segment, and the player switches bitrate as bandwidth changes.</li><li><b>Control plane vs data plane:</b> catalogue, recommendations, billing and playback authorisation run as services. The bytes flow from CDN caches placed inside ISP networks (Netflix Open Connect).</li><li><b>Resilience:</b> chaos engineering tests that losing instances does not stop playback.</li></ul>"
+    },
+    {
+     "h": "Build it",
+     "b": "<pre class=\"code\"><code># encode one title into an adaptive HLS ladder with ffmpeg\nffmpeg -i input.mp4 \\\n  -map 0:v -map 0:a -c:v libx264 -c:a aac \\\n  -b:v:0 5000k -s:v:0 1920x1080 \\\n  -b:v:1 2500k -s:v:1 1280x720 \\\n  -b:v:2 800k  -s:v:2 640x360 \\\n  -f hls -hls_time 4 -hls_playlist_type vod master.m3u8</code></pre>"
+    }
+   ],
+   "breaks": [
+    "A premiere sends all traffic to a few popular files. Pre-warm the edge caches.",
+    "A transcode worker dies mid-job. Make chunks independent and retryable.",
+    "A bad network causes buffering. Adaptive bitrate must step down quickly.",
+    "Origin overload when many edges miss at once. Use a shield tier between edge and origin.",
+    "Piracy and access control need signed URLs and DRM.",
+    "Per-title encoding saves bandwidth but adds pipeline complexity."
+   ],
+   "quiz": {
+    "q": "Why is video served from CDN caches near viewers rather than from one origin?",
+    "o": [
+     "One origin cannot supply terabits per second, and distance adds delay",
+     "Encoding video is cheaper at the edge than at a central origin",
+     "It avoids needing several bitrates",
+     "Origin storage cannot hold video files"
+    ],
+    "a": 0,
+    "w": "Millions of viewers at several megabits each add up to terabits per second, which no single origin can send."
+   },
+   "projects": false
+  },
+  {
+   "id": "kvstore",
+   "t": "y",
+   "title": "Design a key-value store",
+   "sum": "A Dynamo-style store: partitioning, replication, quorums and repair.",
+   "sec": [
+    {
+     "h": "Requirements",
+     "b": "<ul><li><code>get(key)</code> and <code>put(key, value)</code> at huge scale with low latency.</li><li>Always writable, tolerant of node loss, easy to add nodes.</li><li>Tunable consistency.</li></ul>"
+    },
+    {
+     "h": "The design",
+     "b": "<ul><li><b>Partitioning:</b> consistent hashing with virtual nodes.</li><li><b>Replication:</b> each key is stored on N nodes (the next N clockwise).</li><li><b>Quorum:</b> write to W, read from R. If R + W > N reads see the latest write.</li><li><b>Failures:</b> sloppy quorum with <b>hinted handoff</b> keeps writes going when a replica is down.</li><li><b>Conflicts:</b> vector clocks detect concurrent writes so the client or app can merge.</li><li><b>Repair:</b> read repair fixes stale replicas on reads, <b>Merkle trees</b> compare data cheaply in the background, and <b>gossip</b> spreads cluster membership.</li></ul><div class=\"flow\"><span class=\"node\">Client</span><span class=\"arr\" aria-hidden=\"true\">→</span><span class=\"node\">Coordinator</span><span class=\"arr\" aria-hidden=\"true\">→</span><span class=\"node\">Replica 1</span><span class=\"arr\" aria-hidden=\"true\">→</span><span class=\"node\">Replica 2</span><span class=\"arr\" aria-hidden=\"true\">→</span><span class=\"node\">Replica 3</span></div>"
+    },
+    {
+     "h": "Build it",
+     "b": "<pre class=\"code\"><code>import bisect, hashlib\n\nclass Ring:\n    def __init__(self, nodes, vnodes=64):\n        self.ring = sorted((self._h(f\"{n}#{i}\"), n) for n in nodes for i in range(vnodes))\n        self.keys = [h for h, _ in self.ring]\n    def _h(self, s): return int(hashlib.md5(s.encode()).hexdigest(), 16)\n    def replicas(self, key, n=3):\n        i = bisect.bisect(self.keys, self._h(key)) % len(self.ring)\n        out, n = [], min(n, len({x for _, x in self.ring}))   # cannot ask for more nodes than exist\n        while len(out) &lt; n:                      # next n distinct nodes clockwise\n            node = self.ring[i % len(self.ring)][1]\n            if node not in out: out.append(node)\n            i += 1\n        return out\n\ndef put(ring, key, value, W=2, N=3):          # nodes are objects with a write(key, value) method\n    acks = sum(1 for node in ring.replicas(key, N) if node.write(key, value))\n    return acks &gt;= W</code></pre>"
+    }
+   ],
+   "breaks": [
+    "A hot key overloads its replicas. Add a cache or split the key.",
+    "Concurrent writes to one key conflict. Use vector clocks and a merge rule.",
+    "Adding a node moves data. Stream it in the background.",
+    "Hinted handoff data is lost if the stand-in node fails. Keep repairs running.",
+    "Clock-based last-write-wins loses writes. Prefer version vectors.",
+    "Tombstones for deletes must outlive repairs, or deleted data returns."
+   ],
+   "quiz": {
+    "q": "A Dynamo-style store keeps 3 replicas of each key. Which write and read quorum sizes guarantee that a read sees the latest write?",
+    "o": [
+     "W = 1 and R = 1, the fastest on both sides",
+     "W = 2 and R = 2, because R + W exceeds N",
+     "W = 2 and R = 1, because writes reach a majority",
+     "W = 1 and R = 2, because reads check a majority"
+    ],
+    "a": 1,
+    "w": "R + W must be greater than N. 2 + 2 = 4 is more than 3, but 2 + 1 = 3 and 1 + 2 = 3 are not."
+   },
+   "projects": false
+  },
+  {
+   "id": "clickstream",
+   "t": "y",
+   "title": "Design a clickstream analytics pipeline",
+   "sum": "Collect millions of events, process them as streams, and query the results.",
+   "sec": [
+    {
+     "h": "Requirements and estimates",
+     "b": "<ul><li>Collect page views and clicks from websites and apps.</li><li>Real-time counters and later ad hoc analysis.</li></ul><pre class=\"code\"><code>50M DAU x 40 events = 2B events/day  ~ 23,000 events/s (peak ~70,000)\n200 bytes each -&gt; 400 GB/day raw</code></pre>"
+    },
+    {
+     "h": "Architecture",
+     "b": "<div class=\"flow\"><span class=\"node\">Clients</span><span class=\"arr\" aria-hidden=\"true\">→</span><span class=\"node\">Collector API</span><span class=\"arr\" aria-hidden=\"true\">→</span><span class=\"node\">Kafka</span><span class=\"arr\" aria-hidden=\"true\">→</span><span class=\"node\">Stream processor (Flink or Spark)</span><span class=\"arr\" aria-hidden=\"true\">→</span><span class=\"node\">Serving store</span></div><div class=\"flow\"><span class=\"node\">Kafka</span><span class=\"arr\" aria-hidden=\"true\">→</span><span class=\"node\">Object storage (raw)</span><span class=\"arr\" aria-hidden=\"true\">→</span><span class=\"node\">Batch jobs</span><span class=\"arr\" aria-hidden=\"true\">→</span><span class=\"node\">Warehouse</span></div><ul><li>The collector is thin and stateless. It validates and writes to Kafka.</li><li>Stream jobs count per window and write to a fast store such as Cassandra or an OLAP database.</li><li>Raw events also go to object storage for reprocessing and the warehouse (a lambda-style design).</li><li>Use <b>event time</b> with <b>watermarks</b> to handle late events.</li></ul>"
+    },
+    {
+     "h": "Build it",
+     "b": "<pre class=\"code\"><code># Spark Structured Streaming: clicks per page per minute\nclicks = (spark.readStream.format(\"kafka\")\n    .option(\"subscribe\", \"clicks\").load()\n    .select(from_json(col(\"value\").cast(\"string\"), schema).alias(\"e\")).select(\"e.*\"))\n\ncounts = (clicks.withWatermark(\"event_time\", \"10 minutes\")\n    .groupBy(window(\"event_time\", \"1 minute\"), \"page\").count())\n\ncounts.writeStream.outputMode(\"update\").format(\"console\").start()</code></pre>"
+    }
+   ],
+   "breaks": [
+    "Late and out-of-order events need watermarks and a clear lateness policy.",
+    "Duplicates from retries. Give every event a unique ID and dedupe.",
+    "A traffic spike overwhelms the collector. Buffer in Kafka and autoscale.",
+    "Bot traffic skews numbers. Filter it early.",
+    "Schema changes break jobs. Use a schema registry.",
+    "Reprocessing needs idempotent writes."
+   ],
+   "quiz": {
+    "q": "What does a watermark do in stream processing?",
+    "o": [
+     "It marks repeated events as duplicates so that they are dropped",
+     "It sets how long to wait for late events before a window is closed",
+     "It encrypts events between Kafka and the processor",
+     "It limits how many events each window may hold"
+    ],
+    "a": 1,
+    "w": "It tells the engine when it can stop expecting older events for a window."
+   },
+   "projects": false
+  },
+  {
+   "id": "interview",
+   "t": "y",
+   "title": "How to approach a design interview",
+   "sum": "A repeatable framework, plus the design problems mapped to the lessons that cover them.",
+   "sec": [
+    {
+     "h": "A framework you can reuse",
+     "b": "<ol><li><b>Clarify</b> requirements, users and scale. State what is out of scope.</li><li><b>Estimate</b> traffic, storage and bandwidth.</li><li><b>Define the API</b> and the core data model.</li><li><b>Draw the high-level design</b> and walk one request through it.</li><li><b>Deep dive</b> into the hardest parts: bottlenecks, hot keys, consistency.</li><li><b>Failures and trade-offs:</b> what breaks, how you detect it, what you gave up.</li></ol><p class=\"callout\">Talk through your reasoning. Say why you chose something and what the alternative costs.</p>"
+    },
+    {
+     "h": "Problems mapped to lessons",
+     "b": "<div class=\"tw\"><table><thead><tr><th>Prompt</th><th>Lessons to revisit</th></tr></thead><tbody><tr><td>URL shortener</td><td>Caching, key generation, case study</td></tr><tr><td>Chat app</td><td>WebSockets, queues, case study</td></tr><tr><td>News feed</td><td>Fan-out, caching, case study</td></tr><tr><td>E-commerce checkout</td><td>Sagas, queues, idempotency, case study</td></tr><tr><td>Video streaming</td><td>CDN, object storage, case study</td></tr><tr><td>Key-value store</td><td>Consistent hashing, quorums, case study</td></tr><tr><td>Rate limiter</td><td>Token bucket, Redis</td></tr><tr><td>Analytics pipeline</td><td>Kafka, stream processing, warehouses</td></tr></tbody></table></div>"
+    },
+    {
+     "h": "The twelve-factor checklist",
+     "b": "<p>Codebase in version control, explicit dependencies, config in the environment, backing services as attached resources, separate build and run stages, stateless processes, port binding, scale out through processes, fast startup and graceful shutdown, dev and production alike, logs as streams, admin tasks as one-off processes.</p>"
+    }
+   ],
+   "breaks": [
+    "Jumping to boxes before clarifying what is being built.",
+    "Designing for the wrong scale because you skipped estimation.",
+    "Listing technologies without saying why.",
+    "Ignoring failure. Every component can fail.",
+    "Going deep on one part and never finishing the whole design."
+   ],
+   "quiz": {
+    "q": "What should you do first in a system design interview?",
+    "o": [
+     "Draw the database schema, since data drives the design",
+     "Pick a cloud provider and the main technologies",
+     "Clarify requirements and scale before drawing anything",
+     "Sketch the high-level boxes, then ask questions"
+    ],
+    "a": 2,
+    "w": "Everything else depends on what is being built and how big it is."
+   },
+   "projects": false
+  },
+  {
+   "id": "mvp",
+   "t": "b",
+   "title": "From idea to MVP",
+   "sum": "Decide what to build first, and what to leave out.",
+   "sec": [
+    {
+     "h": "Steps",
+     "b": "<ol><li><b>Write the core loop</b> in one sentence: who does what and gets which value.</li><li><b>List the nouns and the data</b> (users, items, orders). Design the schema before screens.</li><li><b>Pick boring tools</b> you already know: one language, one framework, PostgreSQL, one host.</li><li><b>Build one vertical slice</b> that works end to end (UI, API, database) before widening.</li><li><b>Cut scope hard.</b> Keep a \"later\" list. Add logging and basic analytics from day one.</li><li><b>Put it in front of real users</b> early and let their behaviour choose what comes next.</li></ol>"
+    },
+    {
+     "h": "Starter shape",
+     "b": "<div class=\"flow\"><span class=\"node\">Web app</span><span class=\"arr\" aria-hidden=\"true\">→</span><span class=\"node\">API</span><span class=\"arr\" aria-hidden=\"true\">→</span><span class=\"node\">PostgreSQL</span></div><p>A single server and a managed database serve thousands of users. Add the other building blocks from this course one at a time, when a measured problem calls for it.</p>"
+    }
+   ],
+   "breaks": [
+    "Building queues, microservices and Kubernetes before the first user exists.",
+    "Starting with screens and discovering the data model does not fit.",
+    "No analytics, so you cannot tell which feature people use.",
+    "A rewrite halfway through because the first slice was never finished.",
+    "Skipping backups on day one because \"it is only an MVP\"."
+   ],
+   "quiz": {
+    "q": "What should you build first for an MVP?",
+    "o": [
+     "Every feature, hidden behind flags",
+     "The admin dashboard, so you can manage users",
+     "The scalable architecture you will need later",
+     "One thin end-to-end slice of the core loop"
+    ],
+    "a": 3,
+    "w": "A working vertical slice proves the idea and the architecture with the least code."
+   },
+   "projects": false
+  },
+  {
+   "id": "backend",
+   "t": "b",
+   "title": "Building the backend",
+   "sum": "Project structure, validation, errors, configuration and migrations.",
+   "sec": [
+    {
+     "h": "Structure",
+     "b": "<pre class=\"code\"><code>app/\n  main.py          # create app, mount routers\n  config.py        # read settings from environment\n  routes/          # HTTP only: parse, call service, format response\n  services/        # business rules, no HTTP types\n  repos/           # database access only\n  models.py        # schemas\nmigrations/        # versioned schema changes\ntests/</code></pre><p>Keep layers one-directional: routes call services, services call repos. Business rules then stay testable without a web server or a database.</p>"
+    },
+    {
+     "h": "Validate at the edge",
+     "b": "<pre class=\"code\"><code>from pydantic import BaseModel, Field, EmailStr\nfrom fastapi import FastAPI, HTTPException\n\nclass NewUser(BaseModel):\n    email: EmailStr\n    name: str = Field(min_length=1, max_length=80)\n\napp = FastAPI()\n\n@app.post(\"/v1/users\", status_code=201)\ndef create_user(body: NewUser):\n    if repo.exists(body.email):\n        raise HTTPException(409, \"email already registered\")\n    return repo.insert(body)</code></pre>"
+    },
+    {
+     "h": "Rules of thumb",
+     "b": "<ul><li>Configuration and secrets come from environment variables, never from the repository.</li><li>Every schema change is a migration file in version control.</li><li>Return consistent error shapes with a code and a message.</li><li>Log a request ID on every line so one request can be followed.</li></ul>"
+    }
+   ],
+   "breaks": [
+    "Trusting client input leads to injection and corrupt data. Validate, and use parameterised queries.",
+    "Secrets committed to git stay in history forever. Rotate them and use a secret manager.",
+    "Lists without pagination work in testing and time out in production.",
+    "The N+1 query bug hides until real data volume arrives.",
+    "Business logic in route handlers cannot be reused or tested."
+   ],
+   "quiz": {
+    "q": "Where should database passwords and API keys live?",
+    "o": [
+     "In a config file that is committed to the repository next to the code",
+     "In the front-end code, encrypted with a key",
+     "In the Dockerfile, so the image is self-contained",
+     "In environment variables or a secrets manager, never in the repository"
+    ],
+    "a": 3,
+    "w": "Anything committed to the repository or shipped to the browser should be treated as public."
+   },
+   "projects": false
+  },
+  {
+   "id": "projects",
+   "t": "b",
+   "title": "Hands-on projects",
+   "sum": "Pick projects in any order and spend as long on each as you like. Tick them off when you can show the result.",
+   "sec": [],
+   "breaks": [
+    "Reading about a system is not the same as running it. Build at least a small version.",
+    "Skipping measurement. Always record a before and after number.",
+    "Building everything at once. Finish one small project before the next.",
+    "Never breaking it on purpose. Kill a process and see what happens."
+   ],
+   "quiz": {
+    "q": "What best shows that you finished a project?",
+    "o": [
+     "You can show a measured result or a working demo",
+     "You read all of the instructions",
+     "You installed all of the tools",
+     "You wrote down what you would build next"
+    ],
+    "a": 0,
+    "w": "A number or a demo that shows the behaviour is the proof. Reading and setup are only the start."
+   },
+   "projects": true
+  }
+ ],
+ "projects": [
+  {
+   "id": "p-crud",
+   "title": "CRUD service with a database, load tested",
+   "what": "Build a REST API (notes or users) on a relational database, run it in Docker, and load test it with k6 or Apache Bench.",
+   "done": "You can show latency with and without an index."
+  },
+  {
+   "id": "p-lb",
+   "title": "Load balancer in front of two instances",
+   "what": "Put NGINX or HAProxy in front of two copies of your app. Kill one instance while sending traffic.",
+   "done": "Traffic keeps flowing when an instance dies."
+  },
+  {
+   "id": "p-cache",
+   "title": "Redis cache layer",
+   "what": "Add cache-aside to a read-heavy endpoint. Compare it with write-through and measure the hit rate.",
+   "done": "You have hit rate and latency numbers before and after."
+  },
+  {
+   "id": "p-queue",
+   "title": "Producer and consumer with retries",
+   "what": "Use Kafka or RabbitMQ. Send duplicate messages on purpose.",
+   "done": "A duplicate message changes state only once."
+  },
+  {
+   "id": "p-ts",
+   "title": "Time-series logger",
+   "what": "Store sensor readings in InfluxDB or append-only files. Benchmark ingestion and windowed queries.",
+   "done": "You can query the last hour fast while writing continuously."
+  },
+  {
+   "id": "p-raft",
+   "title": "Kill the leader of an etcd cluster",
+   "what": "Run a three-node etcd or Consul cluster, write data, and kill the leader.",
+   "done": "A new leader is elected and no data is lost."
+  },
+  {
+   "id": "p-micro",
+   "title": "Split into two services behind a gateway",
+   "what": "Separate a user service and an order service and put a gateway such as Kong in front.",
+   "done": "You scaled one service without touching the other."
+  },
+  {
+   "id": "p-breaker",
+   "title": "Circuit breaker with a fallback",
+   "what": "Implement a breaker around a slow dependency and return a fallback while it is open.",
+   "done": "The service stays up when the dependency is down."
+  },
+  {
+   "id": "p-secure",
+   "title": "Secure your API",
+   "what": "Add HTTPS, JWT authentication and an ownership check, then try an injection attack against it.",
+   "done": "The attack is blocked and another user's data is refused."
+  },
+  {
+   "id": "p-observe",
+   "title": "Metrics, logs and traces",
+   "what": "Add Prometheus and Grafana, structured logs and an OpenTelemetry trace across two services.",
+   "done": "An alert fires when the error rate passes 1%."
+  },
+  {
+   "id": "p-k8s",
+   "title": "Rolling update on Kubernetes",
+   "what": "Deploy your service to kind or Minikube and roll out a new version.",
+   "done": "You updated with no failed requests."
+  },
+  {
+   "id": "p-terraform",
+   "title": "Provision a VPC, VM and database with Terraform",
+   "what": "Describe the network, a server and a managed database in Terraform and apply it.",
+   "done": "You can destroy and recreate it from code."
+  },
+  {
+   "id": "p-serverless",
+   "title": "One endpoint as a serverless function",
+   "what": "Rewrite one endpoint as a function and compare cold and warm response times.",
+   "done": "You have both timings recorded."
+  },
+  {
+   "id": "p-chaos",
+   "title": "Chaos experiment",
+   "what": "Write a hypothesis, kill a pod or instance, and watch the steady-state metric.",
+   "done": "Recovery happened without data loss, or you fixed what broke."
+  },
+  {
+   "id": "p-etl",
+   "title": "Streaming ETL from Kafka to a database",
+   "what": "Stream synthetic click events into Kafka and aggregate per minute with Spark or Flink.",
+   "done": "A live chart updates from the aggregated data."
+  },
+  {
+   "id": "p-feed",
+   "title": "Mini news feed with Redis sorted sets",
+   "what": "Build push fan-out for normal users and pull for a celebrity.",
+   "done": "A timeline loads quickly under test load."
+  },
+  {
+   "id": "p-chat",
+   "title": "Toy chat with WebSockets",
+   "what": "Build one-to-one chat with message IDs, ordering and offline delivery.",
+   "done": "A message sent while the receiver was offline arrives once."
+  },
+  {
+   "id": "p-kv",
+   "title": "Mini key-value store",
+   "what": "Implement consistent hashing, N replicas and quorum reads and writes.",
+   "done": "It survives a killed node and reads the latest write."
+  }
+ ]
+}

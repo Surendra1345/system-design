@@ -1,0 +1,1227 @@
+{
+ "journey": {
+  "how": [
+   {
+    "h": "The analogy: sending a letter to a company",
+    "p": "Opening a web address is like mailing a letter to a company you only know by name. First you look up the street address (DNS), then you arrange a safe way to deliver it (a connection and encryption), then you hand over the letter (the request), and finally the company's staff open it, check their files and reply. Every later topic in system design is one of those stages made faster, safer or bigger."
+   },
+   {
+    "h": "Step 1: DNS turns a name into a number",
+    "p": "Computers talk to IP addresses (like 192.0.2.44), not names. DNS (the Domain Name System, the internet's phone book) is the lookup. Your browser asks a recursive resolver, usually run by your internet provider. If it does not already know the answer it asks a root server, then the server for the top-level domain such as .com, then the domain's own authoritative server, and finally hands the IP address back to the browser. Answers are remembered for a time set by the record's TTL (time to live), so most lookups never go all the way."
+   },
+   {
+    "h": "Step 2: connect and encrypt",
+    "p": "Before any web request is sent, the browser opens a TCP connection with a three-step handshake (SYN, SYN-ACK, ACK). For HTTPS it then negotiates encryption with TLS. MDN notes that a full TLS 1.3 handshake costs one extra round trip and TLS 1.2 costs two. So a brand new connection needs about two round trips (TLS 1.3) or three (TLS 1.2) before the browser can even ask for the page. A round trip is the time for a message to go to the server and the reply to come back."
+   },
+   {
+    "h": "Step 3: the request travels through your infrastructure",
+    "p": "The browser sends an HTTP request such as GET /home. In a typical system it first meets a CDN (a network of servers close to users that can answer for static files), then a load balancer that picks one healthy app server. The app server checks a cache for a quick answer and only asks the database if it must. Each box you add is a place to save time (cache, CDN) or to gain capacity (load balancer), and also a place where things can fail."
+   },
+   {
+    "h": "Step 4: the response and the page being built",
+    "p": "The server replies with a status code (200 means success, 404 means not found, 503 means a temporary server problem) plus headers and a body. The data is cut into small packets that may take different routes and are reassembled in order. The browser then parses the HTML, fetches the CSS, scripts and images it finds, and paints the page. MDN points out that the first chunk of data is roughly 14 KB because of TCP slow start, which is why the most important HTML and CSS should fit in it."
+   },
+   {
+    "h": "How to use the path when debugging",
+    "p": "When a page is slow, walk the path and ask which stage is slow: DNS, connection setup, waiting for the first byte (called time to first byte, or TTFB), or downloading and rendering. Each answer points to a different fix, such as a CDN, a cache, a faster query or smaller images. Measuring each stage beats guessing."
+   }
+  ],
+  "worked": {
+   "title": "Where do the milliseconds go for one HTTPS page?",
+   "steps": [
+    "Assume a user in London and a server in New York. A fiber round trip between them is about 56 ms (the figure used in High Performance Browser Networking). The server needs 40 ms to build the page. The DNS lookup is not cached and costs 30 ms (an illustrative number).",
+    "DNS lookup: 30 ms.",
+    "TCP handshake: one round trip = 56 ms.",
+    "TLS 1.3 handshake: one round trip = 56 ms.",
+    "HTTP request and response: one round trip (56 ms) plus 40 ms of server work = 96 ms.",
+    "Total for a cold first visit = 30 + 56 + 56 + 96 = 238 ms. With TLS 1.2 it would be 56 ms more, or 294 ms.",
+    "On the next click the browser reuses the open connection and has the DNS answer cached, so only the request costs anything: 96 ms."
+   ],
+   "result": "The first visit costs 238 ms and a repeat visit 96 ms. Of the 238 ms, 142 ms is pure setup, not useful work. That is why connection reuse, CDNs that sit close to users, and fewer round trips matter so much."
+  },
+  "case": {
+   "who": "Web browsers and the Mozilla documentation (MDN)",
+   "title": "Browsers are built around the cost of the path",
+   "text": "MDN's description of how browsers work shows how much of the design exists to hide the cost of the journey. Browsers cache DNS answers because every distinct hostname on a page needs its own lookup. They use a preload scanner that reads ahead in the HTML and starts downloading CSS, scripts and fonts before the main parser reaches them. TLS 1.3 was designed to cut the encryption handshake to one round trip. The lesson for designers is the same: every round trip you remove from the path is felt by every user, on every page.",
+   "source": {
+    "title": "How browsers work (MDN Web Docs)",
+    "url": "https://developer.mozilla.org/en-US/docs/Web/Performance/Guides/How_browsers_work"
+   }
+  },
+  "choose": [
+   [
+    "Do nothing special (one server, no CDN)",
+    "A small site with users in one region and low traffic",
+    "Distant users pay the full round-trip cost on every request, and the one server is a single point of failure"
+   ],
+   [
+    "Add a CDN in front",
+    "Many static files (images, CSS, JS) and users spread across countries",
+    "Dynamic or personalised pages still travel to your origin, so a CDN does not fix a slow backend"
+   ],
+   [
+    "Add a load balancer plus several app servers",
+    "You need more capacity or no-downtime deploys",
+    "It adds one more hop and one more thing that can fail, so the balancer itself needs to be redundant"
+   ],
+   [
+    "Add a cache between app and database",
+    "Reads far outnumber writes and the database is the slow step",
+    "Stale data and cache invalidation bugs"
+   ]
+  ],
+  "mistakes": [
+   "Guessing where the slowness is. Measure each stage (DNS, connect, TTFB, download, render) before changing anything.",
+   "Forgetting that every new hostname costs a DNS lookup and a new connection. Serving a page from ten different domains adds round trips, so keep the number of hosts small.",
+   "Assuming bandwidth fixes slowness. For small requests, latency (round trips) dominates, and a faster link does not shorten the distance to the server.",
+   "Ignoring the first chunk of the response. If critical HTML and CSS are far larger than about 14 KB, the browser needs more round trips before it can show anything.",
+   "Drawing the happy path only. For each box in the path, ask what the user sees when that box is down or slow."
+  ],
+  "reading": [
+   {
+    "title": "How the web works",
+    "by": "MDN Web Docs",
+    "kind": "docs",
+    "url": "https://developer.mozilla.org/en-US/docs/Learn_web_development/Getting_started/Web_standards/How_the_web_works"
+   },
+   {
+    "title": "How browsers work",
+    "by": "MDN Web Docs",
+    "kind": "docs",
+    "url": "https://developer.mozilla.org/en-US/docs/Web/Performance/Guides/How_browsers_work"
+   },
+   {
+    "title": "Building Blocks of TCP (High Performance Browser Networking)",
+    "by": "Ilya Grigorik",
+    "kind": "book",
+    "url": "https://hpbn.co/building-blocks-of-tcp/"
+   },
+   {
+    "title": "What is DNS?",
+    "by": "Amazon Web Services",
+    "kind": "docs",
+    "url": "https://aws.amazon.com/route53/what-is-dns/"
+   },
+   {
+    "title": "Latency Numbers Every Programmer Should Know",
+    "by": "Jeff Dean and Peter Norvig, collected on GitHub",
+    "kind": "blog",
+    "url": "https://gist.github.com/jboner/2841832"
+   }
+  ]
+ },
+ "net": {
+  "how": [
+   {
+    "h": "The analogy: registered mail versus shouting",
+    "p": "TCP is like registered mail. Before sending, the two sides agree to talk, every piece is numbered, lost pieces are sent again, and the receiver puts them in order. UDP is like shouting across a room: it is quick and needs no set-up, but some words may be missed and nobody repeats them for you. Applications that cannot live with gaps use TCP. Applications where an old word is useless, such as a live call, use UDP."
+   },
+   {
+    "h": "How TCP sets up and keeps order",
+    "p": "A TCP connection starts with a three-way handshake: the client sends SYN, the server answers SYN-ACK, and the client replies ACK. That costs one full round trip before any application data moves. After that, every byte is numbered. The receiver acknowledges what it got, and the sender retransmits anything that is not acknowledged, so the application sees a clean, ordered stream."
+   },
+   {
+    "h": "Slow start: new connections begin cautiously",
+    "p": "TCP does not know how fast the network can go, so a new connection starts with a small congestion window, which is how much data may be in flight at once. Today the starting window is 10 segments (RFC 6928), up from 4 in 1999 and 1 originally. The window roughly doubles every round trip until packet loss tells TCP to stop growing. The result is that a fresh connection is slow for its first few round trips, and a reused connection that has already grown its window is faster."
+   },
+   {
+    "h": "Head-of-line blocking and why UDP exists",
+    "p": "Because TCP hands data to the application strictly in order, one lost packet makes all later packets wait in the receiver's buffer until the missing one is resent. For a web page that is a small delay. For a voice call it is a glitch you hear. That is why audio, video and games often use UDP and handle loss themselves, and why newer protocols are built on top of UDP."
+   },
+   {
+    "h": "HTTP and TLS sit on top",
+    "p": "HTTP is the language browsers and servers speak: a request (method, path, headers) and a response (status code, headers, body). TLS wraps the connection in encryption and proves the server's identity with a certificate, so that people on the network cannot read or change the traffic. TLS 1.3 needs one round trip to set up and TLS 1.2 needs two, so newer versions save time on every new connection. Keep-alive connections let many requests share one TCP and TLS setup."
+   }
+  ],
+  "worked": {
+   "title": "Why reusing a connection is nearly three times faster",
+   "steps": [
+    "Setup, as in High Performance Browser Networking: a client in New York fetches a 64 KB file from a server in London. The round-trip time (RTT) is 56 ms and the server needs 40 ms of processing.",
+    "A 64 KB window holds about 45 segments of roughly 1,460 bytes each (65,536 / 1,460 = 44.9).",
+    "New connection: the TCP handshake costs 1 RTT = 56 ms.",
+    "Slow start with an initial window of 10 segments: round 1 delivers 10 segments, round 2 delivers 20 (30 in total), round 3 delivers 40 (70 in total, which is above the 45 needed). The file needs 3 RTTs = 168 ms.",
+    "Add the 40 ms of server work: 56 + 168 + 40 = 264 ms, which matches the book's figure for a new connection.",
+    "Reused connection: no handshake, and the window has already grown beyond 45 segments, so the whole file arrives in 1 RTT: 56 + 40 = 96 ms."
+   ],
+   "result": "264 ms against 96 ms, a difference of 168 ms (a new connection takes about 2.75 times as long). Nothing about the bandwidth changed. Only round trips did, which is why keep-alive, connection pools and closer servers pay off."
+  },
+  "case": {
+   "who": "The Linux kernel and the IETF (TCP initial window)",
+   "title": "Raising the starting window from 4 to 10 segments",
+   "text": "The size of a new TCP connection's starting window was 1 segment at first, 4 under RFC 2581 in 1999, and 10 under RFC 6928 in 2013. Since most web pages and API responses are small, they finish while still in slow start, so a bigger starting window means fewer round trips for the same data. Linux adopted 10 as its default from kernel 2.6.39 onwards. The lesson is that settings made for the networks of the 1980s and 1990s can quietly cost modern services many milliseconds, and that tuning round trips often beats buying more bandwidth.",
+   "source": {
+    "title": "Building Blocks of TCP (High Performance Browser Networking)",
+    "url": "https://hpbn.co/building-blocks-of-tcp/"
+   }
+  },
+  "choose": [
+   [
+    "TCP",
+    "Web pages, APIs, databases, payments, file transfers: anything that must arrive complete and in order",
+    "A handshake on every new connection, slow start, and head-of-line blocking when packets are lost"
+   ],
+   [
+    "UDP",
+    "Live voice or video, games, and protocols that do their own reliability",
+    "No delivery, ordering or congestion control, so you must handle loss, duplicates and flooding yourself"
+   ],
+   [
+    "HTTPS (HTTP over TLS)",
+    "Any traffic over the public internet, and most internal traffic too",
+    "Handshake cost on new connections, and certificates that must be renewed before they expire"
+   ],
+   [
+    "Long-lived or pooled connections",
+    "Many small requests to the same server, such as service-to-service calls",
+    "Idle connections time out, and a connection pinned to one server can unbalance a load balancer"
+   ]
+  ],
+  "mistakes": [
+   "Opening a new connection for every request. Reuse connections with keep-alive or a pool so you pay the handshake and slow start once.",
+   "Blaming bandwidth. For small responses, round-trip time is what you wait for, so fixing distance and round trips helps more than a faster link.",
+   "Using UDP for convenience and then re-building reliability badly. If you need ordered, complete delivery, TCP already does it well.",
+   "Skipping TLS inside the private network because it is private. Treat the network as untrusted and encrypt, then use modern TLS to keep the setup cost low.",
+   "Letting a certificate expire. Automate renewal and alert well before the expiry date."
+  ],
+  "reading": [
+   {
+    "title": "Building Blocks of TCP",
+    "by": "Ilya Grigorik (High Performance Browser Networking)",
+    "kind": "book",
+    "url": "https://hpbn.co/building-blocks-of-tcp/"
+   },
+   {
+    "title": "How the web works",
+    "by": "MDN Web Docs",
+    "kind": "docs",
+    "url": "https://developer.mozilla.org/en-US/docs/Learn_web_development/Getting_started/Web_standards/How_the_web_works"
+   },
+   {
+    "title": "How browsers work (navigation, TCP and TLS)",
+    "by": "MDN Web Docs",
+    "kind": "docs",
+    "url": "https://developer.mozilla.org/en-US/docs/Web/Performance/Guides/How_browsers_work"
+   },
+   {
+    "title": "The C10K problem",
+    "by": "Dan Kegel",
+    "kind": "blog",
+    "url": "https://www.kegel.com/c10k.html"
+   },
+   {
+    "title": "Latency Numbers Every Programmer Should Know",
+    "by": "Jeff Dean and Peter Norvig, collected on GitHub",
+    "kind": "blog",
+    "url": "https://gist.github.com/jboner/2841832"
+   }
+  ]
+ },
+ "os": {
+  "how": [
+   {
+    "h": "The analogy: a restaurant kitchen",
+    "p": "A process is a separate kitchen with its own ingredients: if one catches fire, the neighbour keeps cooking. Threads are cooks inside one kitchen sharing the same counters. That is quick, but two cooks reaching for the same pan at once cause a mess, which programmers call a race condition. An event loop is a single clever cook who never stands and waits by the oven: he starts a task, moves on, and returns when a timer rings."
+   },
+   {
+    "h": "Processes, threads and context switches",
+    "p": "The operating system gives every process its own private memory, so crashes and bugs stay contained. Threads inside a process share that memory, which makes sharing data cheap but makes bugs subtle, so shared data needs locks. The CPU runs only a few things truly at once, so the OS keeps swapping which thread runs, called a context switch. Each switch costs a little time, and every thread also reserves memory for its stack, so thousands of mostly idle threads waste both."
+   },
+   {
+    "h": "Why one thread per connection runs out of steam",
+    "p": "A blocking thread that waits for the network or disk does nothing useful while it waits, yet still uses memory. Dan Kegel's C10K page (the problem of serving 10,000 clients at once) explains that with a 2 MB stack on a 32-bit machine you hit a ceiling of about 512 threads, and operating systems of the time struggled with more than a few hundred. The fix was a different structure of code, not a bigger machine."
+   },
+   {
+    "h": "The event loop and non-blocking I/O",
+    "p": "An event loop uses one thread to serve many connections. It asks the kernel to watch a large set of sockets (with mechanisms such as epoll or kqueue), and when one is ready to read or write it runs a short callback, then goes back to waiting. Node.js is built this way: the kernel does the waiting in the background, and finished operations queue their callbacks for the loop. The rule is that callbacks must be short, because while your code runs, no other callback can."
+   },
+   {
+    "h": "Where data lives: memory, disk and object storage",
+    "p": "RAM is fast but loses its contents on power loss. Disks and SSDs keep data but are slower. There are three storage styles. Block storage is a raw disk you format yourself, used by databases. File storage is a shared folder tree. Object storage (like Amazon S3) stores whole files by key, cheaply and durably, and is the right home for uploads, images and backups. Data is only safe once the operating system has actually flushed it to the disk, not just written it into memory buffers."
+   }
+  ],
+  "worked": {
+   "title": "How many threads versus an event loop?",
+   "steps": [
+    "Setup (illustrative numbers): each request needs 5 ms of CPU and then waits 50 ms for a database. The target is 1,000 requests per second.",
+    "A blocking thread is busy for the full 55 ms, so one thread finishes 1,000 / 55 = about 18 requests per second.",
+    "To reach 1,000 per second you need 1,000 x 0.055 = 55 threads in flight (and more at peak). That works, but 10,000 simultaneous slow clients would need 10,000 threads.",
+    "With a 2 MB stack each, 10,000 threads reserve 20,000 MB (about 20 GB) of stack space. On a 32-bit machine with 1 GB of usable address space, Kegel's calculation gives only 2^30 / 2^21 = 512 threads.",
+    "An event loop spends no thread on the 50 ms wait. Its limit is CPU: 1,000 ms / 5 ms = 200 requests per second per core, so 5 cores cover 1,000 per second.",
+    "The catch: a single callback that computes for 200 ms freezes every other connection for 200 ms."
+   ],
+   "result": "Blocking threads need about 55 threads for this load and scale with the number of waiting clients. The event loop scales with CPU work instead. Choose async for many mostly-waiting connections, and threads or worker processes for heavy computing."
+  },
+  "case": {
+   "who": "Dan Kegel and the C10K problem",
+   "title": "Why web servers moved from threads to event loops",
+   "text": "Around 2001 Dan Kegel pointed out that hardware was no longer the obstacle to serving 10,000 clients on one machine. A cheap server could in principle do it, but operating systems and code structure got in the way. He catalogued the alternatives: non-blocking I/O with readiness notification (select, poll, then the more scalable epoll and kqueue), asynchronous I/O with completion notification, and even servers inside the kernel. The ideas in that page shaped later servers such as nginx and runtimes such as Node.js. The lesson is that the bottleneck is often how a program waits, not how fast it computes.",
+   "source": {
+    "title": "The C10K problem",
+    "url": "https://www.kegel.com/c10k.html"
+   }
+  },
+  "choose": [
+   [
+    "Thread per request (blocking)",
+    "Modest concurrency, simple code, work that is mostly CPU",
+    "Memory per thread, context switching, and thread pool exhaustion when requests wait on slow services"
+   ],
+   [
+    "Event loop (async I/O)",
+    "Many concurrent connections that mostly wait, such as chat, proxies and API gateways",
+    "One long synchronous callback blocks everyone, and callback-style code is harder to debug"
+   ],
+   [
+    "Multiple processes",
+    "Using all CPU cores and isolating crashes",
+    "No shared memory, so data sharing needs a cache, database or message passing"
+   ],
+   [
+    "Block storage versus object storage",
+    "Block for databases that need fast random reads and writes; object for uploads, media and backups",
+    "Block volumes are tied to one machine and cost more per GB. Object storage is slower per request and cannot be edited in place"
+   ]
+  ],
+  "mistakes": [
+   "Creating one thread per request without a limit. Use a bounded pool or async I/O, and set a maximum so a spike cannot exhaust memory.",
+   "Doing heavy computing or a synchronous file read inside an event loop callback. Move it to a worker thread or another process.",
+   "Sharing mutable data between threads without a lock, which causes rare and hard-to-reproduce bugs. Prefer immutable data or message passing.",
+   "Assuming a successful write means the data is on disk. It may still sit in a memory buffer, so databases explicitly flush when durability matters.",
+   "Storing user uploads on the app server's local disk. The next server cannot see them and a replaced server loses them; use object storage."
+  ],
+  "reading": [
+   {
+    "title": "Operating Systems: Three Easy Pieces",
+    "by": "Remzi H. Arpaci-Dusseau and Andrea C. Arpaci-Dusseau",
+    "kind": "book",
+    "url": "https://pages.cs.wisc.edu/~remzi/OSTEP/"
+   },
+   {
+    "title": "The C10K problem",
+    "by": "Dan Kegel",
+    "kind": "blog",
+    "url": "https://www.kegel.com/c10k.html"
+   },
+   {
+    "title": "The Node.js event loop, timers and process.nextTick()",
+    "by": "OpenJS Foundation (Node.js documentation)",
+    "kind": "docs",
+    "url": "https://nodejs.org/en/learn/asynchronous-work/event-loop-timers-and-nexttick"
+   },
+   {
+    "title": "Uploading objects with presigned URLs",
+    "by": "Amazon Web Services",
+    "kind": "docs",
+    "url": "https://docs.aws.amazon.com/AmazonS3/latest/userguide/PresignedUrlUploadObject.html"
+   },
+   {
+    "title": "Designing Data-Intensive Applications",
+    "by": "Martin Kleppmann",
+    "kind": "book",
+    "url": "https://dataintensive.net/"
+   }
+  ]
+ },
+ "numbers": {
+  "how": [
+   {
+    "h": "The analogy: travel times in your own city",
+    "p": "You plan a day better if you know that the shop next door takes one minute, the station takes twenty and the airport takes ninety. Latency numbers are the same sort of map for computers. You do not need exact values, only the rough size of each step, so you can see at once whether a design makes sense."
+   },
+   {
+    "h": "The ladder of latency",
+    "p": "Latency means how long one operation takes. The commonly shared list attributed to Jeff Dean and Peter Norvig puts a main memory read at about 100 ns, reading 4 KB at random from an SSD at about 150 microseconds, a round trip inside one data centre at about 500 microseconds, a disk seek at about 10 ms, and a packet from California to the Netherlands and back at about 150 ms. Each rung is roughly 10 to 1,000 times slower than the one before. Those gaps explain why caches, CDNs and keeping services close together exist."
+   },
+   {
+    "h": "Latency versus throughput",
+    "p": "Latency is how long one request takes. Throughput is how many requests per second the system handles. They are different: a highway with many lanes has high throughput, but each car still takes the same time to arrive. You can often add throughput by adding servers, but you cannot reduce latency below the speed of light or the time of the slowest step."
+   },
+   {
+    "h": "Why averages lie: percentiles and the tail",
+    "p": "If 99 of 100 requests take 50 ms and one takes 5 seconds, the average looks fine but one user in a hundred is miserable. So engineers report percentiles: p50 is the typical request and p99 means 99 percent were faster than this. Dean and Barroso's paper The Tail at Scale shows that in big systems slow outliers matter more, because one user request often fans out to many servers and is only as fast as the slowest one."
+   },
+   {
+    "h": "Availability and the nines",
+    "p": "Availability is the share of time, or of requests, that a service works. Google's SRE book notes that each extra nine is an order of magnitude improvement, and that 99.99 percent allows about 52.56 minutes of downtime a year. Chained dependencies multiply: if you depend on three services that are each 99.9 percent available, you are at best about 99.7 percent. Teams use this to set an error budget, the amount of failure they can afford before slowing down releases."
+   }
+  ],
+  "worked": {
+   "title": "Three calculations every designer should be able to do",
+   "steps": [
+    "Downtime per year. A year has 365 x 24 x 60 = 525,600 minutes. At 99.9 percent, downtime is 0.1 percent: 525,600 x 0.001 = 525.6 minutes (a little under 9 hours). At 99.99 percent it is 52.56 minutes, which matches the SRE book. At 99.999 percent it is 5.256 minutes.",
+    "Chained services. A request goes through 3 services, each 99.9 percent available. Overall availability is 0.999 x 0.999 x 0.999 = 0.997, or 99.7 percent: three times the downtime of one service (about 1,577 minutes a year instead of 526).",
+    "The tail at scale. Suppose each server is slow (above your target) for 1 percent of requests. A page that waits on 100 servers is fast only if all are fast: 0.99 to the power 100 = 0.366. So 1 - 0.366 = 63.4 percent of page loads hit at least one slow server.",
+    "Cache gain. Memory reads cost about 100 ns and random SSD reads about 150,000 ns, so memory is 150,000 / 100 = 1,500 times faster than SSD for a small read.",
+    "A cross-ocean round trip of 150 ms is 300 times a data-centre round trip of 0.5 ms (150 / 0.5)."
+   ],
+   "result": "A tiny 1 percent problem per server becomes a 63 percent problem for the user at 100 servers, and three decent services in a chain are no better than 99.7 percent. That is why designers watch percentiles, reduce fan-out and keep dependency chains short."
+  },
+  "case": {
+   "who": "Google (Jeff Dean and Luiz Barroso)",
+   "title": "The Tail at Scale: building a predictable whole from unpredictable parts",
+   "text": "Google search shows updated results while a person types, within a few tens of milliseconds, while consulting data spread across thousands of servers. In the paper's words, brief slow moments that hardly matter in a small system can dominate the experience at large scale. The authors argue for tail-tolerant techniques, mirroring how fault tolerance builds a reliable whole out of unreliable parts. Many of these techniques reuse capacity already deployed for fault tolerance, so they cost little, and they let systems run at higher utilisation without a longer tail. The lesson for beginners is to track p99, not only the average.",
+   "source": {
+    "title": "The Tail at Scale (abstract page)",
+    "url": "https://research.google/pubs/the-tail-at-scale/"
+   }
+  },
+  "choose": [
+   [
+    "Average (mean) latency",
+    "A rough overall trend or capacity planning",
+    "Hides slow outliers. Never use it alone as a user-experience goal"
+   ],
+   [
+    "p50, p95, p99 percentiles",
+    "Setting latency goals (SLOs) and spotting problems",
+    "Needs enough samples. You cannot average percentiles from different servers; combine the raw data or histograms"
+   ],
+   [
+    "Availability by time (nines)",
+    "Simple targets and contracts",
+    "Says nothing about partial failures or which users were affected"
+   ],
+   [
+    "Availability by request success rate",
+    "Large systems that are rarely fully down (Google's approach)",
+    "You must decide what counts as a failed request, such as errors, timeouts or very slow answers"
+   ]
+  ],
+  "mistakes": [
+   "Quoting only the average. Always look at p95 or p99 as well.",
+   "Promising 99.99 percent without counting dependencies. Multiply the availability of everything in the request path.",
+   "Averaging percentiles across servers. The mean of two p99 values is not the p99 of the combined traffic.",
+   "Treating the latency list as exact. The numbers are old and approximate; use them for orders of magnitude and measure your own system.",
+   "Ignoring what each extra nine costs. SRE guidance is to ask what the extra reliability is worth before paying for it."
+  ],
+  "reading": [
+   {
+    "title": "Latency Numbers Every Programmer Should Know",
+    "by": "Jeff Dean and Peter Norvig, collected on GitHub",
+    "kind": "blog",
+    "url": "https://gist.github.com/jboner/2841832"
+   },
+   {
+    "title": "The Tail at Scale",
+    "by": "Jeffrey Dean and Luiz Andre Barroso (Communications of the ACM)",
+    "kind": "paper",
+    "url": "https://research.google/pubs/the-tail-at-scale/"
+   },
+   {
+    "title": "Embracing Risk (Site Reliability Engineering)",
+    "by": "Google SRE team",
+    "kind": "book",
+    "url": "https://sre.google/sre-book/embracing-risk/"
+   },
+   {
+    "title": "Amazon's Dynamo",
+    "by": "Werner Vogels",
+    "kind": "blog",
+    "url": "https://www.allthingsdistributed.com/2007/10/amazons_dynamo.html"
+   },
+   {
+    "title": "Designing Data-Intensive Applications",
+    "by": "Martin Kleppmann",
+    "kind": "book",
+    "url": "https://dataintensive.net/"
+   }
+  ]
+ },
+ "estimate": {
+  "how": [
+   {
+    "h": "The analogy: a builder's rough sketch",
+    "p": "Before ordering materials a builder sketches the house and estimates bricks to the nearest thousand. Back-of-the-envelope estimation is the same: you only need the right order of magnitude (10, 100, 1,000 or 10,000 requests per second) because that is what decides between one server and a cluster, or one database and many."
+   },
+   {
+    "h": "Start from users and actions",
+    "p": "Take daily active users (DAU, the number of distinct people who use the product in a day) and multiply by the actions each one performs per day. That gives requests per day. State your assumptions out loud so they can be corrected; an assumption written down is easy to fix, an assumption hidden in your head is not."
+   },
+   {
+    "h": "Convert per day into per second",
+    "p": "A day has 86,400 seconds, and for quick maths you can round that to 100,000. So 100 million requests a day is about 1,000 requests per second on average (the exact figure is about 1,157). Real traffic is not flat, so multiply by 2 to 3 for the peak. You size for the peak and not the average."
+   },
+   {
+    "h": "Storage and bandwidth",
+    "p": "Storage is new items per day x size of each item x days kept x copies. Replication (usually 3 copies) triples it. Bandwidth is bytes per second: requests per second x bytes per response. Keep units straight: network speeds are quoted in bits per second, so multiply bytes by 8."
+   },
+   {
+    "h": "Turn the numbers into decisions",
+    "p": "The point is to choose. Compare your result with rough limits: one ordinary database server handles on the order of thousands of simple queries per second, a cache handles far more, and a disk or network link has a fixed capacity. Writes per second tell you whether you need sharding, reads per second tell you whether you need caches, and storage tells you whether one machine's disks are enough."
+   }
+  ],
+  "worked": {
+   "title": "Sizing a photo-sharing app",
+   "steps": [
+    "Assumptions (illustrative): 5 million DAU, each views 20 photos a day, and 1 in 10 users uploads one photo a day. A thumbnail is 200 KB and an upload averages 2 MB.",
+    "Reads: 5,000,000 x 20 = 100,000,000 views a day. Divide by 86,400: about 1,157 per second, call it 1,200 on average. At 3x for peak: about 3,500 per second.",
+    "Writes: 5,000,000 / 10 = 500,000 uploads a day, about 5.8 per second. Writes are tiny compared with reads (roughly 200 to 1), so cache and replicate for reads.",
+    "Storage: 500,000 x 2 MB = 1,000 GB = 1 TB per day. Over a year that is about 365 TB, and with 3 copies about 1.1 PB (petabytes). That is far more than one machine, so object storage is needed.",
+    "Download bandwidth: 100,000,000 views x 200 KB = 20 TB per day. Divide by 86,400 seconds: about 231 MB per second, which is x8 = about 1.85 Gbps on average and about 5.5 Gbps at a 3x peak.",
+    "Decision: 5.5 Gbps of image traffic is better served by a CDN than by your own servers."
+   ],
+   "result": "Reads of 3,500 requests a second are fine for a few app servers plus a cache, uploads of 6 a second are trivial, but 1 TB a day of new photos and 5.5 Gbps at peak force object storage and a CDN. Two minutes of arithmetic shaped the whole architecture."
+  },
+  "case": {
+   "who": "Google SRE",
+   "title": "Using arithmetic to decide whether another nine is worth it",
+   "text": "Google's SRE book shows estimation used for a business decision. For a service with 2.5 million requests a day and a 99.99 percent target, the arithmetic says up to 250 failed requests a day still meets the goal. It also shows that raising availability from 99.9 to 99.99 percent is a 0.09 percent improvement, which for a service earning 1,000,000 dollars is worth about 900 dollars. If the extra reliability costs more than that, it is not worth building. The lesson is that rough numbers, applied honestly, stop teams over-engineering as well as under-engineering.",
+   "source": {
+    "title": "Embracing Risk (Site Reliability Engineering)",
+    "url": "https://sre.google/sre-book/embracing-risk/"
+   }
+  },
+  "choose": [
+   [
+    "Round to powers of ten",
+    "Interviews and early design, when only the order of magnitude matters",
+    "Rounding hides the 2x to 3x between average and peak, so add a peak factor separately"
+   ],
+   [
+    "Use real production data",
+    "You already run the system and can measure traffic, payload sizes and growth",
+    "Past traffic may not predict a launch, a campaign or a viral spike"
+   ],
+   [
+    "Load-test a prototype",
+    "The estimate is close to a threshold (for example one database's limit)",
+    "Test data and access patterns differ from real users, so treat results as a guide"
+   ],
+   [
+    "Add a safety margin of 2x to 3x",
+    "Capacity planning and cost forecasts",
+    "Too large a margin wastes money, so revisit the margin as you gain real data"
+   ]
+  ],
+  "mistakes": [
+   "Designing for the average instead of the peak. Traffic is bursty, so multiply by 2 to 3 (or use the real peak).",
+   "Forgetting replication and overhead in storage. Three copies means three times the disk, plus indexes and backups.",
+   "Mixing bits and bytes. A 1 Gbps link carries at most 125 MB per second, not 1 GB.",
+   "Treating all requests as equal. A read from a cache and a write with an index update are very different, so estimate reads and writes separately.",
+   "Chasing precision. If the answer changes the design only when it moves by 10x, do not spend effort getting the third digit.",
+   "Not writing assumptions down. When a number is wrong, you want to know which assumption to fix."
+  ],
+  "reading": [
+   {
+    "title": "Latency Numbers Every Programmer Should Know",
+    "by": "Jeff Dean and Peter Norvig, collected on GitHub",
+    "kind": "blog",
+    "url": "https://gist.github.com/jboner/2841832"
+   },
+   {
+    "title": "Embracing Risk (Site Reliability Engineering)",
+    "by": "Google SRE team",
+    "kind": "book",
+    "url": "https://sre.google/sre-book/embracing-risk/"
+   },
+   {
+    "title": "The System Design Primer",
+    "by": "Donne Martin (open source on GitHub)",
+    "kind": "docs",
+    "url": "https://github.com/donnemartin/system-design-primer"
+   },
+   {
+    "title": "Designing Data-Intensive Applications",
+    "by": "Martin Kleppmann",
+    "kind": "book",
+    "url": "https://dataintensive.net/"
+   }
+  ]
+ },
+ "req": {
+  "how": [
+   {
+    "h": "The analogy: the brief before the blueprint",
+    "p": "An architect who starts drawing before asking what the building is for may design a beautiful hospital when you needed a school. In system design the brief is your requirements. A few minutes asking what the product must do and what must never go wrong is the cheapest part of the whole project."
+   },
+   {
+    "h": "Functional requirements and scope",
+    "p": "Functional requirements say what the system does: users can shorten a link, post a photo, book a seat. Just as important is what is out of scope. Writing down what you will not build (for example, no editing of posts in version one) keeps the design small and the discussion focused."
+   },
+   {
+    "h": "Non-functional requirements: scale, latency, availability, consistency",
+    "p": "Non-functional requirements describe how well it must work. Scale is how many users and requests per second. Latency is how fast the key actions must feel. Availability is how much downtime is acceptable. Consistency is whether everyone must see the same data at the same instant. Turn vague words into numbers: not fast but p99 under 200 ms, and not reliable but 99.9 percent monthly."
+   },
+   {
+    "h": "CAP in plain words",
+    "p": "When a network failure splits a distributed system into parts that cannot talk (a partition), each part must choose: refuse some requests to keep data correct (consistency) or keep answering with possibly stale data (availability). Eric Brewer, who proposed the idea, later explained that the common two out of three reading is misleading: partitions are rare, consistency and availability are not all-or-nothing, and one system can choose differently for different operations. Martin Kleppmann adds that CAP's definitions are narrow and ignore latency, so use it as a prompt for questions, not as a label for a product."
+   },
+   {
+    "h": "PACELC: the trade-off when nothing is broken",
+    "p": "PACELC extends CAP: if there is a Partition choose Availability or Consistency, Else (in normal operation) choose Latency or Consistency. Even a healthy system pays for stronger consistency with extra waiting, for example while replicas confirm a write. Kleppmann makes the same point when he notes that many multi-datacentre systems use asynchronous replication mainly to cope with long distances, not to survive partitions."
+   },
+   {
+    "h": "Decide per feature, and write it down",
+    "p": "Different parts of one product can make different choices: a bank transfer needs strong consistency while a like counter can be a little behind. List the requirements, mark which are hard and which are nice to have, and note the trade-offs you accept. That list is what you later test the design against."
+   }
+  ],
+  "worked": {
+   "title": "Writing requirements for a URL shortener, with numbers",
+   "steps": [
+    "Functional: create a short link from a long URL, redirect from a short link. Out of scope for version one: custom domains, analytics dashboards.",
+    "Scale (assumption): 100 million new links a month. A month has about 30 x 86,400 = 2,592,000 seconds, so writes are 100,000,000 / 2,592,000 = about 39 per second.",
+    "Read to write ratio of 100 to 1 (assumption): about 3,900 redirects per second on average, about 12,000 per second at a 3x peak.",
+    "Storage: 100 million links a month x 500 bytes = 50 GB a month. Kept for 5 years (60 months) that is 3 TB, before replication.",
+    "Latency: redirects must be fast, say p99 under 100 ms, because the user is waiting on a blank page.",
+    "Availability: 99.9 percent is 0.001 x 43,200 minutes in a 30 day month = 43.2 minutes of allowed downtime a month.",
+    "Consistency: creating a link must never hand out the same short code twice, so the write path needs strong guarantees. A click count shown on a dashboard may lag by seconds, which is acceptable."
+   ],
+   "result": "In six lines you have 39 writes per second, about 4,000 reads per second, 3 TB of storage, a latency goal and a clear split of where consistency matters. These numbers point to one relational database plus a cache, not a huge distributed cluster."
+  },
+  "case": {
+   "who": "Eric Brewer on real systems (Facebook, Yahoo PNUTS, ATMs)",
+   "title": "Choosing consistency per operation, not per company",
+   "text": "In his follow-up article on CAP, Brewer gives examples of designers mixing both goals. Facebook sends a user's own reads and writes to the master copy for about 20 seconds after an update and then moves the user back to a nearby replica, so people see their own changes while the system stays fast. ATMs keep working during a partition and allow withdrawals up to a limit (his example is 200 dollars), then fix problems later through fees or auditing, because availability is worth more than perfect real-time accuracy. He recommends detecting partitions, limiting risky operations during them, and having a recovery plan. The lesson is that requirements should say which invariants must never break and which can be repaired afterwards.",
+   "source": {
+    "title": "CAP Twelve Years Later: How the Rules Have Changed (InfoQ)",
+    "url": "https://www.infoq.com/articles/cap-twelve-years-later-how-the-rules-have-changed/"
+   }
+  },
+  "choose": [
+   [
+    "Strong consistency",
+    "Money, inventory, bookings, uniqueness checks",
+    "Higher latency, and some requests fail or wait when replicas cannot be reached"
+   ],
+   [
+    "Eventual consistency",
+    "Feeds, like counts, view counters, search indexes",
+    "Users may briefly see old data, and conflicting updates need a merge rule"
+   ],
+   [
+    "Optimise for latency",
+    "Interactive features where speed is the product",
+    "Fast paths often rely on caches and replicas that can be stale"
+   ],
+   [
+    "Optimise for availability",
+    "Shopping carts, status pages, reading content",
+    "You need a plan for reconciling data after the failure ends"
+   ]
+  ],
+  "mistakes": [
+   "Starting to draw boxes before asking questions. Spend the first few minutes on scope, scale and what must never be wrong.",
+   "Using vague goals like fast or reliable. Write numbers such as p99 under 100 ms or 99.9 percent a month.",
+   "Designing for a billion users on day one. Design for the next 10x of growth and note what you would change at 100x.",
+   "Choosing one consistency level for the whole product. Choose per operation, as Brewer's examples show.",
+   "Using CAP as a label on a database (this one is CP, that one AP). Kleppmann argues the definitions are too narrow for that. Ask what happens to each operation during failures and during normal use.",
+   "Never writing down the trade-offs you accepted, so later no one knows whether a limitation was deliberate."
+  ],
+  "reading": [
+   {
+    "title": "CAP Twelve Years Later: How the Rules Have Changed",
+    "by": "Eric Brewer (IEEE Computer, republished by InfoQ)",
+    "kind": "paper",
+    "url": "https://www.infoq.com/articles/cap-twelve-years-later-how-the-rules-have-changed/"
+   },
+   {
+    "title": "Please stop calling databases CP or AP",
+    "by": "Martin Kleppmann",
+    "kind": "blog",
+    "url": "https://martin.kleppmann.com/2015/05/11/please-stop-calling-databases-cp-or-ap.html"
+   },
+   {
+    "title": "Designing Data-Intensive Applications",
+    "by": "Martin Kleppmann",
+    "kind": "book",
+    "url": "https://dataintensive.net/"
+   },
+   {
+    "title": "Embracing Risk (Site Reliability Engineering)",
+    "by": "Google SRE team",
+    "kind": "book",
+    "url": "https://sre.google/sre-book/embracing-risk/"
+   },
+   {
+    "title": "Amazon's Dynamo",
+    "by": "Werner Vogels",
+    "kind": "blog",
+    "url": "https://www.allthingsdistributed.com/2007/10/amazons_dynamo.html"
+   }
+  ]
+ },
+ "lb": {
+  "how": [
+   {
+    "h": "The analogy: the host at a restaurant",
+    "p": "A host greets every guest and sends them to a table with a free waiter, skipping any section that is closed. Guests never need to know how many waiters there are. A load balancer does the same for requests: clients talk to one address, and the balancer chooses a healthy server behind it."
+   },
+   {
+    "h": "How the balancer finds servers: DNS and nodes",
+    "p": "Clients first look up the balancer's name in DNS. With AWS Elastic Load Balancing the answer lists the addresses of the balancer's nodes, and the DNS record has a short TTL of 60 seconds so addresses can be changed quickly as traffic grows. The node that receives a request picks a healthy registered target and forwards it using a private address. Spreading nodes over several availability zones (separate data centres in a region) keeps the balancer working if one zone fails."
+   },
+   {
+    "h": "Choosing a server: the algorithms",
+    "p": "Round robin sends each request to the next server in turn and is the default in NGINX and in AWS Application Load Balancers. Least connections sends to the server with the fewest active requests, which helps when some requests take much longer. Weights give stronger machines a bigger share: with weights 3, 1, 1, every 5 requests go 3, 1 and 1. A hash of the client address (IP hash) sends the same client to the same server. Google's SRE team warns that plain round robin can leave the busiest server using up to twice the CPU of the least busy, because requests differ in cost and machines differ in speed, so weighting by reported load works better."
+   },
+   {
+    "h": "Health checks and draining",
+    "p": "A balancer must notice failed servers. Passive checks watch real traffic: in NGINX a server with max_fails failures inside fail_timeout is skipped for a while and then probed again. Active checks send test requests on a schedule. For deploys, a server can enter a draining state in which it finishes current requests but receives no new ones, so you can replace it without dropping users."
+   },
+   {
+    "h": "Layer 4 versus layer 7",
+    "p": "A layer 4 balancer looks only at IP addresses and ports and forwards connections quickly; AWS Network Load Balancers pick a target by hashing connection details and keep one connection on one target. A layer 7 balancer reads the HTTP request, so it can route /api to one group of servers and /images to another, terminate TLS, or send a header such as X-Forwarded-For so servers know the real client address. Layer 7 gives more control and costs more work per request."
+   },
+   {
+    "h": "Keep servers stateless",
+    "p": "Load balancing is easiest when any server can answer any request. Keep sessions in a shared store such as a database or Redis, not in one server's memory. Sticky sessions (always the same server for a client) work, but they unbalance load and lose the user's session when that server dies."
+   }
+  ],
+  "worked": {
+   "title": "Why cross-zone balancing changes who gets the traffic",
+   "steps": [
+    "This is the scenario in AWS's documentation. There are 2 availability zones: zone A has 2 targets and zone B has 8 targets. DNS spreads clients so each zone's balancer node receives 50 percent of traffic. Suppose the total is 1,000 requests per second.",
+    "Each node gets 500 requests per second.",
+    "Cross-zone OFF: zone A's node can only use zone A's 2 targets, so each gets 250 requests per second (25 percent of the total). Zone B's node spreads 500 over 8 targets, so each gets 62.5 per second (6.25 percent).",
+    "The busiest target gets 250 and the quietest gets 62.5, which is 4 times as much.",
+    "Cross-zone ON: each node can send to all 10 targets, so every target gets 1,000 / 10 = 100 requests per second (10 percent).",
+    "Now compare weights. NGINX with weights 3, 1, 1 splits 5 requests as 3, 1 and 1, so in 1,000 requests the first server gets 600 and the other two get 200 each."
+   ],
+   "result": "Without cross-zone balancing, a target in the small zone carries 4 times the load of one in the large zone. Turning it on makes every target take an equal 100 requests per second. Balancing is not just spreading evenly: you must check how traffic is actually divided."
+  },
+  "case": {
+   "who": "Google (Maglev and datacenter load balancing)",
+   "title": "A software load balancer on ordinary servers",
+   "text": "Google's Maglev is a network load balancer built as a distributed software system on commodity Linux servers instead of specialised hardware. Routers spread packets over Maglev machines with equal-cost multipath routing, each machine sends them on to service endpoints, and capacity grows by adding machines. One machine can saturate a 10 Gbps link with small packets. Consistent hashing and connection tracking limit the damage to existing connections when machines fail. It has carried Google's traffic since 2008. Separately, the SRE book explains that inside the data centre even least-loaded round robin often leaves the busiest task with about twice the CPU of the least busy, which pushed Google toward weighted schemes based on backend feedback.",
+   "source": {
+    "title": "Maglev: A Fast and Reliable Software Network Load Balancer",
+    "url": "https://research.google/pubs/maglev-a-fast-and-reliable-software-network-load-balancer/"
+   }
+  },
+  "choose": [
+   [
+    "Round robin",
+    "Servers are identical and requests cost about the same",
+    "Uneven requests or machines leave some servers much busier than others"
+   ],
+   [
+    "Least connections / least outstanding requests",
+    "Request durations vary a lot",
+    "Counts only what the balancer sees. A broken server that fails fast can attract more traffic unless errors are counted"
+   ],
+   [
+    "Weighted",
+    "Mixed server sizes, or a gradual rollout to a new version",
+    "Weights need updating when machines change"
+   ],
+   [
+    "IP hash or sticky sessions",
+    "You cannot yet make servers stateless",
+    "Unbalanced load, and the session is lost when that server fails. Many users behind one address look like one client"
+   ],
+   [
+    "Layer 4 versus layer 7",
+    "L4 for raw speed and non-HTTP protocols; L7 for routing by path, host or header",
+    "L7 costs more CPU and terminates TLS, so you must secure and scale it"
+   ]
+  ],
+  "mistakes": [
+   "Running a single load balancer. It becomes the single point of failure you were removing; use a managed service or a redundant pair across zones.",
+   "Relying on sticky sessions. Store sessions in a shared store so any server can handle any request.",
+   "Health checks that only test that the process is up. Check a path that exercises the database or key dependencies, but keep it cheap and avoid making the check itself cause outages.",
+   "Forgetting to drain servers before a deploy. Remove a server from rotation, let current requests finish, then restart it.",
+   "Using plain round robin with very uneven request costs. Prefer least outstanding requests or weighted schemes.",
+   "Not passing the original client address (X-Forwarded-For). Servers then log and rate limit the balancer's address instead of the user's."
+  ],
+  "reading": [
+   {
+    "title": "Using NGINX as an HTTP load balancer",
+    "by": "NGINX",
+    "kind": "docs",
+    "url": "https://nginx.org/en/docs/http/load_balancing.html"
+   },
+   {
+    "title": "How Elastic Load Balancing works",
+    "by": "Amazon Web Services",
+    "kind": "docs",
+    "url": "https://docs.aws.amazon.com/elasticloadbalancing/latest/userguide/how-elastic-load-balancing-works.html"
+   },
+   {
+    "title": "Maglev: A Fast and Reliable Software Network Load Balancer",
+    "by": "Google",
+    "kind": "paper",
+    "url": "https://research.google/pubs/maglev-a-fast-and-reliable-software-network-load-balancer/"
+   },
+   {
+    "title": "Load Balancing in the Datacenter (Site Reliability Engineering)",
+    "by": "Google SRE team",
+    "kind": "book",
+    "url": "https://sre.google/sre-book/load-balancing-datacenter/"
+   },
+   {
+    "title": "The System Design Primer (load balancer section)",
+    "by": "Donne Martin (open source on GitHub)",
+    "kind": "docs",
+    "url": "https://github.com/donnemartin/system-design-primer"
+   }
+  ]
+ },
+ "cache": {
+  "how": [
+   {
+    "h": "The analogy: notes on your desk",
+    "p": "A reference library holds everything but walking to the shelf takes minutes. A few notes on your desk hold what you use most and take one second to read. A cache is the desk: a small, fast store of recent answers in front of a big, slow one. It works because a small share of the data usually gets most of the reads."
+   },
+   {
+    "h": "Hits, misses and the hit ratio",
+    "p": "If the answer is in the cache it is a cache hit, and if not it is a miss and you fetch from the database. The hit ratio is hits divided by hits plus misses. Redis exposes this directly: its INFO command reports keyspace hits and misses, and the docs suggest comparing your ratio with what you expect from your data. The higher the ratio, the fewer queries reach the database."
+   },
+   {
+    "h": "Cache-aside (lazy loading)",
+    "p": "The application asks the cache first. On a miss it reads the database, stores the result in the cache and returns it. AWS describes the advantages: only requested data is cached, and a cache node that dies is not fatal, because the app falls back to the database. The costs are that a miss takes three trips (check the cache, query the database, write to the cache) and that the cached copy can go stale when the database changes underneath it."
+   },
+   {
+    "h": "Write-through and write-back",
+    "p": "Write-through updates the cache every time the database is written, so cached data stays fresh, but writes are slower and the cache fills with data that may never be read. Write-back (also called write-behind) writes to the cache first and flushes to the database later. That is very fast but you lose data if the cache dies before the flush, so use it only when losing a little is acceptable."
+   },
+   {
+    "h": "Expiry and eviction",
+    "p": "A TTL (time to live) makes an entry expire after a set number of seconds, which bounds how stale it can be. When memory is full the cache must evict entries. In Redis you set a maxmemory limit and a policy, such as allkeys-lru (remove the least recently used keys) or allkeys-lfu (least frequently used). The Redis documentation calls allkeys-lru a good default when a subset of keys is accessed far more often than the rest."
+   },
+   {
+    "h": "The hard parts: invalidation and stampedes",
+    "p": "Deciding when a cached copy is wrong is the famously hard part. Short TTLs, deleting the key whenever you write, or write-through all help. A stampede happens when a popular entry expires and hundreds of requests miss at once and all hit the database. Common defences are letting only one request rebuild the entry, adding random jitter to TTLs, or refreshing before expiry."
+   }
+  ],
+  "worked": {
+   "title": "What a 90 percent hit ratio buys you",
+   "steps": [
+    "Illustrative numbers: 10,000 reads per second. A cache read costs 1 ms round trip, a database query costs 5 ms. On a miss the app uses three trips (cache check 1 ms, database 5 ms, cache write 1 ms = 7 ms).",
+    "With no cache: all 10,000 reads hit the database, average latency 5 ms.",
+    "With a 90 percent hit ratio: 9,000 reads are hits at 1 ms and 1,000 are misses at 7 ms. The database now sees 1,000 queries per second instead of 10,000.",
+    "Average latency = 0.9 x 1 + 0.1 x 7 = 0.9 + 0.7 = 1.6 ms, about 3 times faster than 5 ms.",
+    "At 99 percent: the database sees 100 queries per second, and average latency = 0.99 x 1 + 0.01 x 7 = 1.06 ms.",
+    "At 50 percent: the database still sees 5,000 queries per second, and average latency = 0.5 x 1 + 0.5 x 7 = 4.0 ms, barely better than no cache."
+   ],
+   "result": "Going from no cache to 90 percent cuts database load by 10 times (10,000 to 1,000 per second), and 99 percent cuts it by 100 times. A cache with a poor hit ratio helps little, so measure the hit ratio and tune keys, TTLs and size."
+  },
+  "case": {
+   "who": "Facebook (memcached at huge scale)",
+   "title": "When the cache becomes part of the storage system",
+   "text": "The NSDI 2013 paper Scaling Memcache at Facebook describes memcached as the building block of a distributed key-value store that serves a social network of over a billion users, handling billions of requests a second and holding trillions of items. A summary of the paper stresses that, over time, the cache stops being a disposable accelerator and becomes something the service depends on. Memcached may lose or evict data, and replication and invalidation are not transactional, so the team traded precise semantics for performance, availability and simplicity. The lesson is that once many users depend on a cache you must plan for its failures, since an empty cache can send a flood of reads to the database.",
+   "source": {
+    "title": "Scaling Memcache at Facebook (USENIX NSDI 2013)",
+    "url": "https://www.usenix.org/conference/nsdi13/technical-sessions/presentation/nishtala"
+   }
+  },
+  "choose": [
+   [
+    "Cache-aside",
+    "The default for read-heavy data that can tolerate brief staleness",
+    "Slow first read, and stale data until the TTL expires or you invalidate"
+   ],
+   [
+    "Write-through",
+    "Data that must be fresh in the cache right after a write",
+    "Slower writes and wasted memory for data never read. A new empty node is missing data until it is written or read"
+   ],
+   [
+    "Write-back",
+    "Very high write rates where losing a few seconds of data is acceptable",
+    "Data loss if the cache fails before flushing, and more complex recovery"
+   ],
+   [
+    "HTTP and CDN caching (Cache-Control)",
+    "Public responses and static assets",
+    "Personalised responses must be marked private, otherwise a shared cache may serve one user's data to another"
+   ],
+   [
+    "No cache",
+    "The database is not the bottleneck, or data must always be exact (such as account balances)",
+    "You carry the full read load, so check that your database can cope"
+   ]
+  ],
+  "mistakes": [
+   "Caching without a TTL or an invalidation plan. Every cached item needs a rule for when it becomes wrong.",
+   "Never measuring the hit ratio. Without it you cannot tell whether the cache helps.",
+   "Allowing a stampede on hot keys. Use one rebuilder per key, TTL jitter, or refresh before expiry.",
+   "Treating the cache as the source of truth. It can be evicted or lost, so the database must hold the real data.",
+   "Caching personalised data in a shared cache with a key that lacks the user id, which leaks one user's data to another.",
+   "Letting the cache fill memory with rarely used data. Set maxmemory and choose an eviction policy that matches your access pattern."
+  ],
+  "reading": [
+   {
+    "title": "Scaling Memcache at Facebook",
+    "by": "Nishtala et al. (USENIX NSDI 2013)",
+    "kind": "paper",
+    "url": "https://www.usenix.org/conference/nsdi13/technical-sessions/presentation/nishtala"
+   },
+   {
+    "title": "Key eviction",
+    "by": "Redis documentation",
+    "kind": "docs",
+    "url": "https://redis.io/docs/latest/develop/reference/eviction/"
+   },
+   {
+    "title": "Caching strategies (lazy loading, write-through, TTL)",
+    "by": "Amazon ElastiCache documentation",
+    "kind": "docs",
+    "url": "https://docs.aws.amazon.com/AmazonElastiCache/latest/dg/Strategies.html"
+   },
+   {
+    "title": "HTTP caching",
+    "by": "MDN Web Docs",
+    "kind": "docs",
+    "url": "https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/Caching"
+   },
+   {
+    "title": "The System Design Primer (cache section)",
+    "by": "Donne Martin (open source on GitHub)",
+    "kind": "docs",
+    "url": "https://github.com/donnemartin/system-design-primer"
+   },
+   {
+    "title": "Latency Numbers Every Programmer Should Know",
+    "by": "Jeff Dean and Peter Norvig, collected on GitHub",
+    "kind": "blog",
+    "url": "https://gist.github.com/jboner/2841832"
+   }
+  ]
+ },
+ "cdn": {
+  "how": [
+   {
+    "h": "The analogy: local warehouses",
+    "p": "If every parcel shipped from one factory on another continent, delivery would be slow and the factory would be swamped. Companies stock local warehouses with popular items. A CDN (content delivery network) does this for files: copies sit in many cities, and each user is served from a nearby copy. Your own servers, the origin, supply the warehouses and handle everything the warehouses cannot."
+   },
+   {
+    "h": "How a request reaches an edge",
+    "p": "The CDN's DNS or routing sends the user to a nearby edge server (also called a point of presence). If the edge has a fresh copy of the file it answers immediately, a cache hit. If not, it fetches the file from the origin, stores it, and serves it, a cache miss. The next nearby user then gets a hit. Distance is the point: a round trip to the other side of the world costs about 150 ms, while a round trip to a nearby edge costs a few milliseconds."
+   },
+   {
+    "h": "What stays cached and for how long: Cache-Control",
+    "p": "Your server controls the edge with HTTP headers. max-age says how many seconds a copy is fresh. s-maxage can set a different time for shared caches such as CDNs. private tells shared caches not to store a response, which is vital for personalised pages. no-store forbids storing, while no-cache allows storing but forces a check with the server before reuse. When a copy goes stale, a conditional request using the ETag lets the origin reply 304 Not Modified with no body, which is cheap."
+   },
+   {
+    "h": "Updating files: versioned URLs",
+    "p": "You cannot easily tell every cache in the world that a file changed. The usual answer is to put a version or content hash in the file name (such as app.3f9a1c.js) and cache it for a year with max-age=31536000 and immutable. When the file changes, the name changes, so the old copies are simply never requested again. HTML pages usually cannot be named this way, so they use no-cache and are revalidated each time."
+   },
+   {
+    "h": "Object storage and signed URLs",
+    "p": "A CDN usually pulls from object storage such as Amazon S3, which stores files cheaply and durably. For uploads, the server hands the client a pre-signed URL: a time-limited address that lets the holder upload to one specific key without any AWS credentials, using the permissions of the person who created it. The file goes directly to storage, so large uploads never pass through your app servers. Presigned URLs created with the AWS SDKs can last up to 7 days."
+   }
+  ],
+  "worked": {
+   "title": "What an edge cache does to traffic and latency",
+   "steps": [
+    "Illustrative numbers: 1,000,000 page views a day, each loading 2 MB of static files (images, CSS, JavaScript). That is 2,000,000 MB = 2 TB a day.",
+    "Without a CDN the origin serves all 2 TB. Per second: 2,000,000,000,000 / 86,400 = about 23 MB per second, or about 185 Mbps on average, and more at peak.",
+    "With a CDN hit ratio of 95 percent, only 5 percent reaches the origin: 2 TB x 0.05 = 100 GB a day, about 1.2 MB per second or 9.3 Mbps. Origin traffic drops by 20 times.",
+    "Latency for a user far from the origin. Suppose a round trip to the origin is 150 ms (the cross-ocean figure in the common latency list) and to the edge it is 10 ms. A new HTTPS connection with TLS 1.3 followed by a request takes about 3 round trips (TCP, TLS, request).",
+    "From the origin: 3 x 150 = 450 ms before the first byte arrives (plus server time). From the edge: 3 x 10 = 30 ms.",
+    "Cache lifetime: a hashed file with max-age=31536000 stays fresh for 31,536,000 seconds, which is 365 days."
+   ],
+   "result": "The CDN cuts origin traffic from about 185 Mbps to about 9 Mbps and cuts the wait for the first byte from roughly 450 ms to 30 ms for distant users. The main work is deciding what is safe to cache and how to change it."
+  },
+  "case": {
+   "who": "Netflix (Open Connect)",
+   "title": "Putting cache servers inside internet providers",
+   "text": "Netflix runs its own content delivery network called Open Connect. Its servers, called Open Connect Appliances, hold cached Netflix video. They sit in Netflix's data centres, at internet exchange points where networks meet, and, for qualifying internet providers, inside the provider's own network at no charge to the provider, which supplies rack space, power and connectivity. Netflix pre-fills each box with the content likely to be wanted in that region, and if an embedded site fails, traffic is rerouted to another site or to appliances at exchanges. Netflix reports partnering with over a thousand providers. The lesson is that the closer the bytes are to the viewer, the less they cross the wider internet, which helps quality and cost.",
+   "source": {
+    "title": "Netflix Open Connect",
+    "url": "https://openconnect.netflix.com/en/"
+   }
+  },
+  "choose": [
+   [
+    "Commercial CDN (Cloudflare, CloudFront, Fastly, Akamai)",
+    "Most websites and APIs with global users",
+    "Cost grows with traffic, and cache rules need careful setting"
+   ],
+   [
+    "Origin only, no CDN",
+    "Internal tools or users all in one region",
+    "Users far away see high latency, and the origin takes all the load, including spikes"
+   ],
+   [
+    "Object storage with a CDN in front",
+    "Images, videos, downloads and static sites",
+    "Objects are replaced, not edited, so use new names for new versions"
+   ],
+   [
+    "Run your own edge or CDN (as Netflix does)",
+    "Huge, predictable traffic where it pays to be inside providers' networks",
+    "Heavy engineering and partnership effort, only justified at very large scale"
+   ]
+  ],
+  "mistakes": [
+   "Caching personalised or private responses in a shared cache. Mark them private or no-store, and include user identity in cache keys only when it is safe.",
+   "Giving HTML pages a long max-age, so users see old pages for ages. Use no-cache for HTML and long lifetimes for hashed assets.",
+   "Reusing the same file name for new content. Put a version or hash in the name instead of relying on purging caches.",
+   "Letting an origin be reachable only through the CDN in theory but open to the world in practice, so attackers bypass the CDN. Restrict who can contact the origin.",
+   "Sending big uploads through your app servers. Use pre-signed URLs so clients upload directly to object storage.",
+   "Setting up a CDN but never looking at the hit ratio, so most requests quietly still go to the origin."
+  ],
+  "reading": [
+   {
+    "title": "Netflix Open Connect",
+    "by": "Netflix",
+    "kind": "docs",
+    "url": "https://openconnect.netflix.com/en/"
+   },
+   {
+    "title": "HTTP caching",
+    "by": "MDN Web Docs",
+    "kind": "docs",
+    "url": "https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/Caching"
+   },
+   {
+    "title": "Uploading objects with presigned URLs",
+    "by": "Amazon Web Services",
+    "kind": "docs",
+    "url": "https://docs.aws.amazon.com/AmazonS3/latest/userguide/PresignedUrlUploadObject.html"
+   },
+   {
+    "title": "Building Blocks of TCP (High Performance Browser Networking)",
+    "by": "Ilya Grigorik",
+    "kind": "book",
+    "url": "https://hpbn.co/building-blocks-of-tcp/"
+   },
+   {
+    "title": "Latency Numbers Every Programmer Should Know",
+    "by": "Jeff Dean and Peter Norvig, collected on GitHub",
+    "kind": "blog",
+    "url": "https://gist.github.com/jboner/2841832"
+   }
+  ]
+ },
+ "queue": {
+  "how": [
+   {
+    "h": "The analogy: the order ticket spike in a kitchen",
+    "p": "A waiter does not cook your meal at your table. He writes a ticket, clips it to the rail and returns to serve other guests, while the cooks take tickets at their own pace. A queue is the rail. The API accepts the job, answers right away with accepted, and workers do the slow work in the background."
+   },
+   {
+    "h": "Producers, queue, consumers",
+    "p": "A producer (your API) puts a message describing a job on the queue. One or more consumers (workers) take messages and process them. Because they are separate, the producer does not wait for the workers, the workers can be added or removed freely, and a slow or crashed worker does not break the API. A queue also soaks up a spike: jobs pile up and are drained at the speed the workers can manage."
+   },
+   {
+    "h": "At-least-once delivery, visibility timeout and acknowledgement",
+    "p": "A worker that takes a message from Amazon SQS does not remove it. The message turns invisible to other workers for the visibility timeout (30 seconds by default). If the worker deletes the message before the timeout, the job is done. If it crashes or is too slow, the message reappears and another worker tries again. That means no job is lost, but a job can be delivered more than once. AWS documents that SQS standard queues use at-least-once delivery."
+   },
+   {
+    "h": "Idempotency and retries",
+    "p": "Since duplicates can happen, workers must be idempotent: doing the same job twice must give the same result as once, for example by recording a job id and skipping ones already done, or by using updates that set a state instead of adding to it. Retries should wait longer each time (exponential backoff) so a struggling dependency is not hammered."
+   },
+   {
+    "h": "Dead-letter queues",
+    "p": "Some messages will never succeed, such as one with corrupt data. A dead-letter queue (DLQ) receives a message after it has been received a set number of times without being deleted (maxReceiveCount in SQS). You can then inspect the failed messages, fix the bug, and redrive them to the main queue. Set an alarm on the DLQ so failures are noticed, and keep its retention longer than the source queue's."
+   },
+   {
+    "h": "Task queues versus logs",
+    "p": "In a task queue such as SQS or RabbitMQ each message is handled by one worker and then removed. A log such as Kafka works differently: events are appended to partitions of a topic and kept for a retention period, and consumers read them without deleting them. Order is guaranteed only inside one partition, and events with the same key go to the same partition. Use a log when many systems need the same stream or you want to replay history."
+   }
+  ],
+  "worked": {
+   "title": "Absorbing a spike and a retry bug",
+   "steps": [
+    "Illustrative setup: a sign-up spike sends 1,000 jobs per second to the queue for 60 seconds, which is 60,000 jobs. You have 20 workers, each finishing 10 jobs per second, so the fleet handles 200 per second.",
+    "During the spike the queue grows by 1,000 - 200 = 800 per second. After 60 seconds the backlog is 800 x 60 = 48,000 jobs. The API stayed fast the whole time, because it only had to add messages.",
+    "After the spike stops, the backlog drains at 200 per second: 48,000 / 200 = 240 seconds. All the work is done 300 seconds after the spike began.",
+    "If you doubled the workers to 40 (400 per second), the backlog at 60 seconds would be 600 x 60 = 36,000 and it would drain in 90 seconds.",
+    "Now a bug. Suppose a job takes 45 seconds but the visibility timeout is the default 30 seconds. At 30 seconds the message reappears and a second worker starts the same job, so the work is done twice.",
+    "Fix: set the visibility timeout above the longest normal job (for example 60 seconds), extend it with a heartbeat for slow jobs, make the job idempotent, and set a redrive policy with a maxReceiveCount of 5 so a poison message ends in the DLQ."
+   ],
+   "result": "The spike creates a 48,000 job backlog that clears in 4 minutes with 20 workers, and the user-facing API never slows down. The retry bug shows why timeouts and idempotent workers are part of the design, not afterthoughts."
+  },
+  "case": {
+   "who": "Amazon SQS",
+   "title": "A managed queue built around at-least-once delivery",
+   "text": "Amazon SQS is a hosted queue used by many systems. Its documentation shows the design choices that matter to anyone using queues. A received message stays in the queue but is hidden for a visibility timeout that defaults to 30 seconds and can be extended up to 12 hours in total. If a consumer fails, the message reappears, which prevents loss but means standard queues can deliver a message more than once. Failed messages can be moved to a dead-letter queue after a chosen number of attempts. FIFO queues give strict order within a message group. The lesson is that reliability comes from retries and duplicates, so your workers must be idempotent.",
+   "source": {
+    "title": "Amazon SQS visibility timeout",
+    "url": "https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-visibility-timeout.html"
+   }
+  },
+  "choose": [
+   [
+    "Task queue (SQS, RabbitMQ)",
+    "Each job should be done once by one worker: emails, image resizing, reports",
+    "Duplicates are possible, so workers must be idempotent. Order is not guaranteed on standard queues"
+   ],
+   [
+    "Log or stream (Kafka)",
+    "Many consumers need the same events, replay, ordering by key, very high volume",
+    "More to operate. Order exists only within a partition, and you manage consumer offsets"
+   ],
+   [
+    "FIFO queue",
+    "Order matters within a group, such as the steps of one order",
+    "Lower throughput, and a dead-letter queue can break exact ordering"
+   ],
+   [
+    "Do the work inline (no queue)",
+    "Fast, cheap work the user needs the result of right now",
+    "Slow work blocks the request and spikes hit the database directly"
+   ]
+  ],
+  "mistakes": [
+   "Workers that are not idempotent. With at-least-once delivery, duplicates will happen, so design every job to be safe to repeat.",
+   "A visibility timeout shorter than the job time, which causes duplicate processing. Set it longer than the slowest normal job or extend it with a heartbeat.",
+   "No dead-letter queue, so one bad message retries forever. Add a DLQ with a sensible maxReceiveCount and an alarm.",
+   "Unbounded queues. If producers outrun consumers for long, the backlog and delay grow without limit, so monitor queue age and apply back pressure (for example return HTTP 503 and let clients retry with backoff).",
+   "Using a queue when the user needs the answer now. Queues add delay and complexity, so keep quick synchronous work synchronous.",
+   "Assuming order. Standard queues do not promise it; use FIFO or partition keys when order matters."
+  ],
+  "reading": [
+   {
+    "title": "Amazon SQS visibility timeout",
+    "by": "Amazon Web Services",
+    "kind": "docs",
+    "url": "https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-visibility-timeout.html"
+   },
+   {
+    "title": "Using dead-letter queues in Amazon SQS",
+    "by": "Amazon Web Services",
+    "kind": "docs",
+    "url": "https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-dead-letter-queues.html"
+   },
+   {
+    "title": "Apache Kafka introduction",
+    "by": "Apache Kafka project",
+    "kind": "docs",
+    "url": "https://kafka.apache.org/intro"
+   },
+   {
+    "title": "Okay, but should you store data in Apache Kafka?",
+    "by": "Confluent",
+    "kind": "blog",
+    "url": "https://www.confluent.io/blog/okay-store-data-apache-kafka/"
+   },
+   {
+    "title": "The System Design Primer (asynchronism section)",
+    "by": "Donne Martin (open source on GitHub)",
+    "kind": "docs",
+    "url": "https://github.com/donnemartin/system-design-primer"
+   },
+   {
+    "title": "Designing Data-Intensive Applications",
+    "by": "Martin Kleppmann",
+    "kind": "book",
+    "url": "https://dataintensive.net/"
+   }
+  ]
+ },
+ "db": {
+  "how": [
+   {
+    "h": "The analogy: a library with different shelving systems",
+    "p": "A library can shelve by author, by topic or by date. Which is best depends on how people look things up. Databases are the same: each kind stores data in a shape that makes certain questions cheap. Choosing a database is mostly choosing which questions must be fast."
+   },
+   {
+    "h": "Relational databases and ACID transactions",
+    "p": "Relational databases (PostgreSQL, MySQL) store rows in tables and link them with keys, and you query with SQL. Their strength is transactions that follow ACID: atomic (all steps happen or none), consistent (rules are kept), isolated (concurrent users do not see half-finished work) and durable (committed data survives a crash). PostgreSQL implements this with MVCC (multiversion concurrency control): each statement sees a snapshot of the data, so readers do not block writers and writers do not block readers."
+   },
+   {
+    "h": "Indexes: why lookups are fast",
+    "p": "Without an index the database must scan every row. An index is a separate sorted structure, typically a balanced tree, with a linked list of entries at the bottom, that lets the database jump straight to matching rows. The book Use The Index, Luke compares it to the index at the back of a book. The cost is extra disk space and slower writes, because every insert, update or delete must also keep the index in order."
+   },
+   {
+    "h": "Other shapes: key-value, document, wide-column, search, graph",
+    "p": "Key-value stores (Redis, DynamoDB) fetch a value by its key at huge scale. Document stores (MongoDB) keep nested records you read as one unit. Wide-column stores (Cassandra) handle massive write rates. Search engines (Elasticsearch) do full-text search and filtering. Graph databases (Neo4j) answer deep relationship questions. Each gives up something, often joins or strong transactions, to gain scale or speed for its main access pattern."
+   },
+   {
+    "h": "Scaling: replicas, shards and quorums",
+    "p": "Reads scale by adding replicas, copies that serve reads, though copies may lag the primary. Writes and size scale by sharding: splitting data across machines by a key. Amazon's Dynamo shows another approach: it partitions with consistent hashing, stores each key on N nodes, and lets operators choose how many nodes must acknowledge reads (R) and writes (W). If R plus W is greater than N, reads and writes overlap, and lower values trade correctness for speed."
+   },
+   {
+    "h": "Pick by access pattern, not by fashion",
+    "p": "List your queries first: lookup by id, range scan by time, join three tables, search text, count by group. Then pick the simplest store that makes them fast. Many real systems use several: a relational database as the source of truth, a cache for hot reads and a search index for text."
+   }
+  ],
+  "worked": {
+   "title": "How much faster is an indexed lookup?",
+   "steps": [
+    "Illustrative table: 10,000,000 user rows of about 200 bytes each, so 2,000,000,000 bytes = 2 GB. The query is: find the user with a given email.",
+    "No index. The database scans the table. Using the common figure of about 1 ms to read 1 MB sequentially from SSD, 2 GB = 2,000 MB takes about 2,000 ms, which is 2 seconds, for every lookup.",
+    "With an index. Assume an 8 KB index page holds about 200 entries (an assumption). One level holds 200 entries, two levels 200 x 200 = 40,000, three levels 8,000,000, and four levels 1,600,000,000. So 10 million rows need a tree 4 levels deep.",
+    "Cost: 4 index page reads plus 1 table page read = 5 random reads. At about 150 microseconds for a random 4 KB SSD read (the common latency list), that is 5 x 0.15 = 0.75 ms. This assumes a cold cache; in practice upper levels stay in memory and it is faster.",
+    "Speed-up: 2,000 ms / 0.75 ms = about 2,700 times faster.",
+    "Cost of the index: maybe 10 million entries x 40 bytes = 400 MB extra disk, and each insert now updates the index too."
+   ],
+   "result": "A lookup falls from about 2 seconds to under 1 millisecond. The price is some extra storage and slightly slower writes. Index the columns you filter and join on, not every column."
+  },
+  "case": {
+   "who": "Amazon (Dynamo)",
+   "title": "Giving up some consistency to keep the shopping cart working",
+   "text": "Amazon's e-commerce platform runs on tens of thousands of servers where failures are constant. Many services only read and write by primary key, so a full relational database added cost and limited scale and availability. Amazon built Dynamo, a key-value store that stays writable during failures: for example, adding an item to a cart is never rejected. It accepts eventual consistency, keeps conflicting versions with vector clocks, and lets the application or a simple rule merge them on read. Data is partitioned with consistent hashing and copied to N nodes, and its performance targets are set at the 99.9th percentile instead of the average. The lesson is that the choice of database should follow what the business cannot afford to lose, here sales from a cart that refuses writes.",
+   "source": {
+    "title": "Amazon's Dynamo (Werner Vogels)",
+    "url": "https://www.allthingsdistributed.com/2007/10/amazons_dynamo.html"
+   }
+  },
+  "choose": [
+   [
+    "Relational (PostgreSQL, MySQL)",
+    "Related data, transactions, ad hoc queries, and when unsure. A strong default",
+    "A single primary has limits, and scaling writes means sharding, which is hard work"
+   ],
+   [
+    "Key-value (DynamoDB, Redis)",
+    "Lookups by key at very high scale and speed, sessions, counters",
+    "Limited queries. You must design keys around your access patterns up front"
+   ],
+   [
+    "Document (MongoDB)",
+    "Nested records read and written as a unit, flexible shapes",
+    "Cross-document relationships and transactions are harder"
+   ],
+   [
+    "Wide-column (Cassandra)",
+    "Massive write volume, time series, multi-region availability",
+    "Eventual consistency and limited queries. Design tables per query"
+   ],
+   [
+    "Search engine (Elasticsearch)",
+    "Full-text search, filtering and facets",
+    "Usually a secondary copy of the data, not the source of truth, so keep it in sync"
+   ]
+  ],
+  "mistakes": [
+   "Choosing NoSQL because it sounds scalable. Most apps fit in one well-indexed relational database for a long time.",
+   "Missing indexes on columns used in WHERE and JOIN clauses, or adding indexes on everything and slowing writes. Look at the query plan and add what the queries need.",
+   "Not thinking about access patterns before choosing a key-value or wide-column design, which is hard to change later.",
+   "Using the database as a queue or cache. It works at small scale and then causes lock contention and load; use a proper queue or cache.",
+   "Reading from replicas right after a write and being surprised by stale data. Route reads that must see the write to the primary, or accept lag deliberately.",
+   "Having no tested backups. A backup you have not restored is only a hope."
+  ],
+  "reading": [
+   {
+    "title": "Designing Data-Intensive Applications",
+    "by": "Martin Kleppmann",
+    "kind": "book",
+    "url": "https://dataintensive.net/"
+   },
+   {
+    "title": "Amazon's Dynamo",
+    "by": "Werner Vogels",
+    "kind": "blog",
+    "url": "https://www.allthingsdistributed.com/2007/10/amazons_dynamo.html"
+   },
+   {
+    "title": "Introduction to MVCC (PostgreSQL documentation)",
+    "by": "The PostgreSQL Global Development Group",
+    "kind": "docs",
+    "url": "https://www.postgresql.org/docs/current/mvcc-intro.html"
+   },
+   {
+    "title": "Use The Index, Luke: anatomy of an index",
+    "by": "Markus Winand",
+    "kind": "book",
+    "url": "https://use-the-index-luke.com/sql/anatomy"
+   },
+   {
+    "title": "CAP Twelve Years Later: How the Rules Have Changed",
+    "by": "Eric Brewer (IEEE Computer, republished by InfoQ)",
+    "kind": "paper",
+    "url": "https://www.infoq.com/articles/cap-twelve-years-later-how-the-rules-have-changed/"
+   },
+   {
+    "title": "Latency Numbers Every Programmer Should Know",
+    "by": "Jeff Dean and Peter Norvig, collected on GitHub",
+    "kind": "blog",
+    "url": "https://gist.github.com/jboner/2841832"
+   }
+  ]
+ }
+}

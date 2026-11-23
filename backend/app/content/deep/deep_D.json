@@ -1,0 +1,1429 @@
+{
+ "containers": {
+  "how": [
+   {
+    "h": "The shipping container idea",
+    "p": "Think of a shipping container: whatever is inside, cranes, trucks and ships all handle the same standard box. A software container works the same way. It packs your app together with the libraries and settings it needs, so it runs the same on your laptop, on a test server and in production."
+   },
+   {
+    "h": "What a container really is",
+    "p": "A container is an ordinary process on a computer that is run in isolation. It gets its own filesystem, its own view of other processes and the network, and you can cap how much memory and CPU it uses. Unlike a virtual machine (a pretend whole computer with its own operating system), a container shares the host's kernel, which is why it starts in about a second and is small. The trade-off is that isolation is weaker than a virtual machine's hardware boundary."
+   },
+   {
+    "h": "Images and layers",
+    "p": "You build an image, which is a read-only, layered snapshot of the app and its files. A container is a running copy of an image, with one thin writable layer on top. When the container is deleted, anything written to that layer is lost, so data you care about must live in a volume or a database. Because layers are shared, ten containers from the same image do not need ten full copies of the files."
+   },
+   {
+    "h": "Why you need an orchestrator",
+    "p": "Running one container by hand is easy; running hundreds across many machines is not. An orchestrator such as Kubernetes decides which machine runs each container, restarts the ones that die, and keeps the number of copies you asked for. Kubernetes grew out of ideas from Google's internal cluster manager, Borg, which ran hundreds of thousands of jobs across clusters of up to tens of thousands of machines."
+   },
+   {
+    "h": "Health checks: probes",
+    "p": "Kubernetes asks each container questions through probes. A liveness probe asks, is this container stuck? If it fails several times in a row, the container is killed and restarted. A readiness probe asks, can this container take traffic right now? If it fails, the container is taken out of the load balancer but not restarted. A startup probe pauses the other two while a slow app boots."
+   },
+   {
+    "h": "Scaling on a signal",
+    "p": "A Horizontal Pod Autoscaler watches a metric such as average CPU and adjusts the number of copies. Its rule is: desired copies = ceiling of (current copies x current metric / target metric). So if CPU is twice the target, the count doubles. Resource requests and limits tell the scheduler how much each copy needs, so machines are not overpacked."
+   }
+  ],
+  "worked": {
+   "title": "Autoscaling a web service from 4 copies to 8 and back",
+   "steps": [
+    "Setup (illustrative numbers): your web container runs as 4 copies, and you ask the autoscaler to keep average CPU at 50%.",
+    "A traffic spike arrives and the average CPU across the 4 copies reads 90%.",
+    "Apply the formula: desired = ceil(4 x 90 / 50) = ceil(7.2) = 8 copies. The ceiling means it always rounds up.",
+    "Kubernetes starts 4 new containers. Each one only receives traffic after its readiness probe passes, so half-started copies do not serve users errors.",
+    "Spread across 8 copies, the same load now averages about 45% CPU, which is below the 50% target, so scaling up stops.",
+    "Later the load falls so that the 8 copies average 20% CPU. Desired = ceil(8 x 20 / 50) = ceil(3.2) = 4 copies, so it scales back down to 4."
+   ],
+   "result": "The system doubled capacity for the spike and gave it back afterwards without a human touching anything, and readiness probes kept unready copies away from users."
+  },
+  "case": {
+   "who": "Google (Borg)",
+   "title": "From Borg to Kubernetes: one cluster manager for everything",
+   "text": "Google's paper on Borg describes a cluster manager that runs hundreds of thousands of jobs from many thousands of applications across clusters of up to tens of thousands of machines. Jobs are described declaratively: you state what you want, and the system works out where to run it. Borg reached high machine utilization by packing tasks tightly and sharing machines between workloads, while isolating them at the process level. It also reduced recovery time for failures and spread tasks to lower the chance that one fault takes down all copies. The paper reports lessons from about a decade of running it, and the same declarative, keep-it-healthy style is what you use today in Kubernetes.",
+   "source": {
+    "title": "Large-scale cluster management at Google with Borg",
+    "url": "https://research.google/pubs/large-scale-cluster-management-at-google-with-borg/"
+   }
+  },
+  "choose": [
+   [
+    "Plain Docker on one server",
+    "A small app or a side project; one machine is enough",
+    "No automatic recovery across machines; you restart and scale by hand"
+   ],
+   [
+    "Kubernetes",
+    "Many services, frequent releases, need to scale up and down and heal automatically",
+    "Real operating complexity; overkill for a tiny app"
+   ],
+   [
+    "Managed container service from a cloud provider",
+    "You want containers without running the control plane yourself",
+    "Less control, and you accept the provider's way of doing things"
+   ],
+   [
+    "Virtual machines",
+    "You need the strongest isolation or must run a different operating system",
+    "Heavier and slower to start than containers"
+   ]
+  ],
+  "mistakes": [
+   "Using the `latest` tag for images. Different machines may pull different versions. Pin an exact version or digest so every copy is identical and rollbacks are possible.",
+   "Storing important data inside the container. Its writable layer disappears when the container is removed; use volumes or an external database.",
+   "Making the liveness probe check the database. If the database has an outage, every container fails its probe and gets restarted at once. Liveness should test only the container itself.",
+   "Skipping readiness probes, so new copies get traffic before they have finished starting.",
+   "Not setting resource requests and limits, so one busy container can starve its neighbours or the scheduler packs machines badly.",
+   "Making the liveness probe too strict or too fast for a slow-starting app, which causes endless restart loops. Use a startup probe for slow starters."
+  ],
+  "reading": [
+   {
+    "title": "What is a container?",
+    "by": "Docker documentation",
+    "kind": "docs",
+    "url": "https://docs.docker.com/get-started/docker-concepts/the-basics/what-is-a-container/"
+   },
+   {
+    "title": "Configure liveness, readiness and startup probes",
+    "by": "Kubernetes documentation",
+    "kind": "docs",
+    "url": "https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/"
+   },
+   {
+    "title": "Horizontal Pod Autoscaling",
+    "by": "Kubernetes documentation",
+    "kind": "docs",
+    "url": "https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/"
+   },
+   {
+    "title": "Large-scale cluster management at Google with Borg",
+    "by": "Verma et al., Google",
+    "kind": "paper",
+    "url": "https://research.google/pubs/large-scale-cluster-management-at-google-with-borg/"
+   },
+   {
+    "title": "Kubernetes in Action",
+    "by": "Marko Luksa",
+    "kind": "book"
+   }
+  ]
+ },
+ "iac": {
+  "how": [
+   {
+    "h": "Recipes instead of cooking by memory",
+    "p": "Imagine rebuilding a restaurant kitchen from memory every time versus following a written plan that anyone can read and check. Infrastructure as code is the written plan. Instead of clicking around a cloud console, you write files that describe the servers, networks and databases you want, and a tool creates them."
+   },
+   {
+    "h": "Declarative: say the end state",
+    "p": "Terraform is declarative, meaning you describe the desired end result rather than the steps. You write 'I want 3 servers of this size', not 'create server 1, then 2, then 3'. Terraform builds a graph of which things depend on which, creates them in a safe order, and runs independent changes in parallel."
+   },
+   {
+    "h": "Write, plan, apply",
+    "p": "The workflow has three stages. You write the configuration. Then `plan` compares your files with what really exists and prints what would be created, changed or destroyed, without touching anything. After a human approves the plan, `apply` carries it out. The plan step is the safety net, because it shows a mistake before it costs money or data."
+   },
+   {
+    "h": "State and providers",
+    "p": "Terraform keeps a state file recording the real resources it manages. It uses that record to work out what has to change to match your files. Providers are plugins that translate your files into API calls for a specific platform, such as a cloud, Kubernetes or a SaaS product."
+   },
+   {
+    "h": "Review it like code",
+    "p": "Because the infrastructure is just text in version control, changes go through pull requests, reviews and history, exactly like application code. Running `plan` automatically in every pull request lets reviewers see the exact effect of a change. The same files can create identical staging and production environments."
+   },
+   {
+    "h": "Drift and shared state",
+    "p": "Drift happens when someone changes a resource by hand in the console, so reality no longer matches the files. The next plan will show it as a difference, which is why hand edits are discouraged. The state file is shared by a team, so it normally lives in a shared remote location with locking, and it should be protected because it can describe sensitive resources."
+   }
+  ],
+  "worked": {
+   "title": "Reading a plan before you apply it",
+   "steps": [
+    "Current reality (illustrative): 1 network and 2 web servers exist, all created by Terraform.",
+    "You edit the files to ask for 3 web servers instead of 2, and to add a tag to the first server.",
+    "You run `terraform plan`. Terraform compares the files with its state and with reality.",
+    "It reports a summary like: 1 to add, 1 to change, 0 to destroy. The 1 to add is the third server; the 1 to change is the tag edit on server one.",
+    "A reviewer reads the plan in the pull request. Seeing 0 to destroy, they confirm nothing is being deleted. Had it said 2 to destroy, they would stop and ask why.",
+    "After approval, `terraform apply` makes exactly those two changes. Running plan again now should report no changes."
+   ],
+   "result": "The change was reviewed before it happened, did exactly what the plan said, and left the files and the real infrastructure in agreement."
+  },
+  "case": {
+   "who": "Terraform (HashiCorp)",
+   "title": "Plan before apply as the core safety habit",
+   "text": "HashiCorp's own introduction to Terraform describes the same three-stage loop of write, plan and apply, and puts approval between plan and apply. It explains that Terraform records what it manages in a state file and uses it to calculate the difference from your configuration. The design is declarative with a dependency graph, so independent changes run in parallel and dependent ones in order. Many teams build on this by running the plan in every pull request, so infrastructure changes are reviewed like application code.",
+   "source": {
+    "title": "What is Terraform?",
+    "url": "https://developer.hashicorp.com/terraform/intro"
+   }
+  },
+  "choose": [
+   [
+    "Terraform",
+    "You want one tool that works across many clouds and services through providers",
+    "State must be stored and protected; plans can be large"
+   ],
+   [
+    "A cloud's own template tool",
+    "You use only one cloud and want deep integration with it",
+    "Locked to that provider's tooling"
+   ],
+   [
+    "Configuration scripts or shell scripts",
+    "Quick one-off setup or inside a machine",
+    "Steps, not end states; hard to review and easy to drift"
+   ],
+   [
+    "Clicking in the console",
+    "Learning and exploring only",
+    "Cannot be reviewed, repeated or rolled back reliably"
+   ]
+  ],
+  "mistakes": [
+   "Running apply without reading the plan. Always read the destroy count; replacing a database can mean losing its data.",
+   "Editing resources by hand in the console, which creates drift. Make the change in the files instead.",
+   "Keeping the state file only on one person's laptop. Use a shared remote location with locking so two people cannot apply at once.",
+   "Putting secrets directly in configuration files in version control. Pass them in from a secrets store.",
+   "Putting every environment and every resource in one giant configuration. Split it up so a small change has a small blast radius.",
+   "Never running plan on a schedule, so drift builds up unnoticed until a big surprising diff appears."
+  ],
+  "reading": [
+   {
+    "title": "What is Terraform?",
+    "by": "HashiCorp documentation",
+    "kind": "docs",
+    "url": "https://developer.hashicorp.com/terraform/intro"
+   },
+   {
+    "title": "Parallel Change (expand and contract)",
+    "by": "Martin Fowler",
+    "kind": "blog",
+    "url": "https://martinfowler.com/bliki/ParallelChange.html"
+   },
+   {
+    "title": "Release Engineering, in Site Reliability Engineering",
+    "by": "Google",
+    "kind": "book",
+    "url": "https://sre.google/sre-book/release-engineering/"
+   },
+   {
+    "title": "Terraform: Up and Running",
+    "by": "Yevgeniy Brikman",
+    "kind": "book"
+   },
+   {
+    "title": "Continuous Delivery",
+    "by": "Jez Humble and David Farley",
+    "kind": "book"
+   }
+  ]
+ },
+ "serverless": {
+  "how": [
+   {
+    "h": "A taxi instead of a car",
+    "p": "Owning a car means paying for it even while it sits parked. A taxi costs money only for the rides you take. Serverless works like the taxi: you upload a function, and the provider runs it when something calls it and charges for the time it runs. There are still servers, but you do not manage them."
+   },
+   {
+    "h": "One request, one environment",
+    "p": "In AWS Lambda, each in-flight request needs its own execution environment, which is an isolated sandbox that holds your code. If a free environment exists, Lambda reuses it; if all are busy, it creates a new one. The number of requests being handled at the same moment is called concurrency. A key idea: concurrency is not the same as requests per second."
+   },
+   {
+    "h": "Cold start and warm start",
+    "p": "When a new environment is created, Lambda downloads your code, starts the environment and runs any code outside your main handler. This is the cold start and it adds delay. After the request finishes the environment is frozen and kept for a while, so the next request can be a quick warm start. AWS says cold starts are typically under 1% of invocations and can last from under 100 ms to over 1 second."
+   },
+   {
+    "h": "Use warm reuse to your advantage",
+    "p": "Objects created outside the handler, such as a database connection or an SDK client, survive between invocations in the same environment, so you create them once. The temporary disk space at `/tmp` also survives and can act as a small cache. But environments are also recycled every few hours, so never assume your data is still there; keep functions stateless."
+   },
+   {
+    "h": "Limits protect you and your database",
+    "p": "By default an account can run 1,000 concurrent executions per Region, shared across all functions. Lambda also limits request rate to 10 times the concurrency limit, and limits how fast it scales. Reserved concurrency caps one function (and guarantees it capacity), which can protect a database from being flooded. Provisioned concurrency keeps environments pre-initialised to avoid cold starts, but costs extra."
+   },
+   {
+    "h": "Why isolation is cheap",
+    "p": "To run many customers' code safely on shared machines, AWS built Firecracker, a lightweight virtual machine monitor made for serverless. Its authors describe the goal as getting both the strong isolation of virtual machines and the low overhead of containers. It runs in production for Lambda and Fargate."
+   }
+  ],
+  "worked": {
+   "title": "Sizing a photo-resize function with the concurrency formula",
+   "steps": [
+    "The formula from the AWS docs: concurrency = average requests per second x average duration in seconds.",
+    "Normal day (illustrative): 200 uploads per second, each resize takes 0.25 s. Concurrency = 200 x 0.25 = 50 environments busy at once.",
+    "Sale day: 5,000 uploads per second, each takes 0.2 s. Concurrency = 5,000 x 0.2 = 1,000, which exactly hits the default account limit of 1,000. Anything above would be throttled (rejected).",
+    "Check the second limit: the request rate cap is 10 x 1,000 = 10,000 per second. 5,000 is under it, so this is fine.",
+    "Cold starts: if under 1% of 1,000,000 invocations are cold, that is fewer than 10,000 slower invocations. If users never notice a 1 second delay on resizing, you accept it.",
+    "Database protection: the function writes to a database that allows 100 connections. With 1,000 copies each holding a connection you would overload it, so you set reserved concurrency to 80 for this function."
+   ],
+   "result": "You sized the function from two numbers, spotted that the default limit would be reached on the sale day, and capped concurrency so a traffic spike cannot overwhelm the database."
+  },
+  "case": {
+   "who": "AWS Lambda and Fargate (Firecracker)",
+   "title": "Building a safe, cheap sandbox for other people's code",
+   "text": "To run huge numbers of customer functions on shared hardware, AWS faced a classic choice: virtual machines give strong isolation but with high overhead, while containers are light but isolate less. Its engineers wrote Firecracker, a virtual machine monitor specialised for serverless workloads, aiming for both. The NSDI 2020 paper says Firecracker now handles production traffic at very large scale in both Lambda and Fargate. The authors also describe what they learned moving existing Lambda customers onto it. The lesson for learners: serverless is not magic; it is a platform that solved isolation and startup cost so you do not have to.",
+   "source": {
+    "title": "Firecracker: Lightweight Virtualization for Serverless Applications (NSDI 2020)",
+    "url": "https://www.usenix.org/conference/nsdi20/presentation/agache"
+   }
+  },
+  "choose": [
+   [
+    "Serverless functions",
+    "Spiky, event-driven or glue work; you want no servers to manage",
+    "Cold starts, per-function limits, and many parallel functions overloading a database"
+   ],
+   [
+    "Containers on a managed service",
+    "Steady traffic, longer jobs, or you need control over the runtime",
+    "You pay for idle capacity and handle scaling settings"
+   ],
+   [
+    "Virtual machines you manage",
+    "Special hardware, long-running or very predictable heavy workloads",
+    "Most operations work falls on you"
+   ],
+   [
+    "Provisioned concurrency on functions",
+    "You need predictable low latency on a serverless function",
+    "Extra charges, and concurrency still counts against account limits"
+   ]
+  ],
+  "mistakes": [
+   "Opening a new database connection inside the handler on every call. Create it outside the handler so warm invocations reuse it, and cap concurrency so you do not exhaust the database.",
+   "Assuming concurrency equals requests per second. Multiply by duration; a fast function needs far fewer environments than its request rate suggests.",
+   "Storing state in global variables or `/tmp` and trusting it to stay. Environments are recycled, so persist data elsewhere.",
+   "Importing the entire SDK or huge libraries. A bigger package makes initialisation slower; import only what you need.",
+   "Using serverless for long-running work or latency-critical paths without testing cold starts first.",
+   "Forgetting that all functions in a Region share one concurrency pool, so one runaway function can throttle the others unless you reserve capacity."
+  ],
+  "reading": [
+   {
+    "title": "Understanding Lambda function scaling (concurrency)",
+    "by": "AWS Lambda Developer Guide",
+    "kind": "docs",
+    "url": "https://docs.aws.amazon.com/lambda/latest/dg/lambda-concurrency.html"
+   },
+   {
+    "title": "Understanding the Lambda execution environment lifecycle",
+    "by": "AWS Lambda Developer Guide",
+    "kind": "docs",
+    "url": "https://docs.aws.amazon.com/lambda/latest/dg/lambda-runtime-environment.html"
+   },
+   {
+    "title": "Firecracker: Lightweight Virtualization for Serverless Applications",
+    "by": "Agache et al., Amazon Web Services",
+    "kind": "paper",
+    "url": "https://www.usenix.org/conference/nsdi20/presentation/agache"
+   },
+   {
+    "title": "Designing Data-Intensive Applications",
+    "by": "Martin Kleppmann",
+    "kind": "book"
+   }
+  ]
+ },
+ "deploy": {
+  "how": [
+   {
+    "h": "Changing the engine mid-flight",
+    "p": "Releasing software is like changing a plane's engine while it flies: you want to do it in small, reversible steps with instruments watching. Most outages follow a change, so the aim of safe deployment is to make each change small, visible and undoable."
+   },
+   {
+    "h": "Automate and make builds repeatable",
+    "p": "Google's SRE book describes hermetic builds: the same revision should produce identical results on any machine, using known versions of compilers and dependencies. Releases are mostly automated, nearly every change is code reviewed, and each release comes with an automated list of what changed. Releasing often means fewer changes per release, which makes problems easier to find."
+   },
+   {
+    "h": "Canary: test on a few users first",
+    "p": "A canary release sends the new version to a small slice of traffic or servers first. If monitoring looks healthy you route more users, and finally everyone. Rollback is simple: send traffic back to the old version. The cost is that you must run two versions at once. Google describes large services starting in one cluster and expanding exponentially."
+   },
+   {
+    "h": "Blue-green: two full environments",
+    "p": "In blue-green deployment you keep two near-identical production environments. One is live; the other gets the new release and final tests. A router then switches all traffic to the new one, and switching back is the rollback. Because everyone moves at once, you get a fast switch but no gradual exposure."
+   },
+   {
+    "h": "Rolling updates",
+    "p": "A rolling update replaces copies a few at a time. In Kubernetes a Deployment makes a new set of copies and scales it up while the old set scales down, and by default up to 25% extra or unavailable copies are allowed during the change. A bad version can be undone with a single rollback command."
+   },
+   {
+    "h": "Databases: expand, then contract",
+    "p": "The database is the hard part, because old and new code run at the same time. The safe pattern, called parallel change, has three phases. Expand: add the new column or table while keeping the old one. Migrate: move the code and data over step by step. Contract: remove the old one only when nothing uses it. Never drop a column in the same release that stops using it."
+   }
+  ],
+  "worked": {
+   "title": "Canary release plus a column rename",
+   "steps": [
+    "Setup (illustrative): your site serves 1,000 requests per second with a normal error rate of 0.5%. You send 2% of traffic to the new version, which is 20 requests per second.",
+    "Over 5 minutes (300 seconds) the canary sees 20 x 300 = 6,000 requests. At the normal 0.5% error rate you would expect about 30 errors.",
+    "The dashboard shows 240 errors, a 4% error rate, which is eight times worse. You roll back by sending the 20 requests per second back to the old version; about 98% of users never saw the problem.",
+    "After you fix the bug, a second canary shows about 30 errors, so you step up to 10%, then 50%, then 100%, watching the dashboards at each step.",
+    "The release also renames a column from `name` to `full_name`. Release 1 (expand): add `full_name`, write to both columns, keep reading `name`.",
+    "Release 2 (migrate): copy old rows over and switch reads to `full_name`. Release 3 (contract): once nothing uses `name`, drop it."
+   ],
+   "result": "The bad build harmed about 2% of traffic for a few minutes instead of everyone, and the rename never broke old or new code because each release worked with both schemas."
+  },
+  "case": {
+   "who": "Google (Site Reliability Engineering)",
+   "title": "Gradual rollout and hermetic builds at Google",
+   "text": "Google's SRE book describes release engineering as a discipline of its own. Builds are hermetic, meaning repeatable regardless of which machine builds them, and fixes to old releases are cherry-picked onto the original revision. Teams control their own release process, with automation doing most of the work. A typical canary starts a few jobs in production after system tests pass. Large user-facing services start in one cluster and expand exponentially, sometimes over hours, while sensitive infrastructure may roll out over days across regions. The lesson: frequent small releases with staged exposure are safer than rare big ones.",
+   "source": {
+    "title": "Release Engineering (Site Reliability Engineering, Ch. 8)",
+    "url": "https://sre.google/sre-book/release-engineering/"
+   }
+  },
+  "choose": [
+   [
+    "Canary release",
+    "You want real traffic to prove safety before full exposure",
+    "Two versions run at once; needs good monitoring and compatible data"
+   ],
+   [
+    "Blue-green",
+    "You want instant switch and instant rollback",
+    "Needs double the environment, and in-flight transactions and the database need care"
+   ],
+   [
+    "Rolling update",
+    "Standard for stateless services on an orchestrator like Kubernetes",
+    "Old and new versions mix during the update"
+   ],
+   [
+    "Feature flags with a dark launch",
+    "You want to deploy code first and turn on behaviour separately",
+    "Flags must be cleaned up or they pile up as clutter"
+   ],
+   [
+    "Big-bang release",
+    "Almost never, except for tiny internal tools",
+    "Everything changes at once, so a mistake hits everyone"
+   ]
+  ],
+  "mistakes": [
+   "Having no rollback plan. Know before you ship exactly how you will undo the release, and test it.",
+   "Dropping or renaming a database column in the same release that stops using it. Use expand, migrate, contract.",
+   "Deploying and walking away. Watch error rate and latency for a while after every release.",
+   "Running a canary with no success criteria, so nobody can say whether it passed. Decide the thresholds before you start.",
+   "Making releases huge and rare. The more changes in a release, the harder a failure is to trace.",
+   "Forgetting the contract phase, leaving old columns and code paths to confuse people for years."
+  ],
+  "reading": [
+   {
+    "title": "Release Engineering",
+    "by": "Google, Site Reliability Engineering book",
+    "kind": "book",
+    "url": "https://sre.google/sre-book/release-engineering/"
+   },
+   {
+    "title": "Canary Release",
+    "by": "Martin Fowler",
+    "kind": "blog",
+    "url": "https://martinfowler.com/bliki/CanaryRelease.html"
+   },
+   {
+    "title": "Blue Green Deployment",
+    "by": "Martin Fowler",
+    "kind": "blog",
+    "url": "https://martinfowler.com/bliki/BlueGreenDeployment.html"
+   },
+   {
+    "title": "Parallel Change",
+    "by": "Martin Fowler",
+    "kind": "blog",
+    "url": "https://martinfowler.com/bliki/ParallelChange.html"
+   },
+   {
+    "title": "Deployments",
+    "by": "Kubernetes documentation",
+    "kind": "docs",
+    "url": "https://kubernetes.io/docs/concepts/workloads/controllers/deployment/"
+   },
+   {
+    "title": "Continuous Delivery",
+    "by": "Jez Humble and David Farley",
+    "kind": "book"
+   }
+  ]
+ },
+ "scale": {
+  "how": [
+   {
+    "h": "A restaurant that grows",
+    "p": "A small cafe does not start with a hundred chefs. It adds a second cook when orders pile up, then a bigger fridge, then a second counter. Scaling a system is the same: measure what is actually slow, apply the cheapest fix, and only then move to the next one."
+   },
+   {
+    "h": "Start simple, measure first",
+    "p": "Begin with one app server and one database. Use monitoring to find the real bottleneck: CPU, memory, database queries or the network. Fixing the wrong part wastes effort, and building for a million users on day one wastes money."
+   },
+   {
+    "h": "Keep the app tier stateless",
+    "p": "Stateless means a server keeps no user data in its own memory between requests. Sessions and files live in a shared store instead. Then any server can handle any request, so you add capacity by adding more identical servers behind a load balancer, and you can replace broken ones freely."
+   },
+   {
+    "h": "Cache and replicas before anything exotic",
+    "p": "Most apps read far more than they write. A cache such as Redis or Memcached answers repeated reads from memory so the database sees fewer queries. Read replicas are extra copies of the database that serve reads. Moving slow work, like sending emails, to a background queue also keeps requests fast."
+   },
+   {
+    "h": "Scale the database last",
+    "p": "Sharding splits data across several databases. It works but is complex: queries across shards are hard and changing the split later is painful. So it comes after caching, replicas, indexes and better queries. Many products serve millions of users without it."
+   },
+   {
+    "h": "Know the cost of each step",
+    "p": "Each building block fixes one problem and adds another. A cache can serve stale data, replicas lag behind the primary, queues make work asynchronous and harder to debug. Add a block only when a measurement shows the need."
+   }
+  ],
+  "worked": {
+   "title": "Growing from 50 to 5,000 requests per second",
+   "steps": [
+    "Illustrative start: one server handles about 100 requests per second, and your site gets 50. Utilisation is 50%.",
+    "Growth to 5,000 requests per second. You want to run servers at about 70% utilisation to leave room for spikes, so each server should take about 70 requests per second.",
+    "App servers needed: 5,000 / 70 = about 71.4, so you run 72 identical stateless servers behind a load balancer.",
+    "Traffic mix: 90% reads and 10% writes gives 4,500 reads and 500 writes per second hitting the data layer.",
+    "Add a cache with an 80% hit rate. Only 20% of reads reach the database: 4,500 x 0.2 = 900 reads. The database now sees 900 + 500 = 1,400 queries per second instead of 5,000.",
+    "If one database handles about 2,000 queries per second (illustrative), 1,400 is fine, with no sharding needed. If writes grow, add read replicas first."
+   ],
+   "result": "A cache plus stateless servers cut database load by more than 70% (from 5,000 to 1,400 queries per second), so the biggest and riskiest change, sharding, was never needed."
+  },
+  "case": {
+   "who": "Instagram",
+   "title": "Three engineers, 14 million users, and a boring stack",
+   "text": "A summary by High Scalability of Instagram's early architecture says the service grew to 14 million users in just over a year with three engineers, on cloud infrastructure. Their motto was to keep things very simple and use proven tools. They ran 100+ instances, including 25+ Django app servers behind a load balancer with nginx, PostgreSQL on 12 high-memory instances with replicas, and Redis and six Memcached instances for feeds and caching. Slow work, like sharing to other networks and notifying followers, went to a queue consumed by 200 Python workers. The lesson is that mature, simple building blocks carry a product very far.",
+   "source": {
+    "title": "Instagram Architecture: 14 Million users, Terabytes of Photos, 100s of Instances, Dozens of Technologies",
+    "url": "https://highscalability.com/instagram-architecture-14-million-users-terabytes-of-photos/"
+   }
+  },
+  "choose": [
+   [
+    "Scale up (bigger machine)",
+    "The quickest early fix; simple code stays simple",
+    "Hits a ceiling and stays a single point of failure"
+   ],
+   [
+    "Scale out (more machines)",
+    "Stateless app servers behind a load balancer",
+    "Needs shared state outside the servers"
+   ],
+   [
+    "Cache",
+    "Read-heavy data that changes rarely",
+    "Stale data and cache invalidation bugs"
+   ],
+   [
+    "Read replicas",
+    "Database reads are the bottleneck",
+    "Replica lag means reads can be slightly old"
+   ],
+   [
+    "Sharding",
+    "Write volume or data size exceeds one database",
+    "Complex queries, hard to re-split; do it last"
+   ]
+  ],
+  "mistakes": [
+   "Sharding early. Try indexes, caching and replicas first.",
+   "Scaling before measuring, so you fix the wrong bottleneck.",
+   "Keeping sessions or uploaded files on the app server's disk, which blocks adding more servers.",
+   "Adding a cache with no plan for invalidation, so users see out-of-date data.",
+   "Running servers near 100% load with no headroom, so any spike causes an outage.",
+   "Doing slow work (emails, image processing) inside the web request instead of a background queue."
+  ],
+  "reading": [
+   {
+    "title": "Instagram Architecture: 14 Million users, Terabytes of Photos, 100s of Instances, Dozens of Technologies",
+    "by": "High Scalability",
+    "kind": "blog",
+    "url": "https://highscalability.com/instagram-architecture-14-million-users-terabytes-of-photos/"
+   },
+   {
+    "title": "Designing Data-Intensive Applications",
+    "by": "Martin Kleppmann",
+    "kind": "book"
+   },
+   {
+    "title": "Horizontal Pod Autoscaling",
+    "by": "Kubernetes documentation",
+    "kind": "docs",
+    "url": "https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/"
+   },
+   {
+    "title": "Release Engineering (Site Reliability Engineering book)",
+    "by": "Beyer, Jones, Petoff, Murphy (Google)",
+    "kind": "book",
+    "url": "https://sre.google/sre-book/release-engineering/"
+   },
+   {
+    "title": "Understanding Lambda function scaling (concurrency)",
+    "by": "AWS Lambda Developer Guide",
+    "kind": "docs",
+    "url": "https://docs.aws.amazon.com/lambda/latest/dg/lambda-concurrency.html"
+   }
+  ]
+ },
+ "streaming": {
+  "how": [
+   {
+    "h": "A notebook everyone can reread",
+    "p": "Imagine a shared notebook where events are written one after another and never erased right away. Many readers each keep their own bookmark and read at their own speed. That is a log, and Kafka is a distributed log. It differs from a normal queue, where a message disappears after one reader takes it."
+   },
+   {
+    "h": "Events and topics",
+    "p": "An event, also called a record or message, says that something happened. It has a key, a value, a timestamp and optional headers. Events are stored in topics, which you can picture as folders. A topic can have many producers writing and many consumers reading, and reading does not delete anything; a retention setting decides how long events are kept."
+   },
+   {
+    "h": "Partitions give order and parallelism",
+    "p": "A topic is split into partitions spread over different brokers (servers), so reads and writes happen on many machines at once. Events with the same key always go to the same partition. Kafka guarantees order only within a partition, not across the whole topic. So choose the key so that events that must stay in order share a key."
+   },
+   {
+    "h": "Consumer groups share the work",
+    "p": "A consumer group is a team of consumers that split the partitions between them, so each partition is read by one member of the group. Add members to read faster, up to the number of partitions. Different groups each get their own full copy of the stream, so analytics and email can both read the same topic."
+   },
+   {
+    "h": "Offsets and replay",
+    "p": "Each consumer tracks an offset, its position in each partition. If a consumer crashes it resumes from its last saved offset. Because data stays for the retention period, you can also rewind and replay to fix a bug or build a new system from history."
+   },
+   {
+    "h": "Durability and lag",
+    "p": "Each partition is replicated to several brokers; a replication factor of 3 is a common production setting, protecting against a broker failing. Consumer lag is how far a consumer's offset is behind the newest event. Growing lag means consumers cannot keep up, so it is the number to watch."
+   }
+  ],
+  "worked": {
+   "title": "Orders topic with 3 partitions and a growing lag",
+   "steps": [
+    "Create a topic `orders` with 3 partitions (0, 1, 2). The key is the user id, so all of one user's orders go to the same partition and stay in order.",
+    "For teaching, pretend the partition is user id mod 3. User 17 gives 17 mod 3 = 2, so user 17's events always land in partition 2. (Real Kafka uses a hash function, but the idea is the same.)",
+    "Start a consumer group with 3 consumers; each reads exactly one partition. Adding a 4th consumer gives it nothing to read, because there are only 3 partitions.",
+    "Check lag on partition 2 (illustrative numbers): the newest offset is 10,500 and the consumer has reached 10,200, so lag = 10,500 - 10,200 = 300 events.",
+    "Producers write 50 events per second into that partition but the consumer handles only 40 per second. Lag grows by 10 per second, so after 600 seconds it grows by 6,000, to 6,300.",
+    "Fix: make the consumer faster, or split the topic into more partitions and add consumers so the group can read in parallel."
+   ],
+   "result": "You saw that the key decides ordering, partitions cap parallelism, and a consumer slower than the producers shows up as steadily rising lag."
+  },
+  "case": {
+   "who": "LinkedIn (origin of Kafka)",
+   "title": "A log to connect all the data systems",
+   "text": "Kafka was created at LinkedIn to move activity data, such as clicks and page views, between its many systems. Jay Kreps, one of its creators, wrote a well-known essay in December 2013 on LinkedIn's engineering blog arguing that the humble log is a unifying abstraction behind messaging, data integration and real-time processing. The idea is to write every change once to a replayable log and let every other system read it at its own pace, instead of wiring each system to every other.",
+   "source": {
+    "title": "The Log: What every software engineer should know about real-time data's unifying abstraction (Jay Kreps, LinkedIn Engineering, 2013)"
+   }
+  },
+  "choose": [
+   [
+    "Kafka-style log",
+    "Many consumers, replay, high volume, event history, event-driven systems",
+    "Operational complexity; ordering only within a partition"
+   ],
+   [
+    "Simple task queue",
+    "Background jobs processed once by a pool of workers",
+    "No replay and a message is usually gone once handled"
+   ],
+   [
+    "Managed streaming service",
+    "You want a log without running brokers yourself",
+    "Provider limits and cost at high volume"
+   ],
+   [
+    "Plain database table as a queue",
+    "Very small scale and you already have the database",
+    "Polling load and locking trouble as volume grows"
+   ]
+  ],
+  "mistakes": [
+   "Expecting global order across a topic. Order holds only inside one partition, so pick the key carefully.",
+   "Creating too few partitions, which caps how many consumers can work in parallel.",
+   "Never watching consumer lag, so slow consumers are noticed only when the data is hours old.",
+   "Using a heavy log system for a tiny job queue where a simple queue is enough.",
+   "Picking a skewed key (for example one huge customer), so one partition gets most of the traffic.",
+   "Not making consumers safe to repeat. After a crash events may be processed again, so handling the same event twice should not cause damage."
+  ],
+  "reading": [
+   {
+    "title": "Apache Kafka introduction",
+    "by": "Apache Kafka documentation",
+    "kind": "docs",
+    "url": "https://kafka.apache.org/intro"
+   },
+   {
+    "title": "The Log: What every software engineer should know about real-time data's unifying abstraction",
+    "by": "Jay Kreps",
+    "kind": "blog"
+   },
+   {
+    "title": "Kafka: a Distributed Messaging System for Log Processing",
+    "by": "Kreps, Narkhede and Rao (NetDB 2011)",
+    "kind": "paper"
+   },
+   {
+    "title": "Designing Data-Intensive Applications",
+    "by": "Martin Kleppmann",
+    "kind": "book"
+   }
+  ]
+ },
+ "batch": {
+  "how": [
+   {
+    "h": "Sorting the whole library",
+    "p": "Imagine counting every word in a million books. One person would take forever, but a thousand people each counting a few books, then adding their totals, finish quickly. Batch processing does this to big datasets: split the work, process the pieces in parallel, then combine the results."
+   },
+   {
+    "h": "Map, shuffle, reduce",
+    "p": "In MapReduce, you write two functions. A map function turns each input record into intermediate key and value pairs. The system then shuffles, meaning it moves all pairs with the same key to the same machine. A reduce function combines the values for each key. The runtime handles splitting the input, scheduling, machine failures and communication."
+   },
+   {
+    "h": "Why this was a big deal",
+    "p": "The Google MapReduce paper showed that programmers with no distributed systems experience could use thousands of cheap machines, with typical jobs handling many terabytes of data. Failures are normal at that scale, so the system re-runs lost pieces automatically instead of failing the whole job."
+   },
+   {
+    "h": "Spark: keep data in memory",
+    "p": "Spark works on resilient distributed datasets (RDDs): fault-tolerant collections split across a cluster. Operations called transformations, like `map` and `filter`, are lazy, meaning nothing runs until an action such as `count` or `collect` asks for a result. That lets Spark plan the whole job, and `cache()` keeps data in memory so repeated use is much faster."
+   },
+   {
+    "h": "Shuffles are the expensive part",
+    "p": "Moving all values for a key together involves disk, serialisation and network traffic, so operations like `groupByKey` and `join` are costly. Prefer operations such as `reduceByKey`, which combine values locally before moving data."
+   },
+   {
+    "h": "Warehouses: column storage for analysis",
+    "p": "Analytics questions scan a few columns across enormous numbers of rows. A data warehouse stores data by column, so a query reads only the columns it needs, and similar values next to each other compress well. This is why you run analytics in a warehouse, not on your live production database, which is built for many small reads and writes."
+   }
+  ],
+  "worked": {
+   "title": "Word count by hand, then why columns win",
+   "steps": [
+    "Input is three lines handled by three workers: line 1 `to be or`, line 2 `not to be`, line 3 `to see`.",
+    "Map: each worker emits a pair `(word, 1)` per word. Worker 1 emits (to,1) (be,1) (or,1); worker 2 emits (not,1) (to,1) (be,1); worker 3 emits (to,1) (see,1). That is 8 pairs.",
+    "Shuffle: the system groups pairs by key: to has [1,1,1], be has [1,1], or has [1], not has [1], see has [1].",
+    "Reduce: sum each group, giving to=3, be=2, or=1, not=1, see=1. The totals add up to 8, matching the 8 words in the input.",
+    "Now the warehouse side (illustrative): a table has 100 million rows and 20 columns of 8 bytes each, so a row is 160 bytes and the table is 16 GB (100,000,000 x 160).",
+    "To total one column, a row store reads all 16 GB. A column store reads only that column: 100,000,000 x 8 bytes = 800 MB, which is 20 times less data before any compression."
+   ],
+   "result": "You traced the full map, shuffle, reduce cycle with checkable totals, and saw why scanning one column from a column store reads far less data than scanning whole rows."
+  },
+  "case": {
+   "who": "Google (MapReduce)",
+   "title": "Hiding distributed-systems pain behind two functions",
+   "text": "Jeffrey Dean and Sanjay Ghemawat's paper introduced MapReduce as a model and implementation for processing and generating huge datasets. Users write a map function and a reduce function; the runtime partitions the input, schedules work across large clusters of ordinary machines, handles machine failures and manages the communication. The abstract reports that typical jobs process many terabytes on thousands of machines and that more than a thousand jobs ran daily on Google's clusters. The lesson: a simple programming model plus an automatic fault-handling runtime lets ordinary engineers analyse enormous data.",
+   "source": {
+    "title": "MapReduce: Simplified Data Processing on Large Clusters",
+    "url": "https://research.google/pubs/mapreduce-simplified-data-processing-on-large-clusters/"
+   }
+  },
+  "choose": [
+   [
+    "Warehouse SQL (column store)",
+    "Reports and analysis over lots of history by analysts",
+    "Not for fast single-row updates"
+   ],
+   [
+    "Spark",
+    "Complex or iterative bulk processing, machine learning data preparation",
+    "Shuffles are costly; needs cluster tuning"
+   ],
+   [
+    "MapReduce style jobs",
+    "Very large one-pass jobs where simplicity and fault tolerance matter",
+    "Slower for iterative work than in-memory engines"
+   ],
+   [
+    "Streaming instead",
+    "You need results within seconds, not after a nightly run",
+    "More moving parts than a simple nightly job"
+   ],
+   [
+    "Query the live production database",
+    "Only tiny reports on small data",
+    "Heavy scans slow down real users"
+   ]
+  ],
+  "mistakes": [
+   "Running big analytics queries on the production database, which slows live users. Copy data to a warehouse.",
+   "Using `groupByKey` when `reduceByKey` would combine locally first and shuffle far less data.",
+   "Ignoring data skew, where one key has most of the data and one machine does most of the work.",
+   "Writing jobs that cannot be safely re-run. Batch jobs fail and retry, so make them idempotent (running twice gives the same result).",
+   "Forgetting that Spark is lazy, then being surprised when nothing happens or work is repeated; cache data you reuse.",
+   "Using batch when the business needs answers in seconds."
+  ],
+  "reading": [
+   {
+    "title": "MapReduce: Simplified Data Processing on Large Clusters",
+    "by": "Dean and Ghemawat, Google",
+    "kind": "paper",
+    "url": "https://research.google/pubs/mapreduce-simplified-data-processing-on-large-clusters/"
+   },
+   {
+    "title": "RDD Programming Guide",
+    "by": "Apache Spark documentation",
+    "kind": "docs",
+    "url": "https://spark.apache.org/docs/latest/rdd-programming-guide.html"
+   },
+   {
+    "title": "Resilient Distributed Datasets: A Fault-Tolerant Abstraction for In-Memory Cluster Computing",
+    "by": "Zaharia et al. (NSDI 2012)",
+    "kind": "paper"
+   },
+   {
+    "title": "Designing Data-Intensive Applications",
+    "by": "Martin Kleppmann",
+    "kind": "book"
+   }
+  ]
+ },
+ "solid": {
+  "how": [
+   {
+    "h": "Tidy toolboxes",
+    "p": "A good toolbox has a compartment per kind of tool, so fixing one thing does not disturb the rest. SOLID is five habits for keeping classes like that. They were gathered by Robert C. Martin in his 2000 paper and the SOLID acronym came a few years later from Michael Feathers."
+   },
+   {
+    "h": "S: Single responsibility",
+    "p": "A module should have one reason to change. Martin explains that the reasons come from people: an Employee class that calculates pay (the finance side), formats hours reports (operations) and saves to the database (technology) answers to three groups, and a change for one may break another. Gather things that change for the same reason; separate things that change for different reasons."
+   },
+   {
+    "h": "O and L: Open/closed and Liskov",
+    "p": "Open/closed, from Bertrand Meyer in 1988, says you should extend behaviour without modifying existing code, for example adding a new discount by adding a class. Liskov substitution says code that works with a base type must keep working when handed a subtype, so a subclass must not break its parent's promises."
+   },
+   {
+    "h": "I and D: Interfaces and dependencies",
+    "p": "Interface segregation says clients should not be forced to depend on methods they do not use, so prefer several small interfaces to one big one. Dependency inversion says to depend on abstractions rather than concrete details. High-level business rules then do not know which database or framework is underneath, and the dependency arrows point toward the core."
+   },
+   {
+    "h": "How they work together",
+    "p": "The five habits lean on the same trick: put a stable interface between the code that decides and the code that does. That makes adding behaviour a matter of adding code, and makes testing easy because you can swap in a fake."
+   },
+   {
+    "h": "Do not overdo it",
+    "p": "These are guidelines, not laws. A fifty-line script does not need five interfaces. Apply a principle when a particular change keeps hurting, such as a giant if/else that grows with every new case."
+   }
+  ],
+  "worked": {
+   "title": "Replacing a giant if/else with a discount interface",
+   "steps": [
+    "Before: `price(order)` contains `if type == 'student': ... elif type == 'vip': ...`. Every new discount means editing this function and risks breaking the old ones.",
+    "Define an abstraction: `class Discount` with one method `apply(amount)`. This is dependency inversion: checkout will depend on the abstraction, not on specific discount types.",
+    "Add one small class per rule: `StudentDiscount.apply(a)` returns `a * 0.90`, `VipDiscount.apply(a)` returns `a * 0.80`, and `NoDiscount.apply(a)` returns `a`. Each has a single reason to change.",
+    "Checkout takes any `Discount`: `total = discount.apply(amount)`. With a 100.00 order, student gives 90.00 and VIP gives 80.00.",
+    "Add a new `BlackFridayDiscount` returning `a * 0.70` without touching checkout or the old classes. This is open/closed in action.",
+    "Every discount can be used wherever `Discount` is expected and none breaks the promise of returning a price not above the amount: that is Liskov substitution holding."
+   ],
+   "result": "Adding a new discount is now one new class, the tested code never changes, and unit tests can pass a fake `Discount` into checkout."
+  },
+  "case": {
+   "who": "Plugin-based tools (Eclipse, Vim, IntelliJ)",
+   "title": "Open/closed as a plugin architecture",
+   "text": "Robert C. Martin, in his blog post on the Open Closed Principle, notes that Bertrand Meyer introduced it in 1988 and restates it as: you should be able to extend a system's behaviour without modifying it. He points to tools such as Eclipse, Vim and IntelliJ, which grow through plugins, as proof that this works in practice. The key is the direction of dependencies: the core stays independent of details and plugins depend on the core, never the other way. His separate post on single responsibility ties each module to one group of people who request changes.",
+   "source": {
+    "title": "The Open Closed Principle",
+    "url": "https://blog.cleancoder.com/uncle-bob/2014/05/12/TheOpenClosedPrinciple.html"
+   }
+  },
+  "choose": [
+   [
+    "Single responsibility",
+    "A class changes for several unrelated reasons",
+    "Splitting too finely creates many tiny classes"
+   ],
+   [
+    "Open/closed with an interface",
+    "New variants are added often (discounts, payment methods)",
+    "A needless interface when there is only one variant"
+   ],
+   [
+    "Dependency inversion",
+    "You want to swap or fake databases, clients or services",
+    "Extra indirection that can hide where code really goes"
+   ],
+   [
+    "Plain simple code",
+    "Small scripts or one-off tools",
+    "May need refactoring if it grows"
+   ]
+  ],
+  "mistakes": [
+   "Creating an interface for every class up front. Add abstractions when a second variant or a testing need appears.",
+   "Reading single responsibility as one method per class. It is about reasons to change, not size.",
+   "Subclasses that throw errors for methods their parent supports, breaking Liskov substitution.",
+   "Fat interfaces that force classes to implement methods they never use.",
+   "Having high-level code create concrete low-level objects directly, so you cannot test it without a real database.",
+   "Treating the principles as rules to apply everywhere rather than tools to apply where change hurts."
+  ],
+  "reading": [
+   {
+    "title": "The Single Responsibility Principle",
+    "by": "Robert C. Martin",
+    "kind": "blog",
+    "url": "https://blog.cleancoder.com/uncle-bob/2014/05/08/SingleReponsibilityPrinciple.html"
+   },
+   {
+    "title": "The Open Closed Principle",
+    "by": "Robert C. Martin",
+    "kind": "blog",
+    "url": "https://blog.cleancoder.com/uncle-bob/2014/05/12/TheOpenClosedPrinciple.html"
+   },
+   {
+    "title": "SOLID",
+    "by": "Wikipedia",
+    "kind": "docs",
+    "url": "https://en.wikipedia.org/wiki/SOLID"
+   },
+   {
+    "title": "Clean Architecture",
+    "by": "Robert C. Martin",
+    "kind": "book"
+   },
+   {
+    "title": "Design Patterns: Elements of Reusable Object-Oriented Software",
+    "by": "Gamma, Helm, Johnson, Vlissides",
+    "kind": "book"
+   }
+  ]
+ },
+ "oop": {
+  "how": [
+   {
+    "h": "Blueprint before building",
+    "p": "An architect draws a plan showing rooms and how they connect before any brick is laid. Object-oriented design is that plan for code: you turn a written requirement into classes (kinds of things), their data, and the methods (actions) they offer."
+   },
+   {
+    "h": "Nouns, verbs, relationships",
+    "p": "Read the requirement and underline the nouns, which become candidate classes, and the verbs, which become methods. Then decide the relationships. Is it a has-a (a Library has Books) or an is-a (an ElectricCar is a Car)? Most beginners over-use is-a."
+   },
+   {
+    "h": "Encapsulation: hide the insides",
+    "p": "Keep data private and let other code change it only through methods that enforce rules. A Loan object that exposes `renew()` can refuse a fourth renewal, whereas code that edits a public due-date field can bypass the rule. Small public surfaces are easier to keep correct."
+   },
+   {
+    "h": "Prefer composition over inheritance",
+    "p": "Inheritance means a class gains everything from a parent. It is static and can lead to deep, fragile trees. Composition means an object holds other objects and hands work to them. It is more flexible: as Wikipedia puts it, compose what an object can do rather than extend what it is, and parts can be swapped at runtime."
+   },
+   {
+    "h": "Polymorphism through interfaces",
+    "p": "If several classes offer the same method, such as `fee(duration)`, calling code can treat them alike and each does the right thing. That removes switch statements on type and lets you add new kinds without editing callers."
+   },
+   {
+    "h": "Check the model with scenarios",
+    "p": "Walk through use cases against your classes: borrow a book, return it late, borrow when you hit the limit. If a scenario needs awkward workarounds, the model is wrong. Start small and refine."
+   }
+  ],
+  "worked": {
+   "title": "A small library model with composition",
+   "steps": [
+    "Requirement: members borrow books for 14 days, at most 3 at a time, and pay 2 per day when late. Nouns: Member, Book, Loan, Library. Verbs: borrow, return, calculate late fee.",
+    "Create `Book(title, isbn)` as a plain object, and `Loan(book, member, due_date)` which holds a Book and a Member (has-a relationships).",
+    "Give `Member` a private list of active loans and a method `borrow(book)`. It checks `len(loans) < 3` and refuses a fourth, so the limit cannot be bypassed from outside. This is encapsulation.",
+    "Put the late fee in a separate object `LateFeePolicy` with `fee(days_late)` returning `days_late * 2`. `Loan` holds a policy and calls it, so it uses composition rather than inheriting from a policy class.",
+    "Scenario: a book returned 5 days late gives `5 * 2 = 10`. To change to a 3 per day policy for children, create a different policy object and give it to those loans; no existing class needs editing.",
+    "Check the model: borrow three books, try a fourth (refused), return one 5 days late (fee 10), borrow again (allowed)."
+   ],
+   "result": "The model is easy to explain: each noun is a class, rules live next to the data they protect, and the fee rule can change without touching Loan or Member."
+  },
+  "case": {
+   "who": "Game engines and the Design Patterns book",
+   "title": "Composition beats deep inheritance trees",
+   "text": "The 1994 book Design Patterns by Gamma, Helm, Johnson and Vlissides is closely tied to the advice to favour object composition over inheritance. The Wikipedia article on the principle gives a game example. With inheritance you need subclasses like Visible, Solid and Movable, and a Player needs multiple inheritance or many combined classes. With composition a game object holds replaceable parts for visibility, updating and collision, so Player is assembled from the parts it needs and Smoke simply uses a non-solid collision part. The article also notes the cost: composition needs forwarding methods and more code, and it is a guideline, not an absolute rule.",
+   "source": {
+    "title": "Composition over inheritance",
+    "url": "https://en.wikipedia.org/wiki/Composition_over_inheritance"
+   }
+  },
+  "choose": [
+   [
+    "Composition (has-a)",
+    "Behaviour should be swappable or combined from parts",
+    "Some forwarding boilerplate"
+   ],
+   [
+    "Inheritance (is-a)",
+    "A true, stable is-a relationship with shared behaviour",
+    "Deep trees become rigid; changes ripple down"
+   ],
+   [
+    "Interfaces / abstract types",
+    "Different classes must be used interchangeably",
+    "Too many interfaces add indirection"
+   ],
+   [
+    "Plain data plus functions",
+    "Simple problems, scripts, many functional-style languages",
+    "Fewer guards on invariants if you skip encapsulation"
+   ]
+  ],
+  "mistakes": [
+   "Building deep inheritance trees. If you go past two or three levels, ask whether composition is better.",
+   "Making every field public, so rules can be bypassed from anywhere.",
+   "Creating a class for every noun in the text, including ones that are just data fields.",
+   "Putting behaviour in the wrong class, for example a Book calculating a member's fine.",
+   "Using inheritance only to reuse code when the relationship is not truly is-a.",
+   "Never testing the model against scenarios, so awkward cases appear late."
+  ],
+  "reading": [
+   {
+    "title": "Composition over inheritance",
+    "by": "Wikipedia",
+    "kind": "docs",
+    "url": "https://en.wikipedia.org/wiki/Composition_over_inheritance"
+   },
+   {
+    "title": "The Single Responsibility Principle",
+    "by": "Robert C. Martin",
+    "kind": "blog",
+    "url": "https://blog.cleancoder.com/uncle-bob/2014/05/08/SingleReponsibilityPrinciple.html"
+   },
+   {
+    "title": "State pattern",
+    "by": "Refactoring.Guru",
+    "kind": "docs",
+    "url": "https://refactoring.guru/design-patterns/state"
+   },
+   {
+    "title": "Design Patterns: Elements of Reusable Object-Oriented Software",
+    "by": "Gamma, Helm, Johnson, Vlissides",
+    "kind": "book"
+   },
+   {
+    "title": "Head First Design Patterns",
+    "by": "Eric Freeman and Elisabeth Robson",
+    "kind": "book"
+   }
+  ]
+ },
+ "patterns": {
+  "how": [
+   {
+    "h": "Recipes with names",
+    "p": "A chef says sauté or braise and other chefs instantly know the technique. Design patterns are named, proven solutions to common design problems in code. Their biggest benefit is a shared vocabulary: saying 'use a Strategy here' tells a teammate a lot in two words."
+   },
+   {
+    "h": "Strategy: swap the algorithm",
+    "p": "Put each variation of an algorithm in its own class with a common interface, and let a context object hold one and delegate to it. Switching behaviour means giving the context a different strategy object. It removes big conditionals and supports adding new variants without changing the context. In languages with first-class functions, a plain function can often replace the strategy class."
+   },
+   {
+    "h": "Observer: notify subscribers",
+    "p": "A publisher keeps a list of subscribers, and when something happens it notifies each of them through a common method. The publisher does not know the concrete types of its subscribers, so you can add new ones without editing it. One caveat: the order of notifications is not guaranteed."
+   },
+   {
+    "h": "State: behaviour that follows a mode",
+    "p": "An object that acts differently depending on its mode, such as a vending machine, can delegate to a current state object. Each state is its own class with the behaviour for that mode and may trigger a move to another state. It follows the finite state machine idea and replaces ever-growing if/else chains."
+   },
+   {
+    "h": "Strategy versus State",
+    "p": "They look alike but differ in intent. Strategy objects are independent and unaware of each other, chosen from outside. State objects often know each other and move the context from one state to the next. Ask whether the thing swaps by choice or by its own lifecycle."
+   },
+   {
+    "h": "Start plain, then name it",
+    "p": "Write the simple version first. When a change hurts, such as the same switch statement repeated in five places, reach for the pattern that fits. Adding a pattern for only two stable cases adds classes for no gain."
+   }
+  ],
+  "worked": {
+   "title": "A vending machine with the State pattern",
+   "steps": [
+    "Requirement (illustrative): a snack costs 50. The machine is Idle, HasMoney, or Dispensing. Without patterns, each method (`insert_coin`, `press_button`) is full of `if state == ...` checks.",
+    "Create a `State` interface with `insert_coin(machine, amount)` and `press_button(machine)`. The `machine` keeps `balance` and a reference to `current_state`.",
+    "`IdleState.insert_coin` adds the amount to `balance` and switches `current_state` to `HasMoneyState`. `IdleState.press_button` does nothing and says 'insert money first'.",
+    "`HasMoneyState.press_button` checks `balance >= 50`. If you inserted 30, it refuses; with 60 it moves to `DispensingState`, releases the snack and returns change of 60 - 50 = 10.",
+    "After dispensing, the machine returns to `IdleState` with balance 0. Each state class contains only its own mode's rules.",
+    "To add an OutOfStock state, add one class and change only the state that transitions into it; the machine class stays unchanged."
+   ],
+   "result": "The behaviour for each mode lives in one small class, illegal actions are handled where they belong, and the pile of if/else checks is gone."
+  },
+  "case": {
+   "who": "The Design Patterns catalogue and its descendants",
+   "title": "Why the community shares names for solutions",
+   "text": "The 1994 book Design Patterns by Gamma, Helm, Johnson and Vlissides catalogued recurring object-oriented solutions and gave them names, which is why developers today can say Observer or Strategy and be understood. Refactoring.Guru's catalogue describes Strategy as defining a family of algorithms in separate classes so they are interchangeable, and Observer as a subscription mechanism so interested objects get notified. It also lists the costs: Strategy adds classes if you only have a few rarely changing algorithms, and State can be excessive for machines with few states. The practical lesson is to use patterns as vocabulary and a fix for real pain, not decoration.",
+   "source": {
+    "title": "Strategy",
+    "url": "https://refactoring.guru/design-patterns/strategy"
+   }
+  },
+  "choose": [
+   [
+    "Strategy",
+    "Several interchangeable algorithms, or a conditional choosing between variants",
+    "More classes; may be unnecessary when a simple function suffices"
+   ],
+   [
+    "Observer",
+    "Many parts need to react when one thing changes",
+    "Notification order is not guaranteed; hard-to-trace chains"
+   ],
+   [
+    "State",
+    "Behaviour changes with an object's mode, with defined transitions",
+    "Overkill for just a few states"
+   ],
+   [
+    "Plain if/else",
+    "Two or three simple, stable cases",
+    "Becomes unwieldy if cases keep growing"
+   ]
+  ],
+  "mistakes": [
+   "Adding a pattern to look clever before any pain exists. Start plain.",
+   "Using Strategy and State interchangeably. Strategy is chosen by a client; State transitions itself.",
+   "Forgetting to unsubscribe observers, so objects stay alive and still get notified.",
+   "Relying on the order in which observers are notified.",
+   "Hard-coding concrete classes inside the context, which defeats the swapping that the pattern is for.",
+   "Naming everything with the pattern's word without understanding it, so teammates cannot read the design."
+  ],
+  "reading": [
+   {
+    "title": "Strategy",
+    "by": "Refactoring.Guru",
+    "kind": "docs",
+    "url": "https://refactoring.guru/design-patterns/strategy"
+   },
+   {
+    "title": "State",
+    "by": "Refactoring.Guru",
+    "kind": "docs",
+    "url": "https://refactoring.guru/design-patterns/state"
+   },
+   {
+    "title": "Observer",
+    "by": "Refactoring.Guru",
+    "kind": "blog",
+    "url": "https://refactoring.guru/design-patterns/observer"
+   },
+   {
+    "title": "Design Patterns: Elements of Reusable Object-Oriented Software",
+    "by": "Gamma, Helm, Johnson, Vlissides",
+    "kind": "book"
+   },
+   {
+    "title": "Composition over inheritance",
+    "by": "Wikipedia",
+    "kind": "docs",
+    "url": "https://en.wikipedia.org/wiki/Composition_over_inheritance"
+   }
+  ]
+ },
+ "conc": {
+  "how": [
+   {
+    "h": "Two people, one last seat",
+    "p": "Two people look at a booking screen at the same instant; both see one seat free and both press Book. If the system checks first and writes afterwards, both can pass the check and both get the seat. A race condition is a bug where the result depends on the unlucky timing of operations on shared data."
+   },
+   {
+    "h": "Check-then-act is the classic trap",
+    "p": "Reading a value, deciding, then writing is three steps, and another thread can sneak in between them. Even `counter += 1` is a read, an add and a write. The fix is to make the whole sequence atomic, meaning it happens as one uninterruptible unit."
+   },
+   {
+    "h": "Locks make code take turns",
+    "p": "A lock lets only one thread into a protected section at a time. In Python, `threading.Lock` is used with a `with` block so it is released even if an error occurs. A reentrant lock (`RLock`) can be re-acquired by the thread that already holds it. Keep the locked section small."
+   },
+   {
+    "h": "Deadlock: waiting in a circle",
+    "p": "A deadlock happens when thread A holds lock 1 and wants lock 2 while thread B holds lock 2 and wants lock 1, so neither moves. PostgreSQL's docs give this exact bank-transfer example. The main cure is to always take locks in the same agreed order. Keep transactions short, and retry if the database aborts one."
+   },
+   {
+    "h": "Never hold a lock while waiting on the network",
+    "p": "If you lock and then call a slow service, every other thread queues behind you. Do slow work outside the lock and keep the critical section to the minimum shared-data update."
+   },
+   {
+    "h": "Across several servers, use the database",
+    "p": "An in-process lock only works inside one program. With several servers you need an atomic operation in a shared system, such as a conditional database update or a row lock (`SELECT ... FOR UPDATE`) that blocks other writers of the same row until your transaction ends."
+   }
+  ],
+  "worked": {
+   "title": "The lost update, and two fixes",
+   "steps": [
+    "Python docs example idea: 4 threads each add 1 to a shared counter 100,000 times, so the right answer is 4 x 100,000 = 400,000.",
+    "Without a lock, `counter += 1` is read, add, write. Two threads can read the same value 7, both write 8, and one increment is lost. The final total can be below 400,000.",
+    "Fix in one process: wrap the update in `with lock:`. Each thread takes turns, none are lost, and the total is exactly 400,000.",
+    "Seat booking across servers: a check-then-write like `if seat.free: seat.holder = me` can double-book. Instead run one statement: `UPDATE seats SET holder = 'amy' WHERE id = 7 AND holder IS NULL`.",
+    "The database makes this atomic. Amy's request changes 1 row; Ben's identical request later changes 0 rows, because the seat is no longer free.",
+    "Your code checks the affected row count: 1 means success, 0 means 'sorry, taken'. For two-row transfers, always lock the lower account number first to avoid deadlock."
+   ],
+   "result": "Exactly one booking wins every time with no application-level locks, and the counter example shows how a lock turns a race into a correct total."
+  },
+  "case": {
+   "who": "PostgreSQL",
+   "title": "Row locks, deadlocks and how to avoid them",
+   "text": "PostgreSQL's documentation explains that row-level locks such as `FOR UPDATE` block only writers and other lockers of the same row, not plain reads. It walks through a deadlock: transaction one updates account 11111 and then wants 22222, while transaction two has already updated 22222 and then wants 11111. PostgreSQL detects this and aborts one transaction, though you cannot predict which. The recommended defences are to take locks in a consistent order, keep transactions short, and retry a transaction that was aborted. These apply to any system that needs several locks.",
+   "source": {
+    "title": "Explicit Locking (PostgreSQL documentation)",
+    "url": "https://www.postgresql.org/docs/current/explicit-locking.html"
+   }
+  },
+  "choose": [
+   [
+    "In-process lock (mutex)",
+    "Threads in one program share data",
+    "Does nothing across servers; risk of deadlock"
+   ],
+   [
+    "Atomic database update",
+    "Booking, stock, payments across many servers",
+    "You must check the affected row count"
+   ],
+   [
+    "Row lock (`FOR UPDATE`)",
+    "You must read, decide and write several rows together",
+    "Waiters queue; deadlocks if order differs; keep transactions short"
+   ],
+   [
+    "Processes or message passing instead of shared memory",
+    "CPU-bound work, or to avoid shared data altogether",
+    "Needs data to be copied or passed between workers"
+   ]
+  ],
+  "mistakes": [
+   "Check-then-act without atomicity. Combine the check and the update in one operation.",
+   "Taking locks in different orders in different places, which invites deadlock.",
+   "Holding a lock while making a network or disk call.",
+   "Assuming Python's global interpreter lock makes your multi-step code safe. It does not make check-then-act atomic.",
+   "Using an in-process lock to protect data shared by several servers.",
+   "Leaving transactions open while waiting for a user, which blocks everyone else."
+  ],
+  "reading": [
+   {
+    "title": "threading: Thread-based parallelism",
+    "by": "Python documentation",
+    "kind": "docs",
+    "url": "https://docs.python.org/3/library/threading.html"
+   },
+   {
+    "title": "Explicit Locking",
+    "by": "PostgreSQL documentation",
+    "kind": "docs",
+    "url": "https://www.postgresql.org/docs/current/explicit-locking.html"
+   },
+   {
+    "title": "Java Concurrency in Practice",
+    "by": "Brian Goetz et al.",
+    "kind": "book"
+   },
+   {
+    "title": "Designing Data-Intensive Applications",
+    "by": "Martin Kleppmann",
+    "kind": "book"
+   },
+   {
+    "title": "Time, Clocks, and the Ordering of Events in a Distributed System",
+    "by": "Leslie Lamport (1978)",
+    "kind": "paper"
+   }
+  ]
+ },
+ "parking": {
+  "how": [
+   {
+    "h": "Start from the real lot",
+    "p": "Picture a real car park: cars arrive at gates, a ticket machine records the time, spots are of different sizes, and a cashier computes a fee when you leave. The design exercise is to turn that picture into a small set of classes without drowning in detail."
+   },
+   {
+    "h": "Find the classes",
+    "p": "Underline the nouns: Vehicle (with types such as motorbike, car, truck), ParkingSpot (with a size), ParkingLot, Ticket and Gate. Verbs become methods: `park(vehicle)` returns a ticket, `leave(ticket)` returns a fee. Keep the pricing rule in its own object, so you can change it without touching the lot."
+   },
+   {
+    "h": "Decide how spots are chosen",
+    "p": "A simple rule is to give each vehicle the smallest free spot that fits. Keep free spots grouped by size so the lookup is fast. Making this choice a swappable strategy object means you could later add 'closest to the exit'."
+   },
+   {
+    "h": "Make allocation atomic",
+    "p": "Two cars at two gates must never get the same spot. If the code checks 'is spot free' and then marks it taken in separate steps, that is a race condition. Take a lock around find-and-mark, or in a database use one conditional update, or a row lock with `SELECT ... FOR UPDATE`."
+   },
+   {
+    "h": "Handle the edge cases",
+    "p": "What if the lot is full? Return a clear 'full' result rather than crashing. What about a lost ticket? Charge a flat fee or look the vehicle up by plate. Releasing a ticket twice must not free a spot that was given to someone else."
+   },
+   {
+    "h": "Keep the design extensible",
+    "p": "New vehicle types, new fee rules (hourly, daily cap) and new spot kinds (EV charging) should be added by adding classes, not by rewriting existing ones. That is the open/closed idea from the SOLID lesson, applied in a small problem."
+   }
+  ],
+  "worked": {
+   "title": "Two gates, three spots, and a fee",
+   "steps": [
+    "Setup (illustrative): the lot has 3 spots: S1 and S2 for cars, S3 for motorbikes. Fee rule: 30 per started hour.",
+    "Gate A and Gate B each receive a car at the same moment. Both call `park(car)` and look for a free car spot.",
+    "Without protection both could see S1 as free and both claim it. With a lock around `find free spot and mark it taken`, Gate A gets S1 first; Gate B is made to wait, then sees S1 taken and gets S2.",
+    "A third car arrives. No car spot is free, so `park` returns 'lot full' and no ticket is issued.",
+    "Gate A's car leaves after 2 hours 15 minutes. Started hours are rounded up: 3 hours. Fee = 3 x 30 = 90, and S1 is marked free again.",
+    "Presenting the same ticket again is rejected because it is already closed, so S1 cannot be freed twice."
+   ],
+   "result": "No spot is ever double-assigned, a full lot and a repeated ticket are handled cleanly, and the fee is 90 for 2h15m under the stated rule."
+  },
+  "case": {
+   "who": "PostgreSQL row locking as the real-world analogue",
+   "title": "Allocating a unique resource safely under contention",
+   "text": "Assigning a free spot is the same problem every booking system faces: many requests competing for a limited resource. PostgreSQL's documentation describes how `SELECT ... FOR UPDATE` locks the chosen rows so other transactions trying to update them wait until the first finishes. It also recommends keeping transactions short and taking locks in a consistent order to avoid deadlocks. For a parking lot with several gates or servers, the safest design is to let the database make the claim atomic rather than checking in application code.",
+   "source": {
+    "title": "Explicit Locking (PostgreSQL documentation)",
+    "url": "https://www.postgresql.org/docs/current/explicit-locking.html"
+   }
+  },
+  "choose": [
+   [
+    "Single in-memory lock",
+    "One program, interview setting, a single lot controller",
+    "Does not work across several servers"
+   ],
+   [
+    "Atomic database update",
+    "Several gates or servers share the lot",
+    "Check the affected row count; handle 'already taken'"
+   ],
+   [
+    "Row lock (`FOR UPDATE`)",
+    "You need to read, decide and update together",
+    "Keep transactions short; lock in a consistent order"
+   ],
+   [
+    "Pre-assigned spot per gate",
+    "Very simple lots where contention can be removed by design",
+    "Wasted space, rigid layout"
+   ]
+  ],
+  "mistakes": [
+   "Checking and marking a spot in two separate unlocked steps, which allows double-assignment.",
+   "Hard-coding fee logic inside the lot class, making pricing changes risky.",
+   "Not handling a full lot or lost ticket.",
+   "Letting a ticket be closed twice, so a spot is freed that someone else now occupies.",
+   "Building one giant Vehicle subclass tree instead of a type plus a size.",
+   "Searching the whole list of spots on every arrival when free spots could be indexed by size."
+  ],
+  "reading": [
+   {
+    "title": "Explicit Locking",
+    "by": "PostgreSQL documentation",
+    "kind": "docs",
+    "url": "https://www.postgresql.org/docs/current/explicit-locking.html"
+   },
+   {
+    "title": "threading: Thread-based parallelism",
+    "by": "Python documentation",
+    "kind": "docs",
+    "url": "https://docs.python.org/3/library/threading.html"
+   },
+   {
+    "title": "Strategy",
+    "by": "Refactoring.Guru",
+    "kind": "blog",
+    "url": "https://refactoring.guru/design-patterns/strategy"
+   },
+   {
+    "title": "Design Patterns: Elements of Reusable Object-Oriented Software",
+    "by": "Gamma, Helm, Johnson, Vlissides",
+    "kind": "book"
+   },
+   {
+    "title": "Java Concurrency in Practice",
+    "by": "Brian Goetz et al.",
+    "kind": "book"
+   }
+  ]
+ },
+ "lru": {
+  "how": [
+   {
+    "h": "A small desk",
+    "p": "Your desk holds only a few papers. When it is full and you need a new one, you put away the paper you have not touched for the longest time. A least-recently-used (LRU) cache does exactly that: memory is limited, so it throws out the item that was used longest ago."
+   },
+   {
+    "h": "Two structures, each fixing the other's weakness",
+    "p": "A hash map finds any key instantly (O(1), meaning constant time). A doubly linked list keeps items in order from most recently used to least recently used, and can remove or move a node in O(1) if you hold a pointer to it. Each map entry points to its list node, and together they give O(1) get and put."
+   },
+   {
+    "h": "Get",
+    "p": "Look the key up in the map. If it is missing, report a miss. If found, move its node to the front of the list, because it was just used, and return the value."
+   },
+   {
+    "h": "Put",
+    "p": "If the key already exists, update its value and move it to the front; the cache size does not grow. If it is new and the cache is full, remove the node at the back of the list and its map entry, then insert the new node at the front. Forgetting that updating an existing key must not change the size is a common bug."
+   },
+   {
+    "h": "Shortcuts in real languages",
+    "p": "Python's `OrderedDict` provides `move_to_end(key)` and `popitem(last=False)`, so an LRU cache is a few lines. Python's `functools.lru_cache` decorator does it for function results, with a default `maxsize` of 128. Its cache is thread-safe, though the wrapped function can still be called more than once if two threads miss at the same time."
+   },
+   {
+    "h": "Threads and approximations",
+    "p": "Both get and put modify the list, so with several threads you need a lock around them. Large systems often approximate: Redis does not track exact LRU order, it samples a few random keys and evicts the oldest of the sample, which costs less memory and works almost as well when access is skewed toward popular keys."
+   }
+  ],
+  "worked": {
+   "title": "Tracing an LRU cache with capacity 3",
+   "steps": [
+    "Notation: the list is written most recent first. Start empty.",
+    "`put(1,A)` gives [1]. `put(2,B)` gives [2,1]. `put(3,C)` gives [3,2,1]. The cache is full (size 3).",
+    "`get(1)` returns A and moves 1 to the front: [1,3,2]. Key 2 is now the least recently used.",
+    "`put(4,D)` needs room, so it evicts the back item, key 2, then inserts 4: [4,1,3]. Still size 3.",
+    "`put(1,Z)` updates an existing key: value becomes Z, 1 moves to the front: [1,4,3]. Size stays 3, with no eviction.",
+    "`get(2)` is a miss, since 2 was evicted. Hit/miss tally: 1 hit (get 1) and 1 miss (get 2), so the hit rate is 1 / 2 = 50%."
+   ],
+   "result": "You can follow how get and put reorder items, why only the least recently used key is evicted, and why updating an existing key never grows the cache."
+  },
+  "case": {
+   "who": "Redis",
+   "title": "Why Redis approximates LRU",
+   "text": "Redis is often used as a cache, and when memory reaches the `maxmemory` limit it evicts keys by a chosen policy, with `allkeys-lru` recommended as a good default when some keys are accessed far more than the rest. Its documentation explains that Redis uses an approximation: it samples a small number of random keys and evicts the one unused for the longest time, because exact LRU would cost more memory. The default sample size is 5, and raising it to 10 gets very close to true LRU at some CPU cost. For skewed, power-law access patterns, the difference from true LRU was minimal in their simulations. Redis also offers LFU (least frequently used) for cases where frequency matters more than recency.",
+   "source": {
+    "title": "Key eviction (Redis documentation)",
+    "url": "https://redis.io/docs/latest/develop/reference/eviction/"
+   }
+  },
+  "choose": [
+   [
+    "LRU",
+    "Recent use predicts future use; a hot subset gets most requests",
+    "A one-off big scan can push out useful items"
+   ],
+   [
+    "LFU (least frequently used)",
+    "Popularity over time matters more than recency",
+    "Needs counters and decay tuning"
+   ],
+   [
+    "Random eviction",
+    "All keys are accessed about equally, or cycles through data",
+    "Can evict hot items"
+   ],
+   [
+    "TTL expiry",
+    "Data has a natural freshness lifetime",
+    "Does not by itself bound memory"
+   ],
+   [
+    "No eviction, unbounded cache",
+    "Almost never in production",
+    "Memory grows until the process fails"
+   ]
+  ],
+  "mistakes": [
+   "Letting a put on an existing key increase the size or evict something. Update in place and move to front.",
+   "Forgetting to move an item to the front on a get, which turns the cache into FIFO.",
+   "Using a singly linked list, which cannot remove a middle node in O(1). Use a doubly linked list.",
+   "Forgetting to delete the map entry when evicting a node, causing leaks and stale hits.",
+   "Skipping the lock in a multi-threaded cache, so the map and list get out of sync.",
+   "Using an unbounded cache, or caching functions with side effects, such as ones that depend on time or randomness."
+  ],
+  "reading": [
+   {
+    "title": "Key eviction",
+    "by": "Redis documentation",
+    "kind": "docs",
+    "url": "https://redis.io/docs/latest/develop/reference/eviction/"
+   },
+   {
+    "title": "functools.lru_cache",
+    "by": "Python documentation",
+    "kind": "docs",
+    "url": "https://docs.python.org/3/library/functools.html"
+   },
+   {
+    "title": "collections: OrderedDict and deque",
+    "by": "Python documentation",
+    "kind": "docs",
+    "url": "https://docs.python.org/3/library/collections.html"
+   },
+   {
+    "title": "Designing Data-Intensive Applications",
+    "by": "Martin Kleppmann",
+    "kind": "book"
+   },
+   {
+    "title": "The LRU-K Page Replacement Algorithm For Database Disk Buffering",
+    "by": "O'Neil, O'Neil and Weikum (SIGMOD 1993)",
+    "kind": "paper"
+   }
+  ]
+ }
+}

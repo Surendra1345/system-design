@@ -1,0 +1,1088 @@
+{
+ "journey": {
+  "what": "The trip a web request takes: your browser looks up the address, connects securely, and a chain of servers answers.",
+  "why": "Every system you will ever design is a variation of this path. If you can walk it, you know where each tool (CDN, cache, database) fits and where things get slow.",
+  "use": [
+   "Debugging a slow page: walk the path to find the slow step",
+   "Explaining a design: start at the browser and follow one request",
+   "Deciding where a cache or CDN would help"
+  ],
+  "avoid": [
+   "You do not need to memorise protocol details on day one. The order of the steps is what matters"
+  ],
+  "example": "When Amazon loads, DNS finds the server, a CDN sends images from nearby, a load balancer picks an app server, and a database confirms your cart.",
+  "takeaways": [
+   "A request flows browser, DNS, CDN, load balancer, app server, cache, database",
+   "Each step adds time and can fail",
+   "Connection setup is expensive, so reuse connections"
+  ]
+ },
+ "net": {
+  "what": "The rules computers use to talk. TCP delivers everything in order, like registered mail. UDP just sends and hopes, like shouting across a room.",
+  "why": "Choosing wrongly makes video calls laggy or file transfers corrupt. HTTP and TLS sit on top and make the web work securely.",
+  "use": [
+   "TCP for web pages, databases and payments: anything that must arrive complete",
+   "UDP for live video, voice and games, where a late packet is useless",
+   "TLS whenever data crosses a network"
+  ],
+  "avoid": [
+   "Do not use UDP for data you cannot afford to lose unless you add your own checks",
+   "Do not open a new connection for every request. Reuse them"
+  ],
+  "example": "A Zoom call uses UDP-style transport so one lost packet does not freeze the picture. Your bank website uses TCP with TLS.",
+  "takeaways": [
+   "TCP is reliable and ordered, UDP is fast and loose",
+   "A new connection costs several round trips",
+   "HTTP/2 and HTTP/3 reduce waiting"
+  ]
+ },
+ "os": {
+  "what": "How a computer runs many programs at once (processes and threads) and stores data (memory, disks, object storage).",
+  "why": "Most mysterious slowdowns are an operating system limit: too many threads, a full disk, or data that was not safely written yet.",
+  "use": [
+   "Choosing threads or async I/O to handle many connections",
+   "Choosing object storage for big files and block storage for databases",
+   "Knowing when data is truly saved to disk"
+  ],
+  "avoid": [
+   "Do not create one thread per request at large scale",
+   "Do not treat RAID as a backup"
+  ],
+  "example": "A Node.js chat server handles thousands of users on a few threads with an event loop. Netflix keeps video files in object storage, not on server disks.",
+  "takeaways": [
+   "Threads share memory, processes do not",
+   "Object storage is cheap and durable for files",
+   "RAID protects against a dead disk, not against mistakes"
+  ]
+ },
+ "numbers": {
+  "what": "A feel for how fast and how reliable things are. Memory is quick, disks slower, networks slowest. And 99.9% uptime still means hours of downtime a year.",
+  "why": "Designs are decisions about numbers. Without them you cannot tell whether a cache helps or whether an uptime goal is realistic.",
+  "use": [
+   "Comparing options by latency (memory, SSD, network)",
+   "Setting uptime goals in nines",
+   "Judging speed by p99, not just the average"
+  ],
+  "avoid": [
+   "Do not trust averages alone. A few very slow requests hurt real users"
+  ],
+  "example": "Google watches the slowest 1% of searches, because a page that makes 100 calls will hit a slow one most of the time.",
+  "takeaways": [
+   "Memory is about 1,000 times faster than SSD",
+   "Three 99.9% services in a row give about 99.7%",
+   "Look at p99 latency, not the average"
+  ]
+ },
+ "estimate": {
+  "what": "Quick maths that turns '10 million users' into requests per second, storage and bandwidth.",
+  "why": "The numbers choose the design. One database is fine for 1,000 requests a second but not for 100,000.",
+  "use": [
+   "At the start of any design",
+   "Before choosing servers or a database",
+   "In interviews, to justify your choices"
+  ],
+  "avoid": [
+   "Do not chase exact numbers. The order of magnitude is enough"
+  ],
+  "example": "A URL shortener with 100 million new links a month needs only about 40 writes a second, so the heavy part is reads, which a cache handles.",
+  "takeaways": [
+   "Daily requests divided by 86,400 gives requests per second",
+   "Multiply by 2 to 3 for peak",
+   "Count copies, indexes and backups when sizing storage"
+  ]
+ },
+ "req": {
+  "what": "Deciding what to build, and which trade-offs you accept, before drawing anything: features, scale, speed, and what must never be wrong.",
+  "why": "Most failed designs solve the wrong problem or promise perfection everywhere. Clear requirements prevent that.",
+  "use": [
+   "At the start of every project or interview",
+   "When two teams disagree about what 'fast' or 'reliable' means",
+   "When choosing consistency over availability, or the reverse"
+  ],
+  "avoid": [
+   "Do not design for a billion users when you have a thousand"
+  ],
+  "example": "A bank balance must always be exactly right, while a like counter can be a little behind. Those two needs get different designs.",
+  "takeaways": [
+   "Ask about scale, speed and what must never be wrong",
+   "Consistency versus availability is a choice per feature",
+   "Start simple and grow"
+  ]
+ },
+ "lb": {
+  "what": "A traffic director that spreads requests across several identical servers and skips the ones that are down.",
+  "why": "One server is a single point of failure with a hard limit. Many servers behind a load balancer give more capacity and survive crashes.",
+  "use": [
+   "You run more than one app server",
+   "You want deploys with no downtime",
+   "You route /api and /images to different server pools"
+  ],
+  "avoid": [
+   "Do not depend on sticky sessions. Keep servers stateless",
+   "Do not forget the load balancer itself needs a backup"
+  ],
+  "example": "On Black Friday a shop runs 20 app servers behind a load balancer. When one crashes, customers never notice.",
+  "takeaways": [
+   "It spreads load and hides failures",
+   "Health checks remove broken servers",
+   "Stateless servers make it easy"
+  ]
+ },
+ "cache": {
+  "what": "A small, fast memory in front of a slow database that remembers recent answers.",
+  "why": "Reading from memory is thousands of times faster than a database, so a cache cuts waiting time and protects the database.",
+  "use": [
+   "Data that is read far more than it is written",
+   "Expensive queries whose answers rarely change",
+   "Sessions, counters and rate limits"
+  ],
+  "avoid": [
+   "Data that must always be perfectly fresh, like account balances",
+   "When the database is not actually the bottleneck"
+  ],
+  "example": "Twitter keeps recent timelines in Redis, so opening the app does not hit the database for every tweet.",
+  "takeaways": [
+   "Cache-aside is the common pattern",
+   "Update or expire entries when data changes",
+   "Beware stampedes when a hot key expires"
+  ]
+ },
+ "cdn": {
+  "what": "A network of servers around the world that keep copies of your images, scripts and videos close to each user.",
+  "why": "Distance means delay, and your own servers carry less load.",
+  "use": [
+   "Images, CSS, JavaScript and video",
+   "Users spread across countries",
+   "Traffic spikes for static files"
+  ],
+  "avoid": [
+   "Private or personalised responses, unless carefully marked",
+   "Content that changes every second"
+  ],
+  "example": "Netflix places cache boxes inside internet providers so a film streams from your own city.",
+  "takeaways": [
+   "Use hashed file names so updates show immediately",
+   "Upload big files straight to object storage",
+   "Your origin only serves cache misses"
+  ]
+ },
+ "queue": {
+  "what": "A line where work waits. The app drops a job in and answers at once, and workers pick it up and do it later.",
+  "why": "Slow tasks like email, video and reports do not slow the user down, spikes are absorbed, and failed jobs can retry.",
+  "use": [
+   "Sending emails and notifications, processing uploads",
+   "Smoothing sudden traffic spikes",
+   "Connecting services so they do not wait on each other"
+  ],
+  "avoid": [
+   "When the user needs the result right now",
+   "If your workers cannot safely handle the same job twice"
+  ],
+  "example": "When you upload a video to YouTube it is queued, then workers convert it into many sizes.",
+  "takeaways": [
+   "It decouples the sender from the worker",
+   "Delivery is usually at least once, so handle duplicates",
+   "A dead-letter queue holds jobs that keep failing"
+  ]
+ },
+ "db": {
+  "what": "Where your data lives for good. The main choices are relational (tables and joins), key-value, document and search stores.",
+  "why": "The wrong store makes simple things hard. Matching the store to how you read and write saves months of pain.",
+  "use": [
+   "Relational for orders and payments, anything needing transactions",
+   "Key-value for sessions and fast lookups",
+   "A search engine for text search"
+  ],
+  "avoid": [
+   "Do not pick NoSQL just because it sounds scalable",
+   "Do not use the database as a queue or a cache"
+  ],
+  "example": "Most shops use PostgreSQL for orders, Redis for sessions and Elasticsearch for product search.",
+  "takeaways": [
+   "Default to a relational database",
+   "Add a specialised store only for a named need",
+   "Keep one source of truth"
+  ]
+ },
+ "shard": {
+  "what": "Splitting one big database into smaller pieces (shards), each holding part of the data. Indexes help you find rows quickly inside each piece.",
+  "why": "One machine eventually cannot hold or write all the data. Indexes speed up reads on one machine, and shards spread the load across many.",
+  "use": [
+   "Add indexes first when queries are slow",
+   "Shard when one database cannot keep up with writes or size",
+   "Use consistent hashing so adding a shard moves little data"
+  ],
+  "avoid": [
+   "Do not shard early. It makes joins and transactions much harder"
+  ],
+  "example": "Instagram spreads its users across many database shards by user ID.",
+  "takeaways": [
+   "Indexes first, sharding last",
+   "A good shard key spreads load evenly",
+   "Consistent hashing moves few keys when you add a node"
+  ]
+ },
+ "repl": {
+  "what": "Keeping copies of your database on other machines, so you have backups and extra servers to read from.",
+  "why": "A copy survives a failure and shares the read traffic, but copies can lag behind the original.",
+  "use": [
+   "Read-heavy apps",
+   "You need high availability",
+   "Backups and reporting without slowing the main database"
+  ],
+  "avoid": [
+   "Reading right after a write from a lagging copy without handling it"
+  ],
+  "example": "A news site writes to one primary database and serves readers from several replicas.",
+  "takeaways": [
+   "The leader takes writes and followers serve reads",
+   "Replication lag causes stale reads",
+   "Failover needs care so you never get two leaders"
+  ]
+ },
+ "engines": {
+  "what": "How a database stores bytes on disk. B-trees update data in place. LSM-trees write new files quickly and tidy up later.",
+  "why": "It explains why some databases are great at reads and others cope with enormous write volumes.",
+  "use": [
+   "B-tree databases (PostgreSQL, MySQL) for general use",
+   "LSM databases (Cassandra, RocksDB) for very heavy writes"
+  ],
+  "avoid": [
+   "You do not need this until you choose or tune a database"
+  ],
+  "example": "Cassandra uses LSM-trees to absorb millions of sensor writes a second.",
+  "takeaways": [
+   "B-trees favour reads",
+   "LSM-trees favour writes",
+   "Compaction is the hidden cost of LSM"
+  ]
+ },
+ "tx": {
+  "what": "A transaction groups several changes so they all happen or none do. Isolation levels decide what other users can see meanwhile.",
+  "why": "Without them, two people paying at the same moment can corrupt balances.",
+  "use": [
+   "Money, stock and bookings",
+   "Anything where a half-finished update would be harmful"
+  ],
+  "avoid": [
+   "Very long transactions, which block other users",
+   "Assuming the default isolation level is the strictest one"
+  ],
+  "example": "Transferring money subtracts from one account and adds to another in a single transaction.",
+  "takeaways": [
+   "ACID protects correctness",
+   "Read-modify-write in app code can lose updates",
+   "Use atomic updates or locks"
+  ]
+ },
+ "model": {
+  "what": "Deciding how to shape your data: store each fact once (normalised) or copy it to where it is read (denormalised).",
+  "why": "A good shape makes your most common questions fast and simple to answer.",
+  "use": [
+   "Normalise in relational databases",
+   "Denormalise for hot read paths or in document stores"
+  ],
+  "avoid": [
+   "Duplicating data without a plan to keep the copies in sync"
+  ],
+  "example": "A product page that always shows its five images stores them inside the product document.",
+  "takeaways": [
+   "Design from your queries",
+   "Embed small data that is read together",
+   "Give every fact one owner"
+  ]
+ },
+ "serial": {
+  "what": "The format used to turn data into bytes for sending or storing. JSON is readable text. Protobuf and Avro are compact binary.",
+  "why": "The format affects speed, size, and whether old and new software can still talk to each other.",
+  "use": [
+   "JSON for public APIs",
+   "Protobuf for service-to-service calls",
+   "Avro for data pipelines"
+  ],
+  "avoid": [
+   "Removing or renaming fields in a single release"
+  ],
+  "example": "Google uses Protobuf inside its systems for fast, typed calls between services.",
+  "takeaways": [
+   "Add fields, never remove them or reuse their numbers",
+   "Use a schema registry",
+   "Send big numbers as strings in JSON"
+  ]
+ },
+ "datatypes": {
+  "what": "A tour of specialised databases: time-series, wide-column, search, graph and vector stores.",
+  "why": "Each is built for one pattern. Using the right one avoids painful workarounds.",
+  "use": [
+   "Time-series for metrics",
+   "Search for text",
+   "Graph for relationships",
+   "Vector for 'find similar' searches"
+  ],
+  "avoid": [
+   "Making a search index your only copy of the data"
+  ],
+  "example": "'Songs like this one' features use vector search over embeddings.",
+  "takeaways": [
+   "Match the store to the question",
+   "Keep one source of truth, the others derived",
+   "Keep stores in sync with events"
+  ]
+ },
+ "cap": {
+  "what": "When the network splits, a system must choose: stay correct (refuse some requests) or stay available (answer, possibly with old data).",
+  "why": "It tells you what to expect from every database, and how to design around it.",
+  "use": [
+   "Choose consistency for money and bookings",
+   "Choose availability for carts and feeds"
+  ],
+  "avoid": [
+   "Believing you can have everything at once"
+  ],
+  "example": "Cassandra keeps answering during a network split. etcd refuses writes unless it has a majority.",
+  "takeaways": [
+   "Network splits do happen",
+   "Choose per feature",
+   "Speed versus freshness matters even without splits"
+  ]
+ },
+ "consensus": {
+  "what": "How a group of machines agree on a single answer, such as who the leader is, even when some of them fail.",
+  "why": "Locks, leader election and shared configuration all need agreement that survives failures.",
+  "use": [
+   "Use etcd, ZooKeeper or Consul for coordination",
+   "Understand Raft when you run clusters"
+  ],
+  "avoid": [
+   "Do not write your own consensus system"
+  ],
+  "example": "Kubernetes keeps its cluster state in etcd, which uses Raft.",
+  "takeaways": [
+   "It needs a majority of nodes",
+   "Use 3 or 5 nodes",
+   "Losing the majority stops writes safely"
+  ]
+ },
+ "clocks": {
+  "what": "Why computers disagree about the time, and how to order events without trusting clocks.",
+  "why": "Using timestamps to decide a winner can silently lose data.",
+  "use": [
+   "Use logical or vector clocks to order events",
+   "Use a monotonic clock to measure durations"
+  ],
+  "avoid": [
+   "Last-write-wins on wall-clock time for important data"
+  ],
+  "example": "Two phones edit a note offline. Vector clocks reveal the edits were concurrent, so they can be merged instead of one being lost.",
+  "takeaways": [
+   "Clocks drift",
+   "Lamport clocks give a consistent order",
+   "Vector clocks detect conflicts"
+  ]
+ },
+ "api": {
+  "what": "The contract your service offers: URLs, methods, status codes, and safe ways to retry.",
+  "why": "A good API survives retries, growth and many different callers.",
+  "use": [
+   "Every service you build",
+   "Payments, using idempotency keys",
+   "Public APIs, which need versions"
+  ],
+  "avoid": [
+   "Offset pagination on data that changes while people page through it"
+  ],
+  "example": "Stripe asks for an idempotency key so a retried payment is never charged twice.",
+  "takeaways": [
+   "Idempotency keys make retries safe",
+   "Cursor pagination stays stable",
+   "Rate limit to protect yourself"
+  ]
+ },
+ "apistyles": {
+  "what": "Three ways to offer an API: REST (simple web resources), GraphQL (the client asks for exactly the fields it needs), and gRPC (fast binary calls).",
+  "why": "Each one suits a different kind of caller.",
+  "use": [
+   "REST for public and partner APIs",
+   "GraphQL for varied mobile screens",
+   "gRPC between your own services"
+  ],
+  "avoid": [
+   "Opening GraphQL without query depth limits"
+  ],
+  "example": "GitHub offers both a REST and a GraphQL API.",
+  "takeaways": [
+   "Pick by who is calling",
+   "gRPC needs a proxy for browsers",
+   "Protect GraphQL with depth limits"
+  ]
+ },
+ "gateway": {
+  "what": "A front door for many services that handles login, routing and limits. Also the tricks for finding services and for moving away from an old monolith.",
+  "why": "Clients should not need to know about dozens of separate services.",
+  "use": [
+   "Microservice systems",
+   "Gradually replacing an old system (strangler fig)"
+  ],
+  "avoid": [
+   "Putting business logic inside the gateway"
+  ],
+  "example": "Netflix's gateway sends each device request to the right backend services.",
+  "takeaways": [
+   "Run several gateways",
+   "Use service discovery",
+   "Migrate one path at a time"
+  ]
+ },
+ "micro": {
+  "what": "Splitting an app into small services that can be built and deployed independently.",
+  "why": "Big teams move faster and parts can scale separately.",
+  "use": [
+   "Large teams",
+   "Parts with very different scaling needs"
+  ],
+  "avoid": [
+   "Small teams or brand-new products",
+   "Without good monitoring in place"
+  ],
+  "example": "Amazon splits cart, orders, payments and search into separate services.",
+  "takeaways": [
+   "Start with a monolith",
+   "Use sagas instead of shared transactions",
+   "Avoid chatty calls between services"
+  ]
+ },
+ "eventdriven": {
+  "what": "Services announce 'something happened' and others react, instead of calling each other directly.",
+  "why": "It keeps teams loosely coupled and absorbs spikes.",
+  "use": [
+   "An order placed triggers email, stock and analytics",
+   "Audit trails (event sourcing)"
+  ],
+  "avoid": [
+   "When you need an immediate answer",
+   "If your handlers cannot cope with duplicates"
+  ],
+  "example": "Uber publishes trip events that many other systems consume.",
+  "takeaways": [
+   "Handlers must be idempotent",
+   "Use the outbox pattern",
+   "Plan for eventual consistency"
+  ]
+ },
+ "resil": {
+  "what": "Ways to keep working when parts fail: timeouts, retries with backoff, circuit breakers and fallbacks.",
+  "why": "Failures spread. These patterns stop one slow service from taking everything down.",
+  "use": [
+   "Every network call",
+   "Optional features like recommendations"
+  ],
+  "avoid": [
+   "Retrying without jitter",
+   "Retrying actions that are not safe to repeat"
+  ],
+  "example": "Netflix shows a generic list when personalised recommendations are down.",
+  "takeaways": [
+   "Always set timeouts",
+   "Use backoff with jitter",
+   "Degrade gracefully"
+  ]
+ },
+ "ratelimiter": {
+  "what": "A limiter that allows only a set number of requests over a period of time.",
+  "why": "It protects you from abuse and from runaway clients.",
+  "use": [
+   "Login and signup",
+   "Public APIs",
+   "Expensive endpoints"
+  ],
+  "avoid": [
+   "Limiting only by IP address behind shared networks"
+  ],
+  "example": "GitHub limits how many API calls each user can make per hour.",
+  "takeaways": [
+   "A token bucket allows short bursts",
+   "Share counters in Redis across servers",
+   "Return 429 with a Retry-After header"
+  ]
+ },
+ "observe": {
+  "what": "Seeing inside a running system through logs (what happened), metrics (how much) and traces (where the time went).",
+  "why": "You cannot fix what you cannot see.",
+  "use": [
+   "Every production system",
+   "Debugging incidents"
+  ],
+  "avoid": [
+   "Alerting on every single metric",
+   "Logging personal data"
+  ],
+  "example": "Engineers follow one request through five services using a trace.",
+  "takeaways": [
+   "Logs, metrics and traces",
+   "Alert on what users feel",
+   "Put a request ID on every log line"
+  ]
+ },
+ "slo": {
+  "what": "Turning 'reliable' into numbers: an SLI is what you measure, an SLO is the target, an SLA is the promise to customers, and the error budget is what you may spend.",
+  "why": "It lets teams balance shipping new features against keeping things stable.",
+  "use": [
+   "Setting reliability goals",
+   "Deciding when to pause releases"
+  ],
+  "avoid": [
+   "Targets stricter than your users actually need"
+  ],
+  "example": "A 99.9% target over 30 days allows about 43 minutes of failure.",
+  "takeaways": [
+   "The error budget guides release speed",
+   "Alert on how fast the budget burns",
+   "Measure what users feel"
+  ]
+ },
+ "chaos": {
+  "what": "Breaking things on purpose, safely, to find weaknesses before real failures do. Also how to run an incident calmly.",
+  "why": "Systems fail in surprising ways, and it is better to find out on your terms.",
+  "use": [
+   "Mature systems that already have monitoring",
+   "Practice sessions (game days)"
+  ],
+  "avoid": [
+   "Experiments with no way to stop them"
+  ],
+  "example": "Netflix's Chaos Monkey randomly shuts down servers to prove the service survives.",
+  "takeaways": [
+   "Define what normal looks like first",
+   "Keep the blast radius small",
+   "Hold blameless postmortems"
+  ]
+ },
+ "auth": {
+  "what": "Proving who someone is (authentication), checking what they may do (authorisation), and defending against common web attacks.",
+  "why": "Most breaches come from a skipped check, not from clever hacking.",
+  "use": [
+   "Every app with accounts",
+   "Checking ownership on every object"
+  ],
+  "avoid": [
+   "Rolling your own cryptography",
+   "Storing plain-text passwords"
+  ],
+  "example": "Changing an ID in a URL to see someone else's invoice (IDOR) is a classic bug.",
+  "takeaways": [
+   "Hash passwords",
+   "Authorise every request",
+   "Use parameterised queries"
+  ]
+ },
+ "netsec": {
+  "what": "Keeping data encrypted and networks small: TLS in transit, encryption at rest, private subnets and least privilege.",
+  "why": "It limits the damage of any single mistake.",
+  "use": [
+   "Cloud deployments",
+   "Anything holding sensitive data"
+  ],
+  "avoid": [
+   "Public databases",
+   "Wildcard permissions"
+  ],
+  "example": "Many real data leaks are simply a storage bucket left open to the internet.",
+  "takeaways": [
+   "Databases belong in private subnets",
+   "Give each service least privilege",
+   "Keep secrets in a secrets manager"
+  ]
+ },
+ "containers": {
+  "what": "Packaging an app with everything it needs (Docker), and letting Kubernetes run many copies and keep them healthy.",
+  "why": "The same package runs identically on a laptop and in production.",
+  "use": [
+   "Microservices",
+   "Frequent releases",
+   "Scaling up and down"
+  ],
+  "avoid": [
+   "A tiny app on one server",
+   "Without resource limits"
+  ],
+  "example": "A team runs 50 services as containers on Kubernetes.",
+  "takeaways": [
+   "Pin image versions, never use latest",
+   "Use readiness probes",
+   "Set resource limits"
+  ]
+ },
+ "iac": {
+  "what": "Describing servers and networks in files (Terraform) so changes can be reviewed and recreated.",
+  "why": "Clicking around a cloud console cannot be reviewed or repeated.",
+  "use": [
+   "Any cloud setup",
+   "Several environments such as staging and production"
+  ],
+  "avoid": [
+   "Applying without reading the plan",
+   "Making hand edits in the console"
+  ],
+  "example": "A team runs terraform plan in every pull request, so infrastructure changes get reviewed like code.",
+  "takeaways": [
+   "Plan first, then apply",
+   "Use remote state with locking",
+   "Watch for drift"
+  ]
+ },
+ "serverless": {
+  "what": "Running code without managing servers. You pay per call and the platform scales it for you.",
+  "why": "There are no servers to maintain and cost follows usage.",
+  "use": [
+   "Spiky or event-driven work",
+   "Small glue code between services"
+  ],
+  "avoid": [
+   "Long-running jobs",
+   "Latency-critical paths that cannot tolerate cold starts"
+  ],
+  "example": "Resizing a photo after upload with AWS Lambda.",
+  "takeaways": [
+   "Cold starts add delay",
+   "Many parallel functions can overwhelm a database",
+   "Watch the bill"
+  ]
+ },
+ "deploy": {
+  "what": "Shipping new versions safely: automated tests, staged releases, rollbacks and careful database changes.",
+  "why": "Most outages follow a change, so safe releases prevent most outages.",
+  "use": [
+   "Every team that ships software"
+  ],
+  "avoid": [
+   "Dropping a column in the same release that stops using it"
+  ],
+  "example": "A canary release sends a new version to 2% of users first.",
+  "takeaways": [
+   "Expand, then contract database changes",
+   "Always have a rollback",
+   "Watch the dashboards after a release"
+  ]
+ },
+ "scale": {
+  "what": "The order in which to add building blocks as real traffic grows.",
+  "why": "It stops you building too little, or far too much.",
+  "use": [
+   "Planning growth",
+   "Interviews"
+  ],
+  "avoid": [
+   "Sharding early"
+  ],
+  "example": "Many products serve millions of users with just a cache and a few read replicas.",
+  "takeaways": [
+   "Measure first",
+   "Cheap fixes first",
+   "Keep servers stateless from day one"
+  ]
+ },
+ "streaming": {
+  "what": "A replayable log of events (Kafka) that many programs read at their own pace.",
+  "why": "It powers real-time pipelines and keeps event history.",
+  "use": [
+   "Clickstreams",
+   "Event-driven systems"
+  ],
+  "avoid": [
+   "Small, simple task queues"
+  ],
+  "example": "LinkedIn created Kafka to move activity data between its systems.",
+  "takeaways": [
+   "Partitions give order and parallelism",
+   "Consumer groups scale reading",
+   "Watch consumer lag"
+  ]
+ },
+ "batch": {
+  "what": "Crunching huge datasets in bulk (MapReduce, Spark) and storing them in warehouses for analysis.",
+  "why": "Questions about the whole history of your data need a different kind of system from your live database.",
+  "use": [
+   "Daily reports",
+   "Machine learning data preparation"
+  ],
+  "avoid": [
+   "Running analytics on your live production database"
+  ],
+  "example": "A nightly job totals the day's revenue for every shop.",
+  "takeaways": [
+   "Map, shuffle, reduce",
+   "Warehouses store data by column",
+   "Beware data skew"
+  ]
+ },
+ "solid": {
+  "what": "Five habits for writing classes that stay easy to change.",
+  "why": "Code changes constantly, and these habits keep each change small and safe.",
+  "use": [
+   "Growing codebases",
+   "When one change keeps breaking unrelated things"
+  ],
+  "avoid": [
+   "Over-abstracting small scripts"
+  ],
+  "example": "Adding a new discount type by adding a class instead of editing a giant if/else.",
+  "takeaways": [
+   "Each class has one reason to change",
+   "Extend by adding code, not editing",
+   "Depend on abstractions"
+  ]
+ },
+ "oop": {
+  "what": "Turning requirements into classes, methods and relationships.",
+  "why": "A clear model is easy to explain, test and extend.",
+  "use": [
+   "Machine-coding interviews",
+   "Designing a new feature"
+  ],
+  "avoid": [
+   "Deep inheritance trees"
+  ],
+  "example": "A parking lot has Vehicle, Spot and Ticket classes.",
+  "takeaways": [
+   "Nouns become classes, verbs become methods",
+   "Prefer composition over inheritance",
+   "Hide internals"
+  ]
+ },
+ "patterns": {
+  "what": "Named, proven solutions to common design problems.",
+  "why": "They give teams a shared vocabulary.",
+  "use": [
+   "Strategy to swap algorithms",
+   "Observer to notify listeners",
+   "State for behaviour that depends on state"
+  ],
+  "avoid": [
+   "Adding a pattern just to look clever"
+  ],
+  "example": "A vending machine uses the State pattern for idle, has-money and dispensing.",
+  "takeaways": [
+   "Start plain, add a pattern when change hurts",
+   "Strategy, Observer and State cover most cases",
+   "Name the pattern when you use it"
+  ]
+ },
+ "conc": {
+  "what": "Handling several things at once without corrupting shared data.",
+  "why": "Race conditions cause rare, hard-to-reproduce bugs.",
+  "use": [
+   "Servers handling many requests",
+   "Booking and payment systems"
+  ],
+  "avoid": [
+   "Holding a lock while waiting on the network"
+  ],
+  "example": "Two people try to book the last seat at the same moment.",
+  "takeaways": [
+   "Check-then-act is a race",
+   "Take locks in the same order to avoid deadlock",
+   "Across servers, use a database atomic update"
+  ]
+ },
+ "parking": {
+  "what": "A classic design exercise: park and release vehicles and charge fees.",
+  "why": "It practises modelling and concurrency in one small problem.",
+  "use": [
+   "Machine-coding interviews"
+  ],
+  "avoid": [
+   "Skipping the concurrent-allocation edge case"
+  ],
+  "example": "Two cars arriving at two gates must never get the same spot.",
+  "takeaways": [
+   "Model Vehicle, Spot and Ticket",
+   "Make allocation atomic",
+   "Handle lost tickets and a full lot"
+  ]
+ },
+ "lru": {
+  "what": "A cache that throws out the least recently used item first, built from a hash map and a linked list.",
+  "why": "Memory is limited, so something must be evicted.",
+  "use": [
+   "In-memory caches",
+   "Interview classics"
+  ],
+  "avoid": [
+   "A cache with no size limit"
+  ],
+  "example": "Your browser keeps recent pages and drops the oldest.",
+  "takeaways": [
+   "Hash map plus doubly linked list gives O(1)",
+   "Updating an existing key must not grow the cache",
+   "Add a lock for threads"
+  ]
+ },
+ "urlshort": {
+  "what": "A service that turns a long web address into a short one and redirects visitors.",
+  "why": "A great first full design: tiny writes, huge reads, and a few classic problems.",
+  "use": [
+   "Learning end-to-end design",
+   "Interviews"
+  ],
+  "avoid": [
+   "Sequential codes that let anyone guess other people's links",
+   "Accepting target URLs without any abuse or phishing checks"
+  ],
+  "example": "Bitly serves billions of redirects.",
+  "takeaways": [
+   "It is read-heavy, so cache",
+   "Generate unique short codes safely",
+   "302 redirects keep your analytics"
+  ]
+ },
+ "chat": {
+  "what": "A real-time messaging system with delivery states, groups and offline users.",
+  "why": "It shows how persistent connections, ordering and fan-out work.",
+  "use": [
+   "Learning real-time systems",
+   "Interviews"
+  ],
+  "avoid": [
+   "Assuming a message arrives once, with no IDs or acknowledgements",
+   "Pushing one message to every member of a huge group at once"
+  ],
+  "example": "WhatsApp keeps hundreds of millions of connections open.",
+  "takeaways": [
+   "Use WebSockets and a session router",
+   "Use client message IDs to dedupe",
+   "Fan out large groups through a queue"
+  ]
+ },
+ "feed": {
+  "what": "A personalised timeline of posts from people you follow.",
+  "why": "It teaches the trade-off between doing work when posting versus when reading.",
+  "use": [
+   "Social apps",
+   "Interviews"
+  ],
+  "avoid": [
+   "Pushing a celebrity's post into millions of feeds on write",
+   "Offset pagination on a feed that changes every second"
+  ],
+  "example": "Twitter pushes tweets to followers' timelines, except for huge accounts.",
+  "takeaways": [
+   "Push for normal accounts, pull for celebrities",
+   "Cache timelines",
+   "Use cursor pagination"
+  ]
+ },
+ "ecommerce": {
+  "what": "An online store: catalogue, cart, orders and payments.",
+  "why": "It combines reads, careful writes and external services in one design.",
+  "use": [
+   "Learning checkout flows",
+   "Interviews"
+  ],
+  "avoid": [
+   "Charging a card with no idempotency key on retries",
+   "Holding stock forever for abandoned carts"
+  ],
+  "example": "Amazon decouples order placement from payment processing with queues.",
+  "takeaways": [
+   "Return an order ID fast, process payment asynchronously",
+   "Reserve stock atomically",
+   "Use idempotency keys and a circuit breaker"
+  ]
+ },
+ "netflix": {
+  "what": "A video streaming service: upload, encode into many sizes, store and deliver from the edge.",
+  "why": "It shows why bandwidth, caches and CDNs dominate such a design.",
+  "use": [
+   "Learning media systems",
+   "Interviews"
+  ],
+  "avoid": [
+   "Serving popular titles straight from one origin",
+   "Encoding a single bitrate for every network"
+  ],
+  "example": "Netflix Open Connect boxes sit inside internet providers.",
+  "takeaways": [
+   "Encode many bitrates",
+   "Serve from CDN caches",
+   "Adaptive streaming adjusts to the viewer's network"
+  ]
+ },
+ "kvstore": {
+  "what": "A key-value database like Dynamo: partitioned, replicated and tolerant of failures.",
+  "why": "It shows how large databases are really built.",
+  "use": [
+   "Understanding distributed databases",
+   "Interviews"
+  ],
+  "avoid": [
+   "Workloads that need joins or multi-row transactions",
+   "Last-write-wins on clocks when losing a write matters"
+  ],
+  "example": "Amazon's Dynamo inspired Cassandra and DynamoDB.",
+  "takeaways": [
+   "Consistent hashing places keys",
+   "Quorums (R plus W greater than N) give fresh reads",
+   "Repair with hinted handoff and Merkle trees"
+  ]
+ },
+ "clickstream": {
+  "what": "A pipeline that collects millions of click events and turns them into live and historical numbers.",
+  "why": "It combines streaming, batch and storage ideas.",
+  "use": [
+   "Analytics products",
+   "Interviews"
+  ],
+  "avoid": [
+   "Running heavy analytics on the production database",
+   "Counting events without handling late or duplicate ones"
+  ],
+  "example": "A website counts page views per minute while keeping raw events for later.",
+  "takeaways": [
+   "Kafka buffers the firehose",
+   "Use event time and watermarks for late events",
+   "Give each event a unique ID to dedupe"
+  ]
+ },
+ "interview": {
+  "what": "A reusable routine for design interviews, plus the problems mapped to the lessons that teach them.",
+  "why": "A calm structure stops you jumping to boxes before you understand the problem.",
+  "use": [
+   "Any design interview",
+   "Starting any real design discussion"
+  ],
+  "avoid": [
+   "Listing technologies without reasons"
+  ],
+  "example": "Start with questions about users and scale, then estimate, then draw.",
+  "takeaways": [
+   "Clarify first",
+   "Estimate, then design",
+   "Discuss failures and trade-offs"
+  ]
+ },
+ "mvp": {
+  "what": "The smallest version of a product that proves the idea.",
+  "why": "It gets real feedback early and avoids building things nobody wants.",
+  "use": [
+   "Any new product",
+   "When time and people are limited"
+  ],
+  "avoid": [
+   "Building infrastructure before you have users"
+  ],
+  "example": "Dropbox started as a simple demo video before the full product.",
+  "takeaways": [
+   "Build one thin end-to-end slice",
+   "Use a boring stack",
+   "Talk to real users early"
+  ]
+ },
+ "backend": {
+  "what": "How to organise server code: routes, services and repositories, with validation, configuration and migrations.",
+  "why": "Clean layers make code easy to test and change.",
+  "use": [
+   "Any API you build"
+  ],
+  "avoid": [
+   "Putting business logic inside route handlers"
+  ],
+  "example": "A FastAPI app with routers, services and a database layer.",
+  "takeaways": [
+   "Validate input at the edge",
+   "Keep secrets out of git",
+   "Paginate lists and avoid N+1 queries"
+  ]
+ },
+ "projects": {
+  "what": "Hands-on projects that turn reading into skill.",
+  "why": "Running a system teaches things reading cannot.",
+  "use": [
+   "After each topic, whenever you are ready"
+  ],
+  "avoid": [
+   "Trying to do everything at once"
+  ],
+  "example": "Build a small service, load test it, then break it on purpose.",
+  "takeaways": [
+   "Pick one project at a time",
+   "Measure before and after",
+   "You choose the pace"
+  ]
+ },
+ "search": {
+  "what": "A separate system that keeps a word-to-documents map, so it can find and rank matches in milliseconds.",
+  "why": "Scanning a database for words is slow and cannot rank results or forgive typos.",
+  "use": [
+   "Product, document or message search",
+   "Ranking by relevance, filters and facets",
+   "Suggestions while the user types"
+  ],
+  "avoid": [
+   "As your only source of truth",
+   "Lookups by id that a normal database answers better"
+  ],
+  "example": "A shop's search box uses Elasticsearch to find products by their words, and a trie of popular queries for the suggestion drop-down.",
+  "takeaways": [
+   "The index is a copy that lags the database",
+   "Index and query must use the same analyzer",
+   "Autocomplete is its own faster structure"
+  ]
+ },
+ "geo": {
+  "what": "A way to find the closest places or people by cutting the map into cells and only looking in the right few.",
+  "why": "Comparing your position with millions of points is far too slow.",
+  "use": [
+   "Nearby restaurants, shops and friends",
+   "Matching riders with drivers",
+   "Tracking vehicles on a map"
+  ],
+  "avoid": [
+   "A handful of places you can scan directly",
+   "Ranking by distance alone when roads matter"
+  ],
+  "example": "A ride app keeps each driver's position in memory under a map cell, so finding the nearest ones means reading a handful of cells.",
+  "takeaways": [
+   "Turn 2D space into cell ids an index can use",
+   "Search the neighbouring cells too",
+   "Live positions belong in memory, not on disk"
+  ]
+ },
+ "notify": {
+  "what": "A service that decides who should be told what, then sends push, SMS or email through outside providers.",
+  "why": "Sending directly from your app is slow, unreliable and easy to overdo.",
+  "use": [
+   "Order updates and receipts",
+   "One-time codes and security alerts",
+   "Campaigns sent to millions of users"
+  ],
+  "avoid": [
+   "Urgent codes in the same queue as campaigns",
+   "Sending without checking preferences"
+  ],
+  "example": "A shop publishes an 'order shipped' event, and the notification service sends a push, with email as a fallback.",
+  "takeaways": [
+   "One queue and worker per channel",
+   "Idempotency key plus retries with backoff",
+   "Separate urgent from bulk traffic"
+  ]
+ },
+ "dr": {
+  "what": "A plan and a set of copies that let your system keep working, or come back quickly, after losing a whole data centre or region.",
+  "why": "Entire regions do fail, and without a plan you lose data and hours of revenue.",
+  "use": [
+   "Systems where downtime costs real money",
+   "Services with legal or contractual uptime promises",
+   "Data that cannot be recreated"
+  ],
+  "avoid": [
+   "Paying for active-active when a short outage is acceptable",
+   "Backups you have never tested"
+  ],
+  "example": "A bank replicates its database to a second region and rehearses a switch-over every quarter.",
+  "takeaways": [
+   "Agree RPO and RTO with the business first",
+   "Replication lag is your data loss",
+   "Test restores and failovers regularly"
+  ]
+ }
+}
