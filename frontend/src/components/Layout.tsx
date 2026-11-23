@@ -17,6 +17,14 @@ export function Layout() {
   const loc = useLocation();
   useEffect(() => { setOpen(false); window.scrollTo(0, 0); }, [loc.pathname]);
 
+  const PAGE_TITLES: Record<string, string> = {
+    "/": "Learn", "/start": "Start here", "/paths": "Paths", "/challenge": "Challenge", "/mastery": "Mastery",
+    "/glossary": "Glossary", "/planner": "Planner", "/handbook": "Edge cases", "/leaderboard": "Leaderboard", "/account": "Account",
+  };
+  const lessonTitle = catalog?.lessons.find(l => loc.pathname === "/lesson/" + l.id)?.title;
+  const pageTitle = lessonTitle ?? PAGE_TITLES[loc.pathname] ?? (loc.pathname.startsWith("/challenge/") ? "Challenge" : "");
+  useEffect(() => { document.title = pageTitle ? pageTitle + " | Blueprint School" : "Blueprint School"; }, [pageTitle]);
+
   const q = filter.trim().toLowerCase();
   const current = loc.pathname.startsWith("/lesson/") ? loc.pathname.split("/")[2] : "";
   const user = progress?.user;
