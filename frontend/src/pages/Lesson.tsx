@@ -56,6 +56,15 @@ export function Lesson() {
       <h1>{lesson.title}</h1>
       <p className="sub">{lesson.sum}</p>
       {effective === "read" && <Explain e={lesson.explain} />}
+      {lesson.outcomes && (
+        <details className="outcomes card">
+          <summary><b>What you will be able to do</b></summary>
+          <ul className="notes">{lesson.outcomes.outcomes.map((o, n) => <li key={n}>{o}</li>)}</ul>
+          <p className="muted" style={{ margin: "8px 0 4px" }}><b>To count as mastered, handle these variations too:</b></p>
+          <ul className="notes">{lesson.outcomes.variations.map((v, n) => <li key={n}>{v}</li>)}</ul>
+          {lesson.outcomes.prereqs.length > 0 && <p className="muted" style={{ margin: "8px 0 0" }}>Builds on: {lesson.outcomes.prereqs.map((p, n) => <span key={p.id}>{n ? ", " : ""}<Link to={`/lesson/${p.id}`}>{p.title}</Link></span>)}</p>}
+        </details>
+      )}
       <StudyTimer lessonId={lesson.id} />
       <div className="tabs" role="tablist" aria-label="How to learn this lesson">
         {lesson.game && <button role="tab" aria-selected={effective === "play"} onClick={() => choose("play")}>Play</button>}

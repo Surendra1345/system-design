@@ -12,7 +12,7 @@ from .. import content, rules
 from ..db import get_db
 from ..deps import ai_allowed, current_user, optional_user
 from ..models import ChallengeAttempt, LessonProgress, LevelProgress, User
-from ..services import ai, progress as svc
+from ..services import ai, mastery as mst, progress as svc
 from ..sim import challenge as ch, interview as iv_sim
 
 router = APIRouter(prefix="/api", tags=["challenges"])
@@ -112,6 +112,21 @@ def mastery(user: User = Depends(current_user), db: Session = Depends(get_db)):
         {"id": "design", "name": "Independent design", "pct": round(100 * design), "detail": "Builders, interviews and challenges", "hint": "Try a challenge without hints, then explain your choices."},
     ]
     weakest = min(dims, key=lambda d: d["pct"])
+    per_level: Dict[str, Dict[int, int]] = {}
+    for r in db.scalars(select(LevelProgress).where(LevelProgress.user_id == user.id)):
+        per_level.setdefault(r.lesson_id, {})[r.level] = r.stars
+    concepts, statuses, review = [], {}, []
+    for l in content.lessons_doc()["lessons"]:
+        lid = l["id"]
+        n = len(content.levels_of(lid))
+        lv = [per_level.get(lid, {}).get(i, 0) for i in range(n)]
+        st = mst.status(lid in read, lv)
+        statuses[lid] = st
+        concepts.append({"id": lid, "title": l["title"], "track": l["t"], "status": st})
+        if st == mst.SHAKY:
+            wl = mst.weakest_level(lv)
+            names = content.level_summaries(lid)
+            review.append({"id": lid, "title": l["title"], "why": "Strong on some levels but weak on %s. Practise that variation." % (names[wl]["name"] if wl is not None and wl < len(names) else "a harder level")})
     labs = [l for l in lessons if content.game_type(l) in ("lab", "incident") and stars.get(l, 0) == 0][:3]
-    return {"dimensions": dims, "weakest": weakest, "challenges": [{"id": t, "title": ch.TEMPLATES[t]["title"], "best": best.get(t, 0)} for t, _ in ORDER], "attempts": len(att),
+    return {"concepts": concepts, "concept_summary": mst.summary(statuses), "review": review[:5], "dimensions": dims, "weakest": weakest, "challenges": [{"id": t, "title": ch.TEMPLATES[t]["title"], "best": best.get(t, 0)} for t, _ in ORDER], "attempts": len(att),
             "next": [{"id": l, "title": content.lesson_index()[l]["title"]} for l in labs]}

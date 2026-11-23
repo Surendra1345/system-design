@@ -24,6 +24,12 @@ def lesson_index() -> Dict[str, Dict[str, Any]]:
 
 
 @lru_cache
+def outcomes() -> Dict[str, Dict[str, Any]]:
+    """Learning outcomes, the variations that prove mastery and the prerequisites, per lesson."""
+    return _load("outcomes.json")
+
+
+@lru_cache
 def project_ids() -> set:
     return {p["id"] for p in lessons_doc()["projects"]}
 
