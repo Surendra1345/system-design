@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "../auth";
+import { FeedbackWidget } from "./FeedbackWidget";
 
 export function Layout() {
   const { progress, catalog, isDone } = useAuth();
@@ -61,6 +62,7 @@ export function Layout() {
         {open && <div className="scrim" onClick={() => setOpen(false)} />}
         <main id="main" tabIndex={-1}><Outlet /></main>
       </div>
+      <FeedbackWidget />
     </>
   );
 }

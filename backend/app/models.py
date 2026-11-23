@@ -115,3 +115,17 @@ class ChallengeAttempt(Base):
     diag_total: Mapped[int] = mapped_column(Integer, default=0)
     defended: Mapped[bool] = mapped_column(Boolean, default=False)
     at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+class Feedback(Base):
+    """A note from a pilot tester: what was confusing, broken, great, or missing, and on which page."""
+
+    __tablename__ = "feedback"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
+    page: Mapped[str] = mapped_column(String(120), index=True)
+    kind: Mapped[str] = mapped_column(String(12), index=True)   # clear | unclear | confusing | bug | idea | liked
+    rating: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    message: Mapped[str] = mapped_column(String(1000), default="")
+    at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
