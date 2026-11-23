@@ -1,0 +1,943 @@
+{
+ "journey": {
+  "prereqs": [],
+  "outcomes": [
+   "Can trace one web request from the browser to the database and back, naming each step",
+   "Can say which step is slow from a timing breakdown (DNS, connect, first byte, download)",
+   "Can explain why removing a round trip speeds up every user"
+  ],
+  "variations": [
+   "Change the distance or the network: the same page on a slow phone",
+   "Change what is cached: DNS, connections or files",
+   "Change the protocol: TLS 1.2 against 1.3, HTTP/1.1 against HTTP/2"
+  ]
+ },
+ "net": {
+  "prereqs": [
+   "journey"
+  ],
+  "outcomes": [
+   "Can choose TCP or UDP for a use case and justify it",
+   "Can explain what a handshake and slow start cost on a new connection",
+   "Can explain head-of-line blocking and how HTTP/2 and HTTP/3 reduce it"
+  ],
+  "variations": [
+   "Change the workload: a live call against a file download",
+   "Change the connection: new against reused",
+   "Change the loss rate and say what happens to each protocol"
+  ]
+ },
+ "os": {
+  "prereqs": [
+   "journey"
+  ],
+  "outcomes": [
+   "Can explain processes, threads and an event loop and when each fits",
+   "Can explain why thread-per-request runs out under many slow clients",
+   "Can explain why a write is not safe until it is flushed to disk"
+  ],
+  "variations": [
+   "Change the number of waiting clients and size the threads needed",
+   "Change a blocking call to non-blocking and say what changes",
+   "Change the storage type (block, file, object) for a given need"
+  ]
+ },
+ "numbers": {
+  "prereqs": [
+   "journey"
+  ],
+  "outcomes": [
+   "Can convert availability targets into downtime and combine services in a chain",
+   "Can explain why p99 matters more than the average",
+   "Can use the latency ladder to decide whether a design is plausible"
+  ],
+  "variations": [
+   "Change the number of services in the chain",
+   "Change the percentile and the fan-out of a page",
+   "Change the target from 99.9% to 99.99% and say what it costs"
+  ]
+ },
+ "estimate": {
+  "prereqs": [
+   "numbers"
+  ],
+  "outcomes": [
+   "Can turn users and actions into requests per second, storage and bandwidth",
+   "Can state assumptions and the peak factor",
+   "Can use the result to pick between one machine and many"
+  ],
+  "variations": [
+   "Change the user count by 10x and say which decision flips",
+   "Change the read to write ratio",
+   "Change item size and retention"
+  ]
+ },
+ "req": {
+  "prereqs": [
+   "estimate"
+  ],
+  "outcomes": [
+   "Can turn a vague product idea into functional and non-functional requirements with numbers",
+   "Can decide where consistency matters and where it does not",
+   "Can state the trade-offs they accepted"
+  ],
+  "variations": [
+   "Change the product: a bank against a social feed",
+   "Change the scale and the latency target",
+   "Change which data must never be wrong"
+  ]
+ },
+ "lb": {
+  "prereqs": [
+   "net",
+   "estimate"
+  ],
+  "outcomes": [
+   "Can choose a balancing algorithm for given server sizes and request lengths",
+   "Can explain health checks, draining and why servers should be stateless",
+   "Can say what happens when a server fails or traffic spikes"
+  ],
+  "variations": [
+   "Change server sizes and request sizes",
+   "Change the failure: a crash against a slow server",
+   "Change sticky sessions against stateless servers"
+  ]
+ },
+ "cache": {
+  "prereqs": [
+   "estimate"
+  ],
+  "outcomes": [
+   "Can compute the effect of a hit ratio on latency and database load",
+   "Can choose an eviction policy, a time to live and an invalidation strategy",
+   "Can recognise stampedes, stale data and cold starts, and fix them"
+  ],
+  "variations": [
+   "Change the hit ratio and the traffic",
+   "Change the data: static, fast-changing, private or a bank balance",
+   "Change the failure: expiry wave, hot key or cache outage"
+  ]
+ },
+ "cdn": {
+  "prereqs": [
+   "net",
+   "cache"
+  ],
+  "outcomes": [
+   "Can explain how an edge, an origin and Cache-Control headers work together",
+   "Can choose what is safe to cache and how to update it",
+   "Can estimate the effect of a CDN on origin traffic and latency"
+  ],
+  "variations": [
+   "Change where the users are",
+   "Change the content: public, private or frequently updated",
+   "Change the budget and the hit ratio"
+  ]
+ },
+ "queue": {
+  "prereqs": [
+   "net"
+  ],
+  "outcomes": [
+   "Can explain at-least-once delivery, visibility timeouts and idempotent workers",
+   "Can size workers for a spike and a backlog",
+   "Can use dead-letter queues, backoff and ordering keys correctly"
+  ],
+  "variations": [
+   "Change the arrival rate and the worker count",
+   "Change the failure: poison message, crash or slow consumer",
+   "Change the guarantee: ordering needed or not"
+  ]
+ },
+ "db": {
+  "prereqs": [
+   "req"
+  ],
+  "outcomes": [
+   "Can choose a data store from access patterns, not fashion",
+   "Can explain ACID, indexes and when a relational database is enough",
+   "Can name the cost of each store type"
+  ],
+  "variations": [
+   "Change the access pattern: lookups, ranges, search, graph",
+   "Change the scale of reads and writes",
+   "Change the consistency need"
+  ]
+ },
+ "shard": {
+  "prereqs": [
+   "db"
+  ],
+  "outcomes": [
+   "Can choose a shard key and a strategy for given data and queries",
+   "Can explain what moves when a shard is added and why consistent hashing helps",
+   "Can spot hot keys and cross-shard problems"
+  ],
+  "variations": [
+   "Change the key distribution: uniform, recent-heavy or celebrity",
+   "Change the strategy: mod, range or ring",
+   "Change the growth: add a shard"
+  ]
+ },
+ "search": {
+  "prereqs": [
+   "db"
+  ],
+  "outcomes": [
+   "Can explain an inverted index, an analyzer and BM25 ranking",
+   "Can keep a search index in sync with the source of truth",
+   "Can design autocomplete with a trie or n-grams and caching"
+  ],
+  "variations": [
+   "Change the catalogue size and the query rate",
+   "Change the freshness need",
+   "Change the language or analyzer"
+  ]
+ },
+ "repl": {
+  "prereqs": [
+   "db"
+  ],
+  "outcomes": [
+   "Can explain leader, follower and quorum replication and their lag",
+   "Can route reads to avoid stale surprises such as lost own writes",
+   "Can reason about what a failover loses under async and sync replication"
+  ],
+  "variations": [
+   "Change the read load and the number of followers",
+   "Change async to semi-sync",
+   "Change the failure: primary crash or a slow follower"
+  ]
+ },
+ "engines": {
+  "prereqs": [
+   "db"
+  ],
+  "outcomes": [
+   "Can compare B-tree and LSM-tree on writes, reads and space",
+   "Can explain the WAL, memtables, compaction and Bloom filters",
+   "Can choose an engine for a workload"
+  ],
+  "variations": [
+   "Change the read to write mix",
+   "Change range scans against point reads",
+   "Change durability settings and say the risk"
+  ]
+ },
+ "tx": {
+  "prereqs": [
+   "db"
+  ],
+  "outcomes": [
+   "Can explain ACID and the anomalies each isolation level allows",
+   "Can prevent lost updates and deadlocks",
+   "Can recognise write skew and choose serializable or locks"
+  ],
+  "variations": [
+   "Change the isolation level",
+   "Change locking: none, row locks or ordered locks",
+   "Change the workload: increments, transfers or an auditor"
+  ]
+ },
+ "model": {
+  "prereqs": [
+   "db"
+  ],
+  "outcomes": [
+   "Can decide when to normalise and when to denormalise",
+   "Can choose embed or reference for one-to-many data",
+   "Can keep copies in sync or accept them as snapshots"
+  ],
+  "variations": [
+   "Change the read pattern",
+   "Change how often the data changes",
+   "Change the size of the child data"
+  ]
+ },
+ "serial": {
+  "prereqs": [
+   "net"
+  ],
+  "outcomes": [
+   "Can choose JSON, Protobuf or Avro for a need",
+   "Can evolve a schema without breaking old readers",
+   "Can explain field numbers, defaults and reserved fields"
+  ],
+  "variations": [
+   "Change the audience: public API or internal pipeline",
+   "Change the change: add, rename or remove a field",
+   "Change the rollout order of readers and writers"
+  ]
+ },
+ "datatypes": {
+  "prereqs": [
+   "db",
+   "search"
+  ],
+  "outcomes": [
+   "Can match time-series, wide-column, search, graph and vector stores to workloads",
+   "Can keep several stores in sync from one source of truth",
+   "Can explain approximate search and recall"
+  ],
+  "variations": [
+   "Change the workload shape",
+   "Change the freshness need",
+   "Change the scale"
+  ]
+ },
+ "cap": {
+  "prereqs": [
+   "repl"
+  ],
+  "outcomes": [
+   "Can explain what CAP and PACELC say and what they do not",
+   "Can choose consistency or availability per feature",
+   "Can read quorum settings as a consistency choice"
+  ],
+  "variations": [
+   "Change the product: cart, bank or likes",
+   "Change the quorum sizes",
+   "Change the failure: one replica cut off or a split"
+  ]
+ },
+ "consensus": {
+  "prereqs": [
+   "cap"
+  ],
+  "outcomes": [
+   "Can explain terms, elections, log replication and majority commit in Raft",
+   "Can size a cluster and say how many failures it tolerates",
+   "Can explain split brain and how a majority prevents it"
+  ],
+  "variations": [
+   "Change the failure: leader crash or a network split",
+   "Change the timeouts and heartbeats",
+   "Change the quorum size and say the risk"
+  ]
+ },
+ "clocks": {
+  "prereqs": [
+   "cap"
+  ],
+  "outcomes": [
+   "Can explain why wall clocks cannot order events across machines",
+   "Can choose Lamport, vector, hybrid or bounded-uncertainty clocks",
+   "Can recognise last-write-wins data loss"
+  ],
+  "variations": [
+   "Change the clock error",
+   "Change the ordering need: causal or real time",
+   "Change the cost the system can pay"
+  ]
+ },
+ "api": {
+  "prereqs": [
+   "net"
+  ],
+  "outcomes": [
+   "Can design a resource-oriented API with status codes and pagination",
+   "Can make retries safe with idempotency keys",
+   "Can choose and tune a rate-limit algorithm"
+  ],
+  "variations": [
+   "Change the operation: read, create or pay",
+   "Change the client: trusted or abusive",
+   "Change the failure: timeout and retry"
+  ]
+ },
+ "apistyles": {
+  "prereqs": [
+   "api"
+  ],
+  "outcomes": [
+   "Can choose REST, GraphQL or gRPC for a caller and a need",
+   "Can limit GraphQL cost and name the gRPC browser limit",
+   "Can version a contract compatibly"
+  ],
+  "variations": [
+   "Change the caller: public, mobile or internal",
+   "Change the data shape needed",
+   "Change the performance need"
+  ]
+ },
+ "gateway": {
+  "prereqs": [
+   "api",
+   "lb"
+  ],
+  "outcomes": [
+   "Can explain what a gateway does and what it should not do",
+   "Can explain service discovery",
+   "Can plan a strangler migration with a rollback path"
+  ],
+  "variations": [
+   "Change the number of services",
+   "Change the client type",
+   "Change the migration risk"
+  ]
+ },
+ "micro": {
+  "prereqs": [
+   "api",
+   "numbers"
+  ],
+  "outcomes": [
+   "Can explain when a monolith is the better choice",
+   "Can compute how a chain of services lowers availability",
+   "Can use sagas, fallbacks and events to limit the damage"
+  ],
+  "variations": [
+   "Change the number and quality of services",
+   "Change which services are essential",
+   "Change the team size"
+  ]
+ },
+ "eventdriven": {
+  "prereqs": [
+   "queue",
+   "micro"
+  ],
+  "outcomes": [
+   "Can explain events against calls, CQRS and event sourcing",
+   "Can use the outbox pattern and idempotent consumers",
+   "Can say what eventual consistency means for the user"
+  ],
+  "variations": [
+   "Change the failure: duplicate, lost or reordered event",
+   "Change the read model freshness",
+   "Change the audit need"
+  ]
+ },
+ "resil": {
+  "prereqs": [
+   "net",
+   "queue"
+  ],
+  "outcomes": [
+   "Can set timeouts, retries with backoff and jitter, and circuit breakers",
+   "Can avoid retry storms and cascading failure",
+   "Can design a graceful fallback"
+  ],
+  "variations": [
+   "Change the failure: slow or failing dependency",
+   "Change the retry budget",
+   "Change the layers that retry"
+  ]
+ },
+ "ratelimiter": {
+  "prereqs": [
+   "api"
+  ],
+  "outcomes": [
+   "Can implement a token bucket and explain its burst and rate",
+   "Can compare fixed window, sliding window and bucket",
+   "Can choose the key (IP or user) and fail open or closed"
+  ],
+  "variations": [
+   "Change the traffic: bot, burst or shared IP",
+   "Change the algorithm",
+   "Change the key"
+  ]
+ },
+ "observe": {
+  "prereqs": [
+   "resil"
+  ],
+  "outcomes": [
+   "Can use logs, metrics and traces together to find where time went",
+   "Can choose symptoms to alert on",
+   "Can plan tests from unit to load and failure"
+  ],
+  "variations": [
+   "Change the failure to diagnose",
+   "Change the number of services",
+   "Change the alert threshold"
+  ]
+ },
+ "slo": {
+  "prereqs": [
+   "observe",
+   "numbers"
+  ],
+  "outcomes": [
+   "Can define an SLI, an SLO and an SLA and an error budget",
+   "Can choose an alert rule from burn rate",
+   "Can explain what each extra nine costs"
+  ],
+  "variations": [
+   "Change the target",
+   "Change the incident pattern",
+   "Change the contract"
+  ]
+ },
+ "chaos": {
+  "prereqs": [
+   "slo"
+  ],
+  "outcomes": [
+   "Can design a chaos experiment with a steady state and a small blast radius",
+   "Can run an incident with roles and mitigate first",
+   "Can write a blameless postmortem with owned actions"
+  ],
+  "variations": [
+   "Change the failure injected",
+   "Change the blast radius",
+   "Change the team roles"
+  ]
+ },
+ "dr": {
+  "prereqs": [
+   "repl",
+   "slo"
+  ],
+  "outcomes": [
+   "Can set RPO and RTO from business cost",
+   "Can choose backup, pilot light, warm standby or active-active",
+   "Can explain failover and failback and how to test them"
+  ],
+  "variations": [
+   "Change the RPO and RTO",
+   "Change the budget",
+   "Change the data size and replication lag"
+  ]
+ },
+ "auth": {
+  "prereqs": [
+   "net",
+   "api"
+  ],
+  "outcomes": [
+   "Can explain sessions against tokens and safe password storage",
+   "Can tell authentication from authorization and prevent IDOR",
+   "Can name and block common attacks such as injection, XSS and CSRF"
+  ],
+  "variations": [
+   "Change the client: web, mobile or service",
+   "Change the attack",
+   "Change the revocation need"
+  ]
+ },
+ "netsec": {
+  "prereqs": [
+   "net",
+   "auth"
+  ],
+  "outcomes": [
+   "Can place systems in public and private subnets with minimal rules",
+   "Can explain TLS, mTLS and zero trust",
+   "Can manage secrets and least privilege"
+  ],
+  "variations": [
+   "Change the system: public, internal or database",
+   "Change the threat",
+   "Change the compliance need"
+  ]
+ },
+ "containers": {
+  "prereqs": [
+   "os"
+  ],
+  "outcomes": [
+   "Can explain containers against virtual machines and images and layers",
+   "Can configure probes, requests and limits",
+   "Can explain autoscaling by a metric"
+  ],
+  "variations": [
+   "Change the load",
+   "Change the probe",
+   "Change the resources"
+  ]
+ },
+ "iac": {
+  "prereqs": [
+   "containers"
+  ],
+  "outcomes": [
+   "Can explain declarative infrastructure, plan and apply",
+   "Can manage state safely in a team",
+   "Can spot drift and risky plans"
+  ],
+  "variations": [
+   "Change the change: add, rename or destroy",
+   "Change the team size",
+   "Change the environment"
+  ]
+ },
+ "serverless": {
+  "prereqs": [
+   "containers",
+   "estimate"
+  ],
+  "outcomes": [
+   "Can size concurrency from rate and duration",
+   "Can explain cold starts and limits",
+   "Can protect a database from many parallel functions"
+  ],
+  "variations": [
+   "Change the traffic shape",
+   "Change the duration",
+   "Change the limits and the cost"
+  ]
+ },
+ "deploy": {
+  "prereqs": [
+   "containers",
+   "slo"
+  ],
+  "outcomes": [
+   "Can compare rolling, blue-green and canary releases",
+   "Can plan a safe database change with expand and contract",
+   "Can decide when to roll back automatically"
+  ],
+  "variations": [
+   "Change the bug: obvious, subtle or load-dependent",
+   "Change the strategy",
+   "Change the traffic share"
+  ]
+ },
+ "scale": {
+  "prereqs": [
+   "lb",
+   "cache",
+   "db"
+  ],
+  "outcomes": [
+   "Can order the building blocks as load grows and justify each",
+   "Can find the real bottleneck before adding hardware",
+   "Can avoid sharding too early"
+  ],
+  "variations": [
+   "Change the user count",
+   "Change the read and write mix",
+   "Change the bottleneck"
+  ]
+ },
+ "streaming": {
+  "prereqs": [
+   "queue"
+  ],
+  "outcomes": [
+   "Can explain topics, partitions, offsets and consumer groups",
+   "Can choose a key for order and balance",
+   "Can handle lag, rebalances and replay"
+  ],
+  "variations": [
+   "Change the partition and consumer counts",
+   "Change the key skew",
+   "Change the failure: consumer crash"
+  ]
+ },
+ "batch": {
+  "prereqs": [
+   "db"
+  ],
+  "outcomes": [
+   "Can explain map, shuffle and reduce",
+   "Can explain why a warehouse stores columns",
+   "Can make jobs idempotent and handle skew"
+  ],
+  "variations": [
+   "Change the data size",
+   "Change the key skew",
+   "Change the re-run"
+  ]
+ },
+ "solid": {
+  "prereqs": [],
+  "outcomes": [
+   "Can explain the five SOLID principles with a smell each",
+   "Can refactor a conditional chain into extensible classes",
+   "Can say when not to apply a principle"
+  ],
+  "variations": [
+   "Change the requirement: a new variant",
+   "Change the dependency: swap a database",
+   "Change the size of the project"
+  ]
+ },
+ "oop": {
+  "prereqs": [
+   "solid"
+  ],
+  "outcomes": [
+   "Can turn requirements into classes, methods and relationships",
+   "Can choose composition over inheritance",
+   "Can model states and guard transitions"
+  ],
+  "variations": [
+   "Change the requirement",
+   "Change the relationship",
+   "Change the rules"
+  ]
+ },
+ "patterns": {
+  "prereqs": [
+   "oop"
+  ],
+  "outcomes": [
+   "Can apply Strategy, Observer, State, Factory and Decorator",
+   "Can tell Strategy from State",
+   "Can avoid patterns that add no value"
+  ],
+  "variations": [
+   "Change the variation point",
+   "Change the number of variants",
+   "Change the lifecycle"
+  ]
+ },
+ "conc": {
+  "prereqs": [
+   "os"
+  ],
+  "outcomes": [
+   "Can find a race and fix it with a lock or an atomic operation",
+   "Can avoid deadlock with lock ordering",
+   "Can choose a fix that works across servers"
+  ],
+  "variations": [
+   "Change the number of threads and servers",
+   "Change the lock order",
+   "Change the operation"
+  ]
+ },
+ "parking": {
+  "prereqs": [
+   "oop",
+   "conc"
+  ],
+  "outcomes": [
+   "Can design a parking lot with classes, a policy object and allocation",
+   "Can make allocation atomic",
+   "Can handle full lots, lost tickets and double release"
+  ],
+  "variations": [
+   "Change the vehicle types",
+   "Change the fee rule",
+   "Change the number of gates"
+  ]
+ },
+ "lru": {
+  "prereqs": [
+   "conc"
+  ],
+  "outcomes": [
+   "Can build an O(1) LRU cache with a map and a doubly linked list",
+   "Can handle update, capacity and eviction correctly",
+   "Can add locking and expiry"
+  ],
+  "variations": [
+   "Change the capacity",
+   "Change the access sequence",
+   "Change the concurrency"
+  ]
+ },
+ "urlshort": {
+  "prereqs": [
+   "estimate",
+   "cache",
+   "db"
+  ],
+  "outcomes": [
+   "Can size a URL shortener from requirements",
+   "Can choose a key scheme and a redirect code",
+   "Can handle collisions, abuse and hot links"
+  ],
+  "variations": [
+   "Change the scale",
+   "Change the analytics need",
+   "Change the key scheme"
+  ]
+ },
+ "chat": {
+  "prereqs": [
+   "queue",
+   "db"
+  ],
+  "outcomes": [
+   "Can design a chat service with persistent connections and gateways",
+   "Can order messages and deduplicate retries",
+   "Can serve offline users and large groups"
+  ],
+  "variations": [
+   "Change the user count",
+   "Change the group size",
+   "Change the delivery guarantee"
+  ]
+ },
+ "geo": {
+  "prereqs": [
+   "db",
+   "cache"
+  ],
+  "outcomes": [
+   "Can search nearby points with geohash, quadtree or H3 cells",
+   "Can keep live positions in memory",
+   "Can handle borders and hot cells"
+  ],
+  "variations": [
+   "Change the density",
+   "Change the update rate",
+   "Change the search radius"
+  ]
+ },
+ "feed": {
+  "prereqs": [
+   "cache",
+   "queue"
+  ],
+  "outcomes": [
+   "Can compare fan-out on write and on read",
+   "Can design the hybrid for celebrities",
+   "Can page a feed with cursors so new posts never cause duplicates"
+  ],
+  "variations": [
+   "Change the follower distribution",
+   "Change the freshness need",
+   "Change the number of users"
+  ]
+ },
+ "ecommerce": {
+  "prereqs": [
+   "tx",
+   "queue",
+   "api"
+  ],
+  "outcomes": [
+   "Can design checkout with atomic stock updates and idempotent payments",
+   "Can use sagas with compensation",
+   "Can separate browsing from checkout"
+  ],
+  "variations": [
+   "Change the sale traffic",
+   "Change the failure: payment or stock",
+   "Change the inventory model"
+  ]
+ },
+ "notify": {
+  "prereqs": [
+   "queue",
+   "api"
+  ],
+  "outcomes": [
+   "Can design a multi-channel notification pipeline",
+   "Can prevent duplicates and handle retries",
+   "Can separate urgent from bulk traffic"
+  ],
+  "variations": [
+   "Change the volume",
+   "Change the provider failure",
+   "Change the priority"
+  ]
+ },
+ "netflix": {
+  "prereqs": [
+   "cdn",
+   "estimate"
+  ],
+  "outcomes": [
+   "Can estimate egress and storage for streaming",
+   "Can explain transcoding and adaptive bitrate",
+   "Can explain edge delivery and origin shielding"
+  ],
+  "variations": [
+   "Change the audience size",
+   "Change the network quality",
+   "Change the catalogue"
+  ]
+ },
+ "kvstore": {
+  "prereqs": [
+   "shard",
+   "repl",
+   "clocks"
+  ],
+  "outcomes": [
+   "Can design a Dynamo-style store with a ring, quorums and hinted handoff",
+   "Can detect and merge conflicts",
+   "Can describe repair with read repair and Merkle trees"
+  ],
+  "variations": [
+   "Change N, R and W",
+   "Change the failure: node down",
+   "Change the conflict rule"
+  ]
+ },
+ "clickstream": {
+  "prereqs": [
+   "streaming",
+   "batch"
+  ],
+  "outcomes": [
+   "Can design a collector, a log and stream processing",
+   "Can handle late events with watermarks",
+   "Can keep raw data for reprocessing"
+  ],
+  "variations": [
+   "Change the event rate",
+   "Change the lateness",
+   "Change the duplicate rate"
+  ]
+ },
+ "interview": {
+  "prereqs": [
+   "req",
+   "estimate"
+  ],
+  "outcomes": [
+   "Can run a repeatable routine from clarifying to trade-offs",
+   "Can estimate and justify every box",
+   "Can discuss failures and what was given up"
+  ],
+  "variations": [
+   "Change the problem",
+   "Change the time",
+   "Change the scale"
+  ]
+ },
+ "mvp": {
+  "prereqs": [
+   "req"
+  ],
+  "outcomes": [
+   "Can scope an MVP to one core loop",
+   "Can model data before screens",
+   "Can choose boring tools and measure the core action"
+  ],
+  "variations": [
+   "Change the product",
+   "Change the team",
+   "Change the deadline"
+  ]
+ },
+ "backend": {
+  "prereqs": [
+   "api",
+   "db"
+  ],
+  "outcomes": [
+   "Can structure a backend in layers with validation",
+   "Can use environment configuration and migrations",
+   "Can return consistent errors and log request IDs"
+  ],
+  "variations": [
+   "Change the feature",
+   "Change the schema change",
+   "Change the environment"
+  ]
+ },
+ "projects": {
+  "prereqs": [
+   "backend"
+  ],
+  "outcomes": [
+   "Can run a measured experiment with a baseline",
+   "Can change one variable at a time",
+   "Can break a system on purpose safely and write down what they proved"
+  ],
+  "variations": [
+   "Change the project",
+   "Change the failure",
+   "Change the measure"
+  ]
+ }
+}

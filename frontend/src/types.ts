@@ -22,6 +22,7 @@ export interface LessonDetail {
   levels: LevelInfo[];
   id: string; t: string; title: string; sum: string; sec: Section[]; breaks: string[]; quiz: Quiz;
   projects: boolean; game: GameKind; project_list?: Project[];
+  outcomes?: { outcomes: string[]; variations: string[]; prereqs: { id: string; title: string }[] };
 }
 
 export interface UserView { username: string; xp: number; rank: string; level: number; streak: number }

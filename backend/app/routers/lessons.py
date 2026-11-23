@@ -31,6 +31,10 @@ def lesson(lesson_id: str):
     out["explain"] = content.explain().get(lesson_id)
     out["levels"] = content.level_summaries(lesson_id)
     out["deep"] = content.deep().get(lesson_id)
+    oc = content.outcomes().get(lesson_id)
+    if oc:
+        idx = content.lesson_index()
+        out["outcomes"] = {"outcomes": oc["outcomes"], "variations": oc["variations"], "prereqs": [{"id": p, "title": idx[p]["title"]} for p in oc["prereqs"]]}
     if l.get("projects"):
         out["project_list"] = content.lessons_doc()["projects"]
     return out
