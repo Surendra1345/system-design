@@ -1,14 +1,33 @@
+# Dependabot opens many pull requests. To keep them useful:
+#  - minor and patch updates are grouped into one pull request per area
+#  - major versions are ignored, because they usually need real migration work (for example React 18 to 19, or Python versions the
+#    tests have not been run on). Do those on purpose, on their own branch.
+#  - Python requirements use open ranges (>=), so version bumps would only raise a pointless floor. Security updates still arrive.
 version: 2
 updates:
-  - package-ecosystem: pip
-    directory: /backend
-    schedule: { interval: weekly }
   - package-ecosystem: npm
     directory: /frontend
     schedule: { interval: weekly }
+    open-pull-requests-limit: 5
+    groups:
+      frontend-minor-and-patch:
+        update-types: [minor, patch]
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+  - package-ecosystem: pip
+    directory: /backend
+    schedule: { interval: weekly }
+    open-pull-requests-limit: 0
   - package-ecosystem: github-actions
     directory: /
     schedule: { interval: weekly }
+    groups:
+      actions:
+        update-types: [minor, patch]
   - package-ecosystem: docker
     directory: /
     schedule: { interval: weekly }
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
