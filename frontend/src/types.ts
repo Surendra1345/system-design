@@ -15,6 +15,11 @@ export interface DeepDive {
   mistakes: string[];
   reading: { title: string; by: string; kind: string; url?: string }[];
 }
+export interface Stage {
+  id: string; title: string; body?: string; intro?: string; steps?: string[]; takeaway?: string;
+  items?: string[]; rows?: string[][]; prompt?: string; checks?: string[];
+  questions?: { q: string; options: string[]; answer: number; why: string }[];
+}
 export interface Explain { what: string; why: string; use: string[]; avoid: string[]; example: string; takeaways: string[] }
 export interface LessonDetail {
   explain?: Explain;
@@ -22,6 +27,7 @@ export interface LessonDetail {
   levels: LevelInfo[];
   id: string; t: string; title: string; sum: string; sec: Section[]; breaks: string[]; quiz: Quiz;
   projects: boolean; game: GameKind; project_list?: Project[];
+  stages?: Stage[]; tutor_prompts?: string[];
   outcomes?: { outcomes: string[]; variations: string[]; prereqs: { id: string; title: string }[] };
 }
 

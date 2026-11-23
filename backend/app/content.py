@@ -30,6 +30,12 @@ def outcomes() -> Dict[str, Dict[str, Any]]:
 
 
 @lru_cache
+def stages() -> Dict[str, Dict[str, Any]]:
+    """The 10-stage guided path, piloted on a few lessons. Lessons without one keep the standard layout."""
+    return _load("stages.json")
+
+
+@lru_cache
 def project_ids() -> set:
     return {p["id"] for p in lessons_doc()["projects"]}
 

@@ -32,6 +32,9 @@ The load balancer, queue, autoscaling, rate limiter, consensus, replication and 
 
 The **Start here** page explains what system design is with a food-business analogy, the building blocks in plain words and a seven-lesson starting path. The **Glossary** defines 83 terms in plain English, each linked to its lesson.
 
+## Guided path (10-stage pilot)
+Three lessons (load balancing, caching, queues) have a **Guided path** tab: analogy, why it exists, how it works, the lab, a worked numeric example, variations, failures, alternatives, a design task and proof questions. Content lives in `backend/tools/build_stages.py` (run `python -m tools.build_stages` to rebuild `stages.json`). Proof questions are practice only and award no XP. Use the pilot feedback to decide whether to convert more lessons.
+
 ## Concept labs
 
 Nineteen core concepts have their own hands-on simulation instead of the generic architecture builder: load balancing, caching, CDN, queues, sharding, rate limiting, resilience, autoscaling, replication, transactions, consensus, clocks, CAP, page-load timing, SLOs, deployments, streaming, storage engines and microservice chains. Each lab has 3 levels, its own settings and a picture that shows the process as it happens (requests travelling, queues filling, servers failing), not just a result chart. The server re-runs the player's settings, so stars cannot be faked. Engines are in `backend/app/sim/labs/`; star thresholds come from `python -m tools.calibrate_labs`. New lessons are added with `python -m tools.add_lessons`.

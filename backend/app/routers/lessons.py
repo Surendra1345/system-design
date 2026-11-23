@@ -35,6 +35,10 @@ def lesson(lesson_id: str):
     if oc:
         idx = content.lesson_index()
         out["outcomes"] = {"outcomes": oc["outcomes"], "variations": oc["variations"], "prereqs": [{"id": p, "title": idx[p]["title"]} for p in oc["prereqs"]]}
+    st = content.stages().get(lesson_id)
+    if st:
+        out["stages"] = st["stages"]
+        out["tutor_prompts"] = st["tutor"]
     if l.get("projects"):
         out["project_list"] = content.lessons_doc()["projects"]
     return out

@@ -483,3 +483,15 @@ textarea { width: 100%; min-height: 200px; font-family: var(--mono); font-size: 
 .fb-kinds, .fb-rate, .fb-actions { display: flex; flex-wrap: wrap; gap: 6px; }
 .fb-panel textarea { width: 100%; min-height: 70px; resize: vertical; font: inherit; padding: 8px; border: 1px solid var(--line); border-radius: 8px; background: transparent; color: inherit; box-sizing: border-box; }
 .fb-err { margin: 0; color: #b42318; }
+
+/* Guided 10-stage path */
+.guided { display: grid; gap: 12px; }
+.gsteps { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
+.gdot { width: 32px; height: 32px; border-radius: 50%; border: 1px solid var(--line); background: var(--surface); color: var(--text); cursor: pointer; font: inherit; }
+.gdot.on { background: var(--text); color: var(--surface); }
+.gdot.done { border-color: currentColor; opacity: .75; }
+.gtitle { margin: 0; }
+.gmath li { margin-bottom: 6px; }
+.gtake { margin: 0; padding: 10px 12px; border-left: 3px solid var(--line); background: var(--bg-soft); border-radius: 6px; }
+.gdraft { width: 100%; min-height: 110px; resize: vertical; font: inherit; padding: 8px; border: 1px solid var(--line); border-radius: 8px; background: transparent; color: var(--text); box-sizing: border-box; }
+.gnav { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
