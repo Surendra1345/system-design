@@ -4,6 +4,7 @@ import { api } from "../api";
 import { useAuth } from "../auth";
 import { DeepDive } from "../components/DeepDive";
 import { Explain } from "../components/Explain";
+import { GuidedPath } from "../components/GuidedPath";
 import { Html } from "../components/Html";
 import { StudyTimer } from "../components/StudyTimer";
 import { Tutor } from "../components/Tutor";
@@ -13,8 +14,8 @@ import { Incident } from "../games/Incident";
 import { Interview } from "../games/Interview";
 import type { LessonDetail } from "../types";
 
-type Mode = "play" | "read";
-const getMode = (): Mode | null => { try { const m = localStorage.getItem("bp-mode"); return m === "read" || m === "play" ? m : null; } catch { return null; } };
+type Mode = "play" | "read" | "guided";
+const getMode = (): Mode | null => { try { const m = localStorage.getItem("bp-mode"); return m === "read" || m === "play" || m === "guided" ? m : null; } catch { return null; } };
 const saveMode = (m: Mode) => { try { localStorage.setItem("bp-mode", m); } catch { /* ignore */ } };
 
 export function Lesson() {
@@ -33,7 +34,7 @@ export function Lesson() {
   const list = catalog?.lessons ?? [];
   const i = list.findIndex(l => l.id === lesson.id);
   const prev = list[i - 1], next = list[i + 1];
-  const effective: Mode = lesson.game ? mode : "read";
+  const effective: Mode = mode === "guided" && lesson.stages ? "guided" : mode === "guided" ? (lesson.game ? "play" : "read") : lesson.game ? mode : "read";
   const read = progress?.lessons[lesson.id]?.read ?? false;
 
   const choose = (m: Mode) => { setMode(m); saveMode(m); };
@@ -67,10 +68,12 @@ export function Lesson() {
       )}
       <StudyTimer lessonId={lesson.id} />
       <div className="tabs" role="tablist" aria-label="How to learn this lesson">
+        {lesson.stages && <button role="tab" aria-selected={effective === "guided"} onClick={() => choose("guided")}>Guided path</button>}
         {lesson.game && <button role="tab" aria-selected={effective === "play"} onClick={() => choose("play")}>Play</button>}
         <button role="tab" aria-selected={effective === "read"} onClick={() => choose("read")}>Read theory</button>
       </div>
 
+      {effective === "guided" && lesson.stages && <GuidedPath stages={lesson.stages} tutorPrompts={lesson.tutor_prompts ?? []} onOpenLab={() => choose("play")} />}
       {effective === "play" && lesson.levels.length > 1 && (
         <div className="levels" role="tablist" aria-label="Levels">
           {lesson.levels.map(l => {
