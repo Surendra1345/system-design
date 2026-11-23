@@ -1,5 +1,5 @@
 # Stage 1: build the React app
-FROM node:22-alpine AS web
+FROM node:26-alpine AS web
 WORKDIR /web
 COPY frontend/package.json frontend/package-lock.json* ./
 RUN npm install --no-audit --no-fund
