@@ -10,7 +10,7 @@ from fastapi.staticfiles import StaticFiles
 
 from .config import get_settings
 from .db import init_db
-from .routers import ai, auth, challenges, games, lessons, progress
+from .routers import ai, auth, challenges, games, lessons, pilot, progress
 
 FRONTEND_DIST = Path(__file__).resolve().parents[2] / "frontend" / "dist"
 
@@ -43,7 +43,7 @@ def create_app() -> FastAPI:
     def health():
         return {"ok": True}
 
-    for r in (auth.router, progress.router, lessons.router, games.router, ai.router, challenges.router):
+    for r in (auth.router, progress.router, lessons.router, games.router, ai.router, challenges.router, pilot.router):
         app.include_router(r)
 
     @app.exception_handler(404)

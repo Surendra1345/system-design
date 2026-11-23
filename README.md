@@ -36,6 +36,9 @@ The **Start here** page explains what system design is with a food-business anal
 
 Nineteen core concepts have their own hands-on simulation instead of the generic architecture builder: load balancing, caching, CDN, queues, sharding, rate limiting, resilience, autoscaling, replication, transactions, consensus, clocks, CAP, page-load timing, SLOs, deployments, streaming, storage engines and microservice chains. Each lab has 3 levels, its own settings and a picture that shows the process as it happens (requests travelling, queues filling, servers failing), not just a result chart. The server re-runs the player's settings, so stars cannot be faked. Engines are in `backend/app/sim/labs/`; star thresholds come from `python -m tools.calibrate_labs`. New lessons are added with `python -m tools.add_lessons`.
 
+## Testing with real learners
+The **Feedback** button on every page records what confused people and where. See [docs/PILOT.md](docs/PILOT.md) for the tester script, then run `cd backend && python -m tools.pilot_report` to see which pages to fix first.
+
 ## Run it
 
 You need Python 3.10+ and Node 20+.
